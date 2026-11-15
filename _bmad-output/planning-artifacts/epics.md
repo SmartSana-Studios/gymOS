@@ -1,8 +1,8 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
-status: in-progress  # V1.8 update in progress (step 1 done): V1.7 update complete (Epics 22-25, 37 stories); Epics 1-21 and 26 unchanged
+status: final  # V1.8 update complete: Epics 27-31 (21 stories); Could items FR-221/234/235 deferred: V1.7 update complete (Epics 22-25, 37 stories); Epics 1-21 and 26 unchanged
 v17UpdateStepsCompleted: [1, 2, 3, 4]
-v18UpdateStepsCompleted: [1]
+v18UpdateStepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/addendum.md
@@ -726,6 +726,39 @@ FR-215: Epic 26 - A member record carries an optional birth year, profession and
 FR-216: Epic 26 - The birth year is shown as an approximate age and never as an exact date of birth; the existing optional dob is unchanged
 FR-217: Epic 26 - A members-only CSV import (name, phone and the three profile fields, no plan) creates members awaiting the registration fee, so the Owner decides each person individually
 FR-218: Epic 26 - The existing plan import is unchanged, and a gym with a registration fee of 0 can still run the members-only import, with a warning
+FR-219: Epic 30 - Weekly goal and ring
+FR-220: Epic 30 - Weekly streak, settled on the server
+FR-221: Epic 31 - Daily streak for members on a run (Could; deferred, no V1.8 story)
+FR-222: Epic 31 - Streak Shields (Should)
+FR-223: Epic 31 - Comeback state (Should)
+FR-224: Epic 30 - Attendance calendar with the at-risk cell
+FR-225: Epic 30 - What counts as a visit day; existing history at release
+FR-226: Epic 30 - Monthly gym leaderboard
+FR-227: Epic 30 - Anonymous choice and first-open notice
+FR-228: Epic 30 - Anonymous enforced on the server; no prizes
+FR-229: Epic 30 - Milestone celebration at 7, 30, 100 visits
+FR-230: Epic 31 - Badge shelf (Should)
+FR-231: Epic 31 - Share image (Should)
+FR-232: Epic 30 - Wording as editable text, EN/FR
+FR-233: Epic 31 - Streak reminder N-08 (Should)
+FR-234: Epic 31 - Gym-wide monthly challenge (Could; deferred, no V1.8 story)
+FR-235: Epic 31 - "Your month" summary (Could; deferred, no V1.8 story)
+FR-236: Epic 28 - Session validity setting
+FR-237: Epic 28 - Single use: one session per visit
+FR-238: Epic 28 - Class attendance in a single-use gym
+FR-239: Epic 28 - Changing the setting; loyalty and reporting unchanged
+FR-240: Epic 27 - Annual plans paid once; plan card wording
+FR-241: Epic 27 - Correct plan action
+FR-242: Epic 27 - When a correction is allowed
+FR-243: Epic 27 - What a correction does
+FR-244: Epic 29 - Per-day class slots
+FR-245: Epic 29 - Migration and slot edits
+FR-246: Epic 29 - Coaches create their own classes
+FR-247: Epic 29 - Coach picker, body data excluded
+FR-248: Epic 27 - Staff check-in
+FR-249: Epic 27 - Same rules as a scan
+FR-250: Epic 27 - Audit, attribution and void
+FR-251: Epic 27 - GymOS support gets the V1.8 staff actions
 NFR-023: Epic 22 - Live authorization everywhere; generated claim-read inventory and CI check
 NFR-024: Epic 24 - Public site reads only the published projection
 NFR-025: Epic 24/25 - p75 LCP target
@@ -1673,6 +1706,52 @@ Published gyms appear in country and city listings with validating structured da
 **FRs covered:** FR-209, FR-210, FR-211, FR-212, FR-213, FR-214
 **NFRs honored:** NFR-024, NFR-025
 **Architecture:** AD-49–AD-52 (spine pass 2026-10-15). **Depends on:** Epic 24 gate passed (PRD §10.2); the `bmad-ux` pass for the directory ran 2026-11-12 (`DESIGN.md` "Public Directory", `EXPERIENCE.md` PS-04…PS-06).
+
+---
+
+## V1.8 — Member Engagement & First-Gym Feedback (2026-11-15 PRD v1.8)
+
+Epics 1–26 are shipped or in flight. This section comes from PRD v1.8 (`prd.md` §6.33–§6.40, FR-219–FR-251, NFR-027–NFR-029; FR-215–FR-218 stay with Epic 26) and the architecture spine AD-53–AD-61 (added 2026-11-15 after a three-reviewer gate). Delivery order is PRD §10.3 / §13: desk fixes first, then gym operations, then member engagement; each step has its own gate.
+
+**Decisions recorded 2026-11-15 (product owner):**
+1. **Five epics (27–31), not four.** Session validity (Epic 28) touches the money path (the session consume function) and classes (Epic 29) do not, so they are separate epics that can run in parallel.
+2. **Epic 27 lays the attendance foundation** (stored visit day, the protected counting view, one check-in insert path) inside the staff check-in story, because Epics 28, 30 and 31 read it. There is no separate technical epic.
+3. **Epic 31 is the cut line, and the cut is made.** Its Could items (daily streak FR-221, gym challenge FR-234, "Your month" FR-235) are deferred to a later release and have no stories in V1.8 (PRD §10.3 item 8 allows this). Their design is kept: UX screen MA-22 and the challenge settings, spine AD-61 `gym_challenges`, and the `day_shield` fact kind.
+4. **Screen-heavy stories carry a UX gate.** The V1.8 UX pass ran on 2026-11-15 and extended `ux-gym_os-2026-07-04` (MA-18–MA-23, UX AD-30–AD-32); the screen states and copy there are the acceptance baseline, and many carry `[ASSUMPTION]` / `[NOTE FOR UX]` tags to settle in the story.
+5. **Shorter plan: 21 stories, not 34.** Paired backend and screen stories were merged and small stories folded into neighbours (27: 4, 28: 3, 29: 4, 30: 7, 31: 3). Stories are in the section "V1.8 — Stories (Epics 27–31)" at the end of this document.
+
+### Epic 27: Desk Fixes — Check a Member In at the Entrance, Correct a Wrong Plan
+Staff check in a member who cannot use their phone, void a mistaken check-in the same day, and correct a plan assigned by mistake with a reason and an audit trail; annual plan cards say what the member pays.
+**FRs covered:** FR-240, FR-241, FR-242, FR-243, FR-248, FR-249, FR-250, FR-251
+**Amends:** FR-025 (clarified), FR-031, FR-044, FR-048, FR-080, FR-179
+**NFRs honored:** NFR-028 (visit-day storage), NFR-001, NFR-021
+**Architecture:** AD-56, AD-59, AD-53 (visit day only), AD-35, AD-39. **Depends on:** none. Lays the attendance foundation for Epics 28, 30, 31. UX gate: staff check-in and Correct plan screens.
+
+### Epic 28: Pay-per-Session Validity — Whole Day or Single Use
+A gym chooses whether a paid session covers the whole day or a single visit; a forgotten check-out never lets a member back in free, and existing gyms behave exactly as before.
+**FRs covered:** FR-236, FR-237, FR-238, FR-239
+**Amends:** FR-157, FR-159, FR-174
+**NFRs honored:** NFR-021, NFR-028
+**Architecture:** AD-55, AD-61 (setter), AD-29, AD-28. **Depends on:** Epic 27 (record_check_in, visit link).
+
+### Epic 29: Classes — A Different Time Each Day, and Coach Access
+A class runs at its own time on each day; coaches create their own classes; Owner, Supervisor and Manager see any coach's classes and members through a coach picker that never reaches body data.
+**FRs covered:** FR-244, FR-245, FR-246, FR-247
+**Amends:** FR-053, FR-104, FR-121, FR-122, FR-145
+**NFRs honored:** NFR-011, NFR-016, NFR-001
+**Architecture:** AD-57, AD-58, AD-34, AD-35. **Depends on:** none (independent of 27–28). UX gate: slot editor, coach-create flow, coach picker.
+
+### Epic 30: Member Engagement Core — Weekly Ring, Calendar, Leaderboard, Milestones
+A member sets a weekly goal and sees a ring and a weekly streak, a calendar of the days they came with today's "at risk" state, a monthly gym leaderboard where they can appear as "Anonymous", and a celebration at their 7th, 30th and 100th visit.
+**FRs covered:** FR-219, FR-220, FR-224, FR-225, FR-226, FR-227, FR-228, FR-229, FR-232
+**NFRs honored:** NFR-027, NFR-028, NFR-029, NFR-001
+**Architecture:** AD-53, AD-54, AD-56 (counting views), AD-61 (weekly goal). **Depends on:** Epic 27. UX gate: ring, calendar, leaderboard, celebration, notice.
+
+### Epic 31: Member Engagement Extras — Shields, Reminder, Badges, Sharing
+Members keep a streak through illness with Streak Shields and a comeback state, get one evening reminder when it matters, collect badges and share a milestone image. The daily streak, the gym-wide challenge and the monthly summary (all *Could*) are deferred to a later release and have no stories in V1.8.
+**FRs covered:** FR-222, FR-223, FR-230, FR-231, FR-233 (Should). **Deferred, no stories in V1.8:** FR-221, FR-234, FR-235 (Could)
+**NFRs honored:** NFR-028, NFR-029
+**Architecture:** AD-53 (Shield and comeback fold), AD-60, AD-25, AD-19. **Depends on:** Epic 30. UX gate: Shield chips and comeback card, reminder toggle, badge shelf, share image.
 
 ---
 
@@ -6377,3 +6456,1858 @@ So that every person is on file awaiting the registration fee and I decide each 
 **Given** the member-creation path
 **When** a test enumerates the callers of `provisionMemberRow`
 **Then** an unlisted caller fails the scan
+
+
+---
+
+## V1.8 — Stories (Epics 27–31)
+
+Stories for the V1.8 epics listed in the V1.8 section above. Written 2026-11-15 from PRD v1.8, spine AD-53–AD-61, the V1.8 UX contract additions (MA-18–MA-23, UX AD-30–AD-32) and the code facts in the architecture reviews. **UX screen ids** (e.g. "UX AD-30") are distinct from **spine decision ids** (e.g. "spine AD-30"). 21 stories; the Could items FR-221, FR-234 and FR-235 have no stories in this release (see Epic 31).
+
+
+---
+
+### Epic 27 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 27.1 | Protected Attendance Counting: Stored Visit Day, Counting Views, Reader Allowlist (no behaviour change) | next free at merge time | none |
+| 27.2 | One Check-In Insert Path: `private.record_check_in` (no behaviour change for a scan) | next free at merge time | 27.1 |
+| 27.3 | Staff Check-In and Void: Check In a Member at the Entrance, Undo a Mistake the Same Day | next free at merge time | 27.2 |
+| 27.4 | Correct Plan and Annual Plan Wording | next free at merge time | none |
+
+*Two independent chains: 27.1 → 27.2 → 27.3 (attendance) and 27.4 (plans). 27.4 touches no attendance object and can run in parallel with the whole attendance chain. The only shared files are `supabase/tests/support_capabilities.test.sql` (pinned totals and name arrays) and `apps/dashboard/app/(dashboard)/audit/auditLabels.ts`: 27.3 and 27.4 both edit them, so each story updates them by arithmetic on the file as it stands at merge time, never to a hard-coded total. Migration numbers are assigned at merge time (head was 0172 on 2026-11-15); earlier stories never renumber.*
+
+*Production is live with real gyms. 27.1 and 27.2 change what every check-in, occupancy count and attendance page reads and writes, with the stated promise that nothing a member or a desk sees changes (the one named exception is the "today" count in 27.1). 27.3 adds the first staff write into attendance. 27.4 rewrites a subscription's plan and expiry. Each ships behind the full `scripts/ci-local.sh` gate, each migration carries a `scripts/rollback-NNNN-*.sql`, and the existing pgTAP suite passes without fixture edits except the tests each story names.*
+
+*Epic 27 carries the whole of PRD §10.3 Step 1 (desk fixes). All eight FRs are Must for that gate; none carries a Should or Could tag. Epics 28, 30 and 31 read what 27.1 and 27.2 build (`visit_day`, `attendance_counted`, `member_visit_days`, `record_check_in`); they must reuse those objects and never redefine them. The engagement watermark (`dirty_from`) is deliberately absent from Epic 27: Epic 30 wires it into `record_check_in` and `void_staff_check_in`.*
+
+*Naming note: "UX AD-nn" always means a screen in `EXPERIENCE.md`; "spine AD-nn" means an architecture decision. The two share numbers 30 and 31.*
+
+---
+
+### Story 27.1: Protected Attendance Counting: Stored Visit Day, Counting Views, Reader Allowlist
+
+As a platform engineer,
+I want every attendance count to read one protected view over a stored gym-local visit day,
+So that a voided visit can never be counted by one query and not another, and a later timezone change can never move a past day.
+
+*Delivers the data side of FR-225 and NFR-028 (visit-day storage), NFR-001 (tenant isolation of the new views); amends FR-048 (the page's counts). Spine AD-56 (view, policies, reader inventory), AD-53 (`visit_day` and `member_visit_days` only), AD-1, AD-22. No behaviour change except one named correction: the Attendance page's "today" count stops using the UTC day. Nothing writes `voided_at` in this story; the void arrives in 27.3.*
+
+**Acceptance Criteria:**
+
+**Given** the `attendance_events` table (columns today: `id, gym_id, member_id, checked_in_at, checked_out_at, checkout_type, created_at, client_scan_id`)
+**When** the migration ships
+**Then** it adds `visit_day date` and `voided_at timestamptz` (nullable, no default), and `voided_at` is the **only** void column this story adds (`voided_by`, `void_reason`, `source`, `entered_by` are 27.2's), because the views and policies below need it and it is always null until 27.3
+
+**Given** every existing row
+**When** the migration backfills `visit_day`
+**Then** each row gets the gym-local calendar date of `checked_in_at` in **the gym's current `gyms.timezone`**, with the same fallback as `private.gym_today` (an empty or unresolvable zone means UTC); the backfill is one statement, the column is set `NOT NULL` afterwards, and a pgTAP fixture proves a 23:30 UTC check-in is the next local day for `Africa/Douala` (UTC+1) and the same day for `UTC`
+
+**Given** the backfill choice
+**When** the story closes
+**Then** `docs/decisions.md` has one dated entry (newest first) stating: the project keeps no history of timezone changes, so the current zone is the best available reading of every past row; the default zone `Africa/Douala` has no daylight saving, so for gyms that never changed zone (all of them at release) the result is exact; and NFR-028's "a later timezone change does not move past days" holds from this point on because `visit_day` is written once and never recomputed
+
+**Given** the helper that computes a gym-local date
+**When** it is created
+**Then** one function `private.gym_local_date(p_gym_id uuid, p_at timestamptz) returns date` (STABLE, `SECURITY DEFINER`, `search_path public`, EXECUTE revoked from `public` and `anon`, per the migration guardrails) is the single definition used by the backfill, the trigger below and, in 27.2, `private.record_check_in`; its fallback matches `private.gym_today` (0157) exactly and a pgTAP test pins both to the same answer for a null, empty, invalid and valid zone
+
+**Given** any insert into `attendance_events`, from any role or function
+**When** `visit_day` is not supplied
+**Then** a `BEFORE INSERT` trigger sets it from the row's own `checked_in_at` through `private.gym_local_date` (the recorded visit time, offline scans included, exactly as FR-061 and FR-159 already fix it; V1.8 adds no new time rule); a `BEFORE UPDATE` trigger raises if `visit_day` changes; and the existing pgTAP fixtures that insert attendance rows as `postgres` pass **without edits**
+
+**Given** the offline path (FR-061)
+**When** a scan stamped 23:50 local on Sunday syncs at 00:20 on Monday
+**Then** the stored `visit_day` is Sunday (the scan's recorded, clamped `checked_in_at`, not the receipt time) and a pgTAP test proves it
+
+**Given** the views
+**When** the migration ships
+**Then** `attendance_counted` is created `WITH (security_invoker = true)` over an **explicit column list** (`id, gym_id, member_id, checked_in_at, checked_out_at, checkout_type, visit_day, created_at, client_scan_id`, never `select *`, and never `entered_by` or any void column, so no later column silently leaks) with `where voided_at is null`; `member_visit_days(member_id, gym_id, visit_day)` is the distinct set of those columns read **from `attendance_counted`**; both grant SELECT to `authenticated` only (revoked from `anon` and `public`); class-only attendance writes no `attendance_events` row and is therefore not a visit day (spine AD-53, AD-21)
+
+**Given** a member of gym A, a Receptionist of gym A, an Owner of gym B, and a gym with status `suspended`
+**When** each selects from `attendance_counted` and `member_visit_days`
+**Then** the member sees only their own rows, the Receptionist sees every row of gym A and none of gym B, the Owner of B sees none of gym A, a suspended gym returns zero rows to its own members and staff (the RESTRICTIVE `tenant_active_gate` applies through `security_invoker`), and `anon` is refused (pgTAP; NFR-001)
+
+**Given** a row whose `voided_at` is set by a fixture (as `postgres`)
+**When** a staff member, the row's member, `attendance_counted` and `member_visit_days` read it
+**Then** the base-table SELECT policies for the ordinary roles (`gym_staff_read_own_attendance_events`, `member_read_own_attendance_events`, as last rewritten in 0124, keeping the `tenant_active_gate` and the live-role helpers) no longer return it, and neither view returns it; `service_role` is unchanged (it bypasses RLS) and the views still exclude the row for it
+
+**Given** the base-table readers of `attendance_events`
+**When** the story runs its grep over `supabase/migrations`, `supabase/functions`, `apps`, `packages` and `scripts` (the reality check lists, and the story re-derives rather than trusts, `member_occupancy_band()` from 0025, `private.gym_occupancy_band()` from 0056, `apps/dashboard/services/attendance.ts` lines 162, 238 and 301, the mobile `history/index.tsx:109` and `checkin.ts:53`)
+**Then** the story records the complete list in its Dev Notes, and the **live** bodies of both occupancy functions (the last migration that redefined each, found by grep over all migrations, not assumed) are re-created to count from `attendance_counted` with an unchanged signature, grants and result for every existing fixture
+
+**Given** the Attendance page
+**When** it loads
+**Then** "Currently Checked In" (line 162) and the Daily Log (line 301) read `attendance_counted`, and the "today" count (line 238, which builds its day with `todayUtcDate()`) counts rows of `attendance_counted` inside the gym-local day from the existing `gym_local_period_bounds()` wrapper (0097); this is the **one intended behaviour change**: for a Douala gym a check-in between 00:00 and 01:00 local used to count for yesterday and now counts for today, and a Vitest test with the clock at 23:30 UTC and zone `Africa/Douala` pins it
+
+**Given** the two member-app reads (`history/index.tsx`, `checkin.ts`)
+**When** the story decides whether to move them
+**Then** they stay on the base table and are listed in the allowlist with the reason "member policy hides voided rows (27.1); no mobile build is forced"; the member's own History, offline queue and check-in confirmation are unchanged and the mobile test suite passes with no edit
+
+**Given** the CI check of base-table readers
+**When** a PR adds a new reader of `attendance_events`
+**Then** two checks fail it: (a) a node script in the shape of `scripts/check-migration-guardrails.mjs` (plain Node, zero dependencies, committed baseline JSON in the shape of `scripts/claim-inventory.baseline.json`, each entry carrying a one-line reason) scans `apps`, `packages` and `supabase/functions` for `.from("attendance_events")` (and `from('attendance_events')`) outside the allowlist, and is wired into the `static` stage of `scripts/ci-local.sh` and mirrored in `.github/workflows/ci.yml`; (b) a pgTAP test enumerates `pg_proc` bodies and `pg_policies` expressions that mention `attendance_events` and compares them with a committed list (at this point: `check_in`, `check_out`, `check_out_member`, `run_check_in_auto_timeout_job`, the two view definitions, the two SELECT policies, the backfill is a migration and exempt); a test adds a fake offender in each place and sees both fail
+
+**Given** the one-open-check-in index `idx_attendance_events_one_open_per_member` and the grants revoked in 0111 (INSERT, UPDATE, DELETE from `authenticated` and `service_role`)
+**When** the migration ships
+**Then** both are untouched (the index swap is 27.2's), a pgTAP test re-asserts the revoked privileges, and the checks in `scripts/prod-apply.mjs` still pass against a migrated database
+
+**Given** performance (NFR-001 targets: page load under 2 s, scan to alert under 3 s)
+**When** the views are queried for the Attendance page and the occupancy function runs
+**Then** partial indexes `(gym_id, visit_day) where voided_at is null` and `(member_id, visit_day) where voided_at is null` exist, `EXPLAIN` on a 100,000-row fixture shows index use for the page's three reads, and the scan path (`check_in`) takes no measurable extra time (the trigger adds one lookup)
+
+**Given** the migration and `packages/types/src/database.ts`
+**When** the story closes
+**Then** the types are regenerated (the `attendance_events` row gains `visit_day` and `voided_at`, the two views appear), `scripts/rollback-NNNN-attendance-counting.sql` restores the policies and occupancy bodies of the previous heads and drops the views, triggers, helper and columns, and the existing pgTAP suite (including `occupancy_display_admin_attendance_page.test.sql`, `check_in_session_gate*.test.sql` and `suspension_rpc_coverage.test.sql`) passes unchanged
+
+---
+
+### Story 27.2: One Check-In Insert Path: `private.record_check_in`
+
+As a platform engineer,
+I want one function to be the only place that inserts an attendance row, with the member lock taken first every time,
+So that a staff check-in in 27.3 can follow exactly the rules of a scan, and nothing else can ever count a visit differently.
+
+*Delivers the path half of FR-249's "same rules as a scan" (the staff entry itself is 27.3), amends FR-044. Honors NFR-021 (session consumption atomic, one lock for every entry path), NFR-001. Spine AD-56, AD-22, AD-29, AD-31 (source column prepared, staff behaviour is 27.3), AD-35 (unchanged here). The existing scan behaves identically: this is proved, not asserted. The engagement watermark (`dirty_from`) is NOT part of this story (Epic 30 wires it).*
+
+**Acceptance Criteria:**
+
+**Given** the shipped `public.check_in(p_scanned_at timestamptz default null, p_client_scan_id uuid default null) returns attendance_events` (live body in 0124, session gate from 0111)
+**When** this story starts, **before any migration is written**
+**Then** a characterisation test `supabase/tests/check_in_record_path.test.sql` is committed first and passes against the unmodified `check_in()`; for each state of the matrix it records the return (null or a row), the exception text where one is raised, and the **side effects** (rows in `attendance_events`, `front_desk_alerts` with `kind`, `session_attempts`, `guest_sessions` consumed state, `loyalty_events`, `audit_log` action types); the matrix is: every FR-031 state (`active`, `expiring_soon`, `grace_period`, `expired`), a deactivated member, a member awaiting the registration fee, a member with no plan, a suspended gym (the raised gym-not-active exception, 0090), a Pay-per-session member at a charging gym with a covered session, a consumable paid session, a consumable free session, no session (denied), a 0 XAF plan (exempt), an open check-in (FR-044, the `already has an open check-in` exception text), a stale open check-in past `gyms.checkin_timeout_hours` (auto-closed with the audit row `attendance_stale_check_in_auto_closed`, then a new row), an offline replay with the same `client_scan_id` (returns the existing row, inserts nothing), an offline scan inside the auto-timeout window (scan time honoured), a future scan time (clamped to now), and an offline scan older than the window (inserted and closed at scan time plus the timeout, FR-061)
+
+**Given** the characterisation test and the migration
+**When** the migration replaces the body of `check_in()`
+**Then** the **same test file, unedited, passes**; together with `check_in_session_gate*.test.sql`, `check_in_one_open_session_enforcement.test.sql`, `check_out_manual_auto_timeout.test.sql`, `class_session_gate*.test.sql`, `loyalty_*` and `session_*` suites, none of which may be edited (this is the "scan outcomes are identical before and after" proof)
+
+**Given** `private.record_check_in(p_member_id uuid, p_gym_id uuid, p_source text, p_actor uuid, p_at timestamptz, p_client_scan_id uuid default null) returns` a result carrying the outcome (`checked_in`, `blocked_expired`, `blocked_session`, `already_open`, `replayed` and the member's status for the warning) and the inserted `attendance_events` row
+**When** it is created
+**Then** it is `SECURITY DEFINER`, `search_path public`, EXECUTE revoked from `public`, `anon` and `authenticated` (it is called only from definer functions, the shape of `private.consume_guest_session`), and it holds, in this order and nothing else before them: **(1) the member lock `SELECT … FROM members … FOR NO KEY UPDATE` always** (today the shipped body takes it only when charging is on), (2) the replay short-circuit, (3) the gym status check (the raised gym-not-active exception), deactivation and the FR-031 outcome, (4) AD-22 open-check-in handling including the FR-044 stale auto-close, (5) the AD-29 session gate through `private.consume_guest_session`, (6) time clamping, (7) the one `insert into attendance_events` setting `visit_day` explicitly through `private.gym_local_date` (the 27.1 trigger stays as a backstop and a pgTAP test asserts the two agree), then the existing loyalty stamp hook `private.on_session_consumed` exactly as today; the lock order of AD-29 (class_sessions, payment, member, attendance_events, subscriptions, guest_sessions, loyalty_progress) is kept
+
+**Given** `check_in()`
+**When** the migration ships
+**Then** it keeps its signature, `RETURNS attendance_events`, its role gate (`private.current_member_role()` = member, gym from `private.gym_id()`), its grants, and the contract that a refusal returns SQL `NULL` (so every older mobile build keeps mapping `null` to its `expired` outcome, spine AD-29), and its body becomes: gate, then `private.record_check_in(…, 'qr', auth.uid(), …)`, then map the outcome; `blocked_*` outcomes return `NULL` having committed the same alert and `session_attempts` rows as before
+
+**Given** the table `attendance_events`
+**When** the migration ships
+**Then** it adds `source text not null default 'qr' check (source in ('qr','staff'))`, `entered_by uuid null` (referencing the same table the other attribution columns, such as `payments.actor_id`, reference), `voided_by uuid null` (same reference), `void_reason text null`, with CHECKs that `entered_by` is not null if and only if `source = 'staff'`, that `voided_at`, `voided_by` and `void_reason` are all null or all set, and that a set `void_reason` is 5 to 300 characters after trimming; every existing row is `source = 'qr'` (all earlier check-ins were scans) and `entered_by` is null; `attendance_counted` is replaced (`CREATE OR REPLACE VIEW`, appending) to add `source` and never `entered_by`
+
+**Given** the one-open-check-in index
+**When** the migration swaps it
+**Then** `idx_attendance_events_one_open_per_member` is dropped and re-created **under the same name** (the mobile client matches that name in the 23505 error text, `checkin.ts:121`) as a partial unique index `where checked_out_at is null and voided_at is null`, in one transaction with no window where no index exists; the open-check-in lookups and the stale-close `FOR UPDATE` inside `record_check_in` read `voided_at is null`; and a pgTAP test shows a second open check-in is still refused with the same SQLSTATE and message, and that an open row with `voided_at` set (fixture) no longer blocks a new one
+
+**Given** the updaters of `attendance_events` (`check_out()`, `check_out_member(uuid)`, `run_check_in_auto_timeout_job()`, and the stale branch now inside `record_check_in`)
+**When** the migration ships
+**Then** they remain the only functions that set `checked_out_at`, their bodies are unchanged, and a pgTAP test enumerates `pg_proc` for `insert into … attendance_events` and finds **exactly one** function, `private.record_check_in`, and for `update … attendance_events` and finds exactly the listed updaters (the 27.1 reader allowlist is updated to match; 27.3 adds `void_staff_check_in`)
+
+**Given** `supabase/tests/suspension_rpc_coverage.test.sql` (which pins, around lines 322 to 350, that `current_gym_status` appears before the first `insert into` or `update attendance_events` in every public `SECURITY DEFINER` body) and the verification block of the 0111 migration (which checks that `check_in()`'s source contains `consume_guest_session`)
+**When** the body moves
+**Then** the coverage test is the **one named existing test that is edited**: it now requires the status check before the first insert inside `private.record_check_in`, requires that every public function touching `attendance_events` either does so itself with the check first or calls `private.record_check_in`, and still fails on a seeded offender; the new migration's own verification block asserts `record_check_in`'s source contains `consume_guest_session` and `current_gym_status`, and `check_in()`'s contains `record_check_in`
+
+**Given** two sessions scanning for the same member at the same time (NFR-021)
+**When** the race script `scripts/check-in-member-lock-race.sh` (the shape of `scripts/session-refund-race.sh`) holds the member lock in one `psql` session and calls `check_in()` in a second
+**Then** the second blocks until the first commits, for a **non-charging** gym as well as a charging one, a pgTAP assertion shows the lock statement is the first statement of `record_check_in`, and two simultaneous scans produce exactly one open row and one consumed session
+
+**Given** the direct-write revokes from 0111
+**When** the migration ships
+**Then** they are unchanged and re-asserted (INSERT, UPDATE, DELETE not granted to `authenticated` or `service_role` on `attendance_events`); the mobile `check-in` tests (`checkin.test`), the dashboard attendance tests and the member History read pass with no edit; and the returned row carries the new columns without breaking an older client (it reads a non-null row as success and ignores unknown fields)
+
+**Given** the migration and types
+**When** the story closes
+**Then** `packages/types/src/database.ts` is regenerated, `scripts/rollback-NNNN-record-check-in.sql` restores the 0124 body of `check_in()` and the old index predicate (valid because no row can be `staff` or voided before 27.3), and `docs/decisions.md` records that `record_check_in` is the only inserter, naming the updater list
+
+---
+
+### Story 27.3: Staff Check-In and Void: Check In a Member at the Entrance, Undo a Mistake the Same Day
+
+As a Receptionist,
+I want to check in a member who cannot use their phone, and as a Manager to void a check-in entered on the wrong person the same day,
+So that the member gets in, the visit counts like any other, and a desk mistake does not cost the wrong member a session or a place in the streak.
+
+*Delivers FR-248, FR-249, FR-250, FR-251 (check-in and void), FR-025 untouched; amends FR-031, FR-044, FR-048, FR-080, FR-179. Honors NFR-021 (a staff entry consumes a session through the one function under the one lock), NFR-001, NFR-028 (void leaves counts consistent). Spine AD-56, AD-29, AD-30 (stamp reversal), AD-31 (staff attempts are evidence, no alert), AD-35 (registry), AD-39 (per-gym proxy actor), AD-22. `[ASSUMPTION]` from the PRD carried here: the entry time is the time of entry and cannot be dated to the past or future (FR-248); no separate real-time alert for the staff member's own entry (FR-249); a staff entry can be voided the same gym-local day by Manager or above with a mandatory reason (FR-250); remote support check-in counts like any visit (the cost, a possible `counted_for_engagement` flag, is raised in the summary, not built).*
+
+*UX gate: UX AD-11 "V1.8: Check in a member, entry marker, void", UX AD-30 Check in a member (modal, result states R1 to R12), the Void modal and its refusal table, the Entry column, UX AD-12 "V1.8: New action labels", and the AD-22 "Blocked attempts → Source: Desk check-in" line in `EXPERIENCE.md`; the screen states and copy there are the acceptance baseline. This is the largest story of the epic: build the database half and its pgTAP first, then the dashboard.*
+
+**Acceptance Criteria:**
+
+**Given** the staff check-in function
+**When** the migration ships
+**Then** `public.staff_check_in(p_member_id uuid)` exists with **no time parameter and no scan-id parameter** (so entry cannot be dated to the past or future), `SECURITY DEFINER`, EXECUTE revoked from `public` and `anon`, callable by a live Receptionist, Manager, Supervisor or Owner of the member's gym (role and gym resolved live through `private.current_member_role()` and `private.gym_id()`, so a deactivated or role-changed staff member is refused on the next request, NFR-023), and by a live GymOS Support caller through `private.support_rpc_gym_id('staff_check_in')` and `private.support_rpc_role('staff_check_in')` (AD-35); a Coach, a member, `anon` and a staff member of another gym are refused; a member id of another gym returns the same coded `member_not_found` as a missing id (no existence oracle)
+
+**Given** the call
+**When** it runs
+**Then** it calls `private.record_check_in(member_id, gym_id, 'staff', private.actor_id(), now())` (so `entered_by` is the staff member, or the per-gym proxy id for support, never a platform user id, AD-39), inherits the member lock, AD-22, the FR-031 outcomes, the FR-159 session gate and the stale-open handling of FR-044 from 27.2 unchanged, and **returns a coded result** (a staff caller has no old builds, so the null contract of a scan does not apply): `outcome`, `attendance_id`, `checked_in_at`, `member_status`, `expiry_date`, `days_since_expiry`, `grace_ends_on`, `since` (for `already_checked_in`), `session_amount` (for `session_required`)
+
+**Given** the outcome codes
+**When** a pgTAP test drives each state
+**Then** they map one-to-one onto the UX AD-30 result states: R1 `checked_in` (status Active); R2 `checked_in_expiring_soon`; R3 `checked_in_grace_period`; R4 `rejected_expired` (also the "today" variant); R5 `session_required` (Pay-per-session at a charging gym with no usable session under FR-159, amount from the plan); R7 `already_checked_in`; R8 `refused_deactivated`, `refused_registration_fee_due`, `refused_no_plan` (each mirroring what a scan does today for that member, read from the body after 27.2, returned as a coded outcome and not raised); R9 the shipped gym-not-active exception, unchanged; R6, R10, R11 and R12 are client compositions (below) and have no outcome of their own; a Pay-per-session member at a gym with charging off, or on a 0 XAF plan, gets R1 with no session step (FR-156)
+
+**Given** a rejected staff attempt (R4, R5, R8)
+**When** the function returns
+**Then** **no `attendance_events` row exists**, the attempt is **committed** (the function returns normally; it never raises to report a refusal, or the audit row would roll back), one `audit_log` row `staff_check_in_rejected` holds actor, member, time, outcome and reason code, an R5 also writes a `session_attempts` row with `source = 'staff'`, and **no `front_desk_alerts` row of any `kind` is created** for any staff outcome, accepted or rejected (FR-249); an R7 writes nothing (a no-op is not audited); the scan path's alerts and `session_attempts` are unchanged (regression, `front_desk_alert_kind*.test.sql` and `session_alert_cooldown*.test.sql` pass unedited)
+
+**Given** `session_attempts`
+**When** the migration ships
+**Then** the `source` CHECK becomes `('check_in','class','staff')`; the Guest-sessions screen's Blocked attempts → Source shows **"Desk check-in" / « Arrivée à l'accueil »** for `staff`; the card's blocked counts include them (a refused desk attempt for a member with no session is evidence of an unpaid visit, AD-31) and a pgTAP test pins the count with one scan attempt and one staff attempt
+
+**Given** an accepted staff check-in
+**When** it commits
+**Then** one `audit_log` row `staff_check_in` carries time and outcome ("Checked in with a warning" for R2 and R3); the visit appears in the member's own History through the unchanged member policy (staff-entered rows read exactly like scans), counts in `attendance_counted`, `member_visit_days`, occupancy (`member_occupancy_band` rises by one), "Currently Checked In" and the Daily Log; a Pay-per-session entry consumes the covered session through `private.consume_guest_session` and awards the stamp through the AD-30 path exactly as a scan does; and check-out (`check_out_member`, auto-timeout) closes it unchanged
+
+**Given** a Receptionist at a gym with "Charge guests per session" on and a Pay-per-session member with no usable session
+**When** the dashboard shows R5 and the Receptionist taps [Record payment and check in]
+**Then** the existing **Record Session Payment Panel** (`record_session_payment`, 0108, same fixed amount, same refusals including "a mobile money payment … is already in progress") opens inline inside the modal at every width (no drawer), and on success the client calls `staff_check_in` again and shows R6 "Session recorded. [Name] is checked in at [time]." with no payment toast; if the second call fails or returns a non-success outcome the modal shows R10 with [Check in [Name]] retrying **only** the check-in (the payment stands, nothing is charged twice, a component test pins that the payment function is not called twice); bank transfer stays Manager and Owner only (FR-033, FR-158)
+
+**Given** an expired member (R4), or an expiring or grace member (R2, R3) where the staff member taps [Renew now]
+**When** the existing **Inline Renewal Panel** (`confirm_renewal`, FR-050) completes
+**Then** the check-in completes automatically with no further tap (owner decision 2026-11-15), the modal shows R6 "Membership renewed. [Name] is checked in at [time].", and the renewal itself raises no front-desk alert of its own (a rejected R4 earlier left none); a component test covers renew-then-complete and the failure variant R10
+
+**Given** the 12 result states of UX AD-30
+**When** component tests render each
+**Then** R1 to R12 each exist with the icon, label, `role` (`status` or `alert`), colour token (never colour alone), the EN and FR copy keys of `attendance.checkIn.*` and the actions listed in `EXPERIENCE.md`; R11 (network failure) keeps the modal on step 1 with [Check in [Name]] enabled and the "Not sure it went through? Search again" line, and the server's one-open-check-in rule makes the retry safe (a test double-submits and gets one row); R12 (offline) disables the confirm with the reason beside it
+
+**Given** the modal's step 1
+**When** the Receptionist types
+**Then** the search is auto-focused, debounced 300 ms, needs 2 letters or 3 digits, matches name (contains, accent-insensitive) and phone (digits, any country-code form) within this gym only, returns at most 8 rows with "Showing the first 8. Type more to narrow the list.", shows each row as a radio option with avatar, name, full phone, plan name and status badge, a muted "In the gym since [time]" tag for a member already inside (read from `attendance_counted`), a Pay-per-session row shows the plan name and never a session count, the line "Entry time: now ([time]). It can't be changed." has no time or date field, the confirm button is named "Check in [Name]" and disabled until a row is chosen, there is no second confirmation, and after R1 to R3, R6 or R7 [Check in another member] returns to step 1 with an empty search and focus in the field
+
+**Given** GymOS Support
+**When** a support person (assigned, switch on, session at AAL2, FR-189) calls `staff_check_in`
+**Then** the function is registered in `private.support_capabilities` (`capability`, `kind = 'rpc'`, `object_name = 'staff_check_in'`) in the same migration; it calls `private.support_stepup_require('support_staff_check_in', p_member_id::text)` first, so without a fresh step-up it raises the coded `step_up_required` and the dashboard raises the existing SA-21 prompt with the bound-action line "You're about to: Check in [Name]" and then retries; the entry, the audit row, the Entry cell and the void text all show **"GymOS Support"**, role "Support", never a name, initials or count; and a revoked, unassigned, AAL1 or switch-off support caller is refused (FR-192 next request)
+
+**Given** the support registry test
+**When** the migration ships
+**Then** `supabase/tests/support_capabilities.test.sql` is the named existing test that changes: its pinned totals and both sorted name arrays gain `staff_check_in`, `void_staff_check_in` and `list_attendance_log` (computed from the file at merge time; the reality check recorded 43 objects, 21 policies and 22 RPCs, and later epics may have moved that), the catalog test that classifies every function mentioning `'supervisor'` still passes, and the existing `gym_staff_read_own_attendance_events` policy keeps its registry row after its rewrite
+
+**Given** the void function
+**When** the migration ships
+**Then** `public.void_staff_check_in(p_attendance_id uuid, p_reason text)` exists, callable by a live Manager, Supervisor or Owner (Receptionist, Coach and member refused; support through the AD-35 registry with step-up, bound-action line "You're about to: Void the check-in of [Name]"), `SECURITY DEFINER`, EXECUTE revoked from `public` and `anon`; an attendance id of another gym is `attendance_not_found`; `p_reason` is trimmed and must be 5 to 300 characters; and it runs under the **member lock taken first** (member read from the attendance row, then the attendance row re-read `FOR UPDATE`)
+
+**Given** a staff entry on the current gym-local day
+**When** a Manager voids it
+**Then** in one transaction: it sets `voided_at = now()`, `voided_by = private.actor_id()` and `void_reason`; if the visit is open it also sets `checked_out_at = now()` and `checkout_type = 'void'` (the `checkout_type` CHECK gains `'void'`; this closes the visit and releases the one-open slot, so the same member's real scan is accepted immediately, pgTAP proves it); it appends one `audit_log` row `staff_check_in_voided` with the original entry time and reason; it never touches a milestone or badge (none exist yet) and **never sets `dirty_from`** (Epic 30 amends the function to do so); and occupancy, `attendance_counted` and `member_visit_days` drop the visit
+
+**Given** the session this visit consumed
+**When** the entry consumed a paid or free session
+**Then** `guest_sessions` gains a nullable `covered_attendance_id` (foreign key to `attendance_events`, unique where not null; the name matches spine AD-55, which Epic 28 reuses, never redefines), set by `private.record_check_in` in the same transaction when `consume_guest_session` returns *consumed*; the void clears `consumed_at` and `covered_day` and `covered_attendance_id` (the session returns to **Unused** with its original `usable_until`, no marker), appends `stamp_reversed` through `private.reverse_session_stamp()` (the counter floors at 0, a granted free session is never revoked, AD-30), and **does not reverse the desk payment** (the refund path of FR-040 owns it); the transition is named "unconsume" in code and comments, never "void" (spine AD-28 already uses void for `guest_sessions.voided_at`); a pgTAP test covers a paid session and a free session, and records the AD-30 key consequence in `docs/decisions.md`: because `stamp_earned` and `stamp_reversed` are unique on `(origin_id, event_type)`, a released session that is consumed again earns no second stamp
+
+**Given** a later same-day visit that relies on the voided entry's session (Whole day coverage)
+**When** the void is attempted
+**Then** it is refused with the coded `later_visit_relies` and the field `later_is_staff_entry`, nothing changes, and the modal shows the UX refusal ("Can't void this check-in: [Name]'s later visit today relies on the same paid session." plus "Void the later check-in first." only when the later visit was a staff entry); a void of an entry that did **not** consume a session (it was itself covered by an earlier visit, or charging is off) succeeds and releases nothing
+
+**Given** the other refusals
+**When** the void is attempted
+**Then** each is a coded refusal with the UX copy: a scan row (`source = 'qr'`) is `not_staff_entry` ("Only check-ins entered by staff can be voided."), a row from an earlier gym-local day (`visit_day` is not `private.gym_today(gym_id)`) is `not_same_day`, a row already voided is `already_voided` and the list refreshes, a reason shorter than 5 or longer than 300 characters is `invalid_reason`, and a network failure keeps [Void check-in] enabled; **a scan can never be voided** (FR-250: a correction of a staff mistake, not an anti-cheat measure)
+
+**Given** the Attendance page
+**When** it renders
+**Then** [Check in a member] is a primary action in the header for Receptionist and above and GymOS Support and absent from the DOM for Coach; both tables gain an **Entry** column (plain text, never colour-coded): "QR scan" / « Scan du QR » for a scan and every row from before V1.8, and the neutral "By staff" / « Par le personnel » pill followed by "· [Name]" for a staff entry (the name hidden under 1024 px, the pill always kept; "By staff · GymOS Support" for support; a name that fails to resolve shows "By staff" and never blocks the row); [Void] appears (Manager and above, support) only on a staff entry made on the current gym-local day and not already voided, next to [Check Out] in Currently Checked In and alone on a closed Daily Log row, with an accessible name including the member and time
+
+**Given** the base-table SELECT policies of 27.1 that hide voided rows from staff
+**When** the Daily Log needs to show voided rows (muted, with the "Voided" pill in the Check-out cell and the tooltip "Voided by [Name] on [date] at [time]. Reason: [reason]", shown by default with no toggle and never deletable)
+**Then** it reads one new `public.list_attendance_log(p_from timestamptz, p_to timestamptz, p_member_id uuid default null)` (`SECURITY DEFINER`, live role and gym, uniform empty result for others, registered for support) that returns voided rows too, plus for each row the resolved Entry label, the voided-by label, the reason and, for a same-day staff entry not yet voided, the two booleans the Void modal needs (`consumed_session`, `earned_stamp`); Currently Checked In and every count stay on `attendance_counted`; the base-table readers allowlist of 27.1 is updated in the same story
+
+**Given** the attribution surfaces (FR-186, one test each)
+**When** a support person checks a member in and then voids it
+**Then** the label "GymOS Support" and no real identity appears in: the Entry cell, the Daily Log row detail, the void dialog and toast text, the `audit_log` read (UX AD-12), the raw `attendance_events` row a staff client can select (`entered_by` and `voided_by` hold only the per-gym proxy id), `list_attendance_log`, and the Realtime payload of the table; and the AD-39 inventory lists the three new columns
+
+**Given** the Void modal (focus opens on [Keep check-in], Escape disabled)
+**When** it renders
+**Then** it shows the explanation, the reason field with a 0 / 300 counter, and the conditional lines only when they apply ("The paid session this check-in used is given back to [Name]." with "The payment stays on record. Refund it in Payments if you need to."; "The loyalty stamp it earned is removed."), a success closes it, mutes the row, removes it from Currently Checked In and shows the toast "Check-in voided. [Name] is no longer counted as in the gym."; the member is **not** notified; and a second desk sees the change through the existing realtime channel or, if Realtime does not deliver an update for a row the new policy hides, on its next refetch, and the story records which in its Dev Notes after testing it (never a stale open row that can be voided twice: a double void returns `already_voided`)
+
+**Given** UX AD-12
+**When** the audit page renders
+**Then** `auditLabels.ts` has the three labels in EN and FR ("Member checked in by staff" / « Arrivée d'un membre enregistrée par le personnel », "Staff check-in not accepted" / « Arrivée par le personnel refusée », "Staff check-in voided" / « Arrivée par le personnel annulée ») with the Details cells of the UX table (time and outcome, reason code in plain words, original entry time and reason), a new `auditLabels.epic27.test.ts` in the shape of `auditLabels.epic23.test.ts` pins them, Actor shows the staff member's name and role or "GymOS Support" with role "Support", and a rejected attempt by a Receptionist is visible to Manager and above through the page's existing access
+
+**Given** language parity
+**When** `scripts/check-i18n-key-parity.mjs` runs
+**Then** every new key (`attendance.checkIn.*`, the Entry column, the Void modal, the labels, the Desk check-in source) exists in EN and FR, with no missing keys
+
+**Given** the E2E baseline (NFR-015)
+**When** `scripts/ci-local.sh` runs the e2e stage
+**Then** a new spec `apps/dashboard/e2e/desk-fixes.spec.ts` (shared with 27.4) has a staff-check-in group: a Receptionist checks in an Active member (R1) and sees the Entry cell; an Expired member is refused (R4), renews in place and is checked in (R6); a Pay-per-session member at a charging gym with no session records the desk payment and is checked in (R5 then R6); a Receptionist sees no [Void], a Manager voids the entry, the row is muted and the member can scan in
+
+**Given** the migration and types
+**When** the story closes
+**Then** `packages/types/src/database.ts` is regenerated, `scripts/rollback-NNNN-staff-check-in.sql` is provided (valid only while no staff entry exists; once one does, rollback voids or deletes by hand under the owner's decision, and the rollback header says so), the existing mobile and dashboard check-in suites pass unedited, and `docs/decisions.md` records the Realtime finding and the stamp-key consequence
+
+---
+
+### Story 27.4: Correct Plan and Annual Plan Wording
+
+As an Owner, Supervisor or Manager,
+I want to correct a plan assigned by mistake, with a reason, before any payment stands, and to see plainly what an annual plan costs,
+So that a wrong plan never needs a developer or a database edit, and an annual plan is never mistaken for a monthly instalment.
+
+*Delivers FR-241, FR-242, FR-243, FR-240, FR-251 (Correct plan); amends FR-025 (clarified), FR-080, FR-179. Honors NFR-001, NFR-021 (one lock order). Spine AD-59, AD-35, AD-39, AD-29, AD-30 (no stamp, no ledger event), AD-31 not involved. `[ASSUMPTION]` from the PRD carried here: Pay-per-session correction refused while an unused paid session is held, and the registration fee unaffected (FR-242); a correction earns no stamp and sends no notification (FR-243); annual plan cards state price, duration and "paid once" (FR-240); no preview of the new expiry in V1.8 (owner decision 2026-11-15).*
+
+*UX gate: UX AD-31 Correct Plan (modal, form state, refusal states F1 to F12, success, audit line), UX AD-04 "V1.8: Correct plan, subscription start, Sessions wording" and UX AD-23 "V1.8: annual plan wording" in `EXPERIENCE.md`; the screen states and copy there are the acceptance baseline. The Sessions-section wording of UX AD-04 for Single use belongs to Epic 28 and is not built here.*
+
+**Acceptance Criteria:**
+
+**Given** the lifecycle thresholds of FR-027, today written inline in `run_subscription_lifecycle_job()` (live body in 0045; it compares the UTC `current_date`, only moves forward, and never sets a row back to `active`)
+**When** the migration ships
+**Then** `private.subscription_status_for(p_expiry_date date, p_grace_days integer, p_today date) returns subscription_status` exists as a pure function (IMMUTABLE, no table access): a NULL expiry returns `active` (Pay-per-session); `expiry + grace < today` returns `expired`; `expiry < today` returns `grace_period`; `expiry <= today + 7` returns `expiring_soon`; otherwise `active`; **the job is not modified** (no behaviour change to a production cron)
+
+**Given** the function and the job
+**When** a pgTAP test `subscription_status_equivalence.test.sql` runs
+**Then** for every expiry offset from -12 to +12 days around a fixed `today`, for grace values 0, 3 and 7, it inserts an `active` subscription, runs the real `run_subscription_lifecycle_job()` with the clock aligned to `today`, and asserts the status equals `subscription_status_for(...)`, so any future change to either side fails the test; it also pins the NULL case and the boundary days (`expiry = today`, `expiry = today + 7`, `expiry + grace = today`)
+
+**Given** a member with a current subscription
+**When** an Owner, Supervisor or Manager opens the member and the modal asks `public.correct_plan_eligibility(p_member_id uuid)` (read-only, `SECURITY DEFINER`, live role and gym, uniform empty result for anyone else)
+**Then** it returns the current subscription (id, plan, price, duration, `start_date`, `expiry_date`, status) and either no block or the **most recent standing payment** with its state (`verified`, `pending`, `in_flight`, `partly_refunded`), amount, method, date, refunded amount and the count of further standing payments, from **one SQL helper `private.subscription_standing_payments(subscription_id)`** that `correct_subscription_plan` also calls, so the UI and the database cannot split the rule
+
+**Given** the definition of "stands" (FR-242)
+**When** pgTAP drives each payment on the current subscription
+**Then** a payment stands unless it is voided (`payments.voided_at` set) or fully refunded (`refunds.amount = payments.amount`, one refund row per payment): `verified` stands (F1), `pending` awaiting verification stands (F2), `processing` (a Tara Money payment in flight) stands (F3), a partly refunded payment stands (F4), `flagged` stands and uses the F2 message `[ASSUMPTION — the PRD names no flagged state; it awaits a decision like a pending one]`, two standing payments name the most recent and add "+ [N] more payments on this plan are still recorded." (F5), a voided payment and a fully refunded payment do not block and are not mentioned, and a subscription with **no payment record** (an imported member, a payment-less renewal override from `renew_subscription`) is correctable with its recorded `start_date` as the base
+
+**Given** payments that are not subscription payments
+**When** the standing check runs
+**Then** the registration fee payment (FR-148) and session payments (`guest_sessions.payment_id`) never count as standing payments of the subscription and the fee is unaffected by a correction; and because some payment paths link `payments.subscription_id` late, the helper also counts a member's unlinked `pending` or `processing` renewal payment created since the current subscription row was created, found by grep over every payment-creating path (`confirm_renewal`, `renew_subscription`, `complete_verified_payment`, the verification queue of 0031, the Tara initiation path) and listed in the Dev Notes, failing closed
+
+**Given** the function
+**When** it ships
+**Then** `public.correct_subscription_plan(p_member_id uuid, p_new_plan_id uuid, p_reason text, p_subscription_id uuid default null)` is `SECURITY DEFINER`, EXECUTE revoked from `public` and `anon`, callable by a live Owner, Supervisor or Manager (Receptionist, Coach, member and a staff member of another gym refused; a deactivated member is correctable, as the UX states), and by GymOS Support as a Supervisor through `private.support_rpc_gym_id('correct_subscription_plan')`, `private.support_rpc_role(...)` and the registry; the optional `p_subscription_id` (the id the modal showed) is how the stale refusal F10 is detected `[ASSUMPTION — the signature of spine AD-59 gains one optional parameter; without it a renewal that lands while the modal is open cannot be told from the subscription the staff member saw]`; refusals raise `P0001` with the code as message and a JSON `detail`, in the existing `{ code, message }` error shape (AD-9)
+
+**Given** the call
+**When** it runs
+**Then** it **locks the member row first** (`FOR NO KEY UPDATE`), **then the current subscription row** (`FOR UPDATE`; "current" is the same row `subscriptions_current` and the member page show, since a renewal inserts a new row), in that order and no other (the AD-29 order), **re-checks the standing-payment rule under those locks**, and refuses in this order: no current subscription `no_current_subscription` (F8); `p_subscription_id` given and different `subscription_changed` (F10); gym not active (the shipped exception); new plan not in this gym or gone `plan_not_found` (F9); new plan equals current `same_plan` (F7); a standing payment `payment_stands` with the detail of F1 to F5; a move to or from a Pay-per-session plan while the member holds an **unused paid session** (`guest_sessions` with `payment_id` set, `consumed_at` null, `voided_at` null, `usable_until` in the future; free sessions do not block) `session_held` with the soonest lapse date (F6); a reason that is not 5 to 300 characters after trimming `invalid_reason`
+
+**Given** an allowed correction
+**When** it runs
+**Then** it sets, in one `UPDATE` (the 0018 trigger `enforce_subscription_expiry_matches_plan_type` requires plan and expiry to change together): `plan_id = new plan`; `expiry_date = current subscription's start_date + new plan's duration_days + loyalty days already granted on that row`, where loyalty days are the sum of `details->>'reward_days'` over `loyalty_events` rows `event_type = 'reward_granted'`, `counter = 'subscriber'` whose `details->>'subscription_id'` is this row's id (0119 writes them; the story verifies the keys against the live function), so a granted reward is never taken away; **a NULL expiry and status `active` for a Pay-per-session target**; `status = private.subscription_status_for(new_expiry, gyms.grace_period_days, private.gym_today(gym_id))`; **`start_date` never changes**; and a correction to the plan the member already had is refused, not recomputed
+
+**Given** the expiry arithmetic
+**When** pgTAP checks it
+**Then** a Monthly (30 days) to Annual (365 days) and back both land exactly on `start_date + duration` for a row with no reward; a row that earned a reward of R days lands on `start_date + duration + R`; a From-Pay-per-session to Monthly row uses the row's recorded `start_date`; a new expiry already in the past yields `expired` or `grace_period` by the function and the success response says so (UX `successExpired`); and the story's Dev Notes record that the formula follows the spine (the current row's `start_date`, as renewals insert a new row) and that **an early renewal carries remaining days into `expiry_date` (migration 0121) which the formula does not re-add**, reachable only when that renewal's payment has been voided or fully refunded, with the audit row's `basis_start_date` making the basis visible `[ASSUMPTION — flagged to the owner as an open question, not decided here]`
+
+**Given** what a correction must not do (FR-243)
+**When** pgTAP compares row counts and values before and after
+**Then** `payments`, `refunds`, `notifications`, `loyalty_events`, `loyalty_progress`, `guest_sessions`, `attendance_events`, `session_attempts` and `front_desk_alerts` are unchanged, no stamp is earned and no reward is granted or removed, the registration fee state is unchanged, and the next `run_subscription_lifecycle_job()` run changes nothing for that row and sends nothing; exactly **one** `audit_log` row `subscription_plan_corrected` exists with actor (the proxy actor for support, AD-39), member, subscription id, old and new plan id and name, old and new price, old and new expiry, old and new status, `basis_start_date`, `loyalty_days_added` and the reason
+
+**Given** a renewal or a payment arriving while a correction runs (NFR-021)
+**When** the race script `scripts/correct-plan-race.sh` (the shape of `scripts/session-refund-race.sh`) runs both orders against `complete_verified_payment`, `confirm_renewal` and a Tara initiation
+**Then** if the payment commits first the correction is refused (`payment_stands` or `subscription_changed`) and the payment's extension is never overwritten, and if the correction commits first the payment proceeds on the corrected subscription; the Dev Notes list which payment paths take the member lock and which are covered by the re-check under the subscription lock; and the lifecycle job's bulk UPDATE blocked on the row lock re-evaluates its predicate on the new values (a pgTAP or script case)
+
+**Given** GymOS Support
+**When** a support person corrects a plan
+**Then** the registry rows for `correct_subscription_plan` and `correct_plan_eligibility` are added in the same migration and `supabase/tests/support_capabilities.test.sql` (pinned totals and both sorted name arrays) is updated by arithmetic on the file at merge time; the function calls `private.support_stepup_require('support_correct_plan', p_member_id::text)` and the dashboard raises the SA-21 prompt with the bound-action line "You're about to: Correct plan for [Name]" and confirm label [Correct plan]; the audit row and the audit page show "GymOS Support"; and an unassigned, revoked, AAL1 or switch-off support caller is refused
+
+**Given** the member page (UX AD-04)
+**When** it renders for an Owner, Supervisor or Manager of a member with a current subscription
+**Then** a secondary [Correct plan] / [Corriger la formule] button sits in the header between [Edit] and [Deactivate] (absent from the DOM for Receptionist and Coach, and when there is no current subscription), the page gains a read-only **"Subscription started" / « Abonnement débuté le »** date beside Expiry Date (omitted for Pay-per-session; shown to every role that opens the page), and the Plan field uses the plan summary line; after a correction the page refreshes in place with the new plan, expiry and status badge and no "corrected" marker
+
+**Given** the modal (UX AD-31)
+**When** it opens
+**Then** it shows a skeleton and "Checking payments…" while `correct_plan_eligibility` runs; a block replaces the form immediately (neutral border, info icon, no red, `role="alert"`, only the named link [Open payments] filtered to the member and [Close]) so nobody types a reason for an action that cannot happen; with no block it shows the read-only current plan block (name, price, duration, "Paid once" on annual, start date, expiry), the select of this gym's plans **except the current one** each as the plan summary line (or "There is no other plan to choose. Add a plan in Plans first." with a link and no fields), the required reason (5 to 300, counter, blank blocks the button), the always-visible rule line "The new expiry is counted from the start date ([date]), not from today.", and the two notes ("[Name]'s app shows the new plan the next time it opens." and "The registration fee is not affected."); there is **no preview** of the new expiry; Escape closes it and the unsaved reason is lost; a load failure shows "Couldn't check this member's payments. Try again." with [Retry] and no form
+
+**Given** the refusal and result states of UX AD-31
+**When** component tests render each
+**Then** F1 to F12 exist with their EN and FR keys (`blocked.*`, `refused.sessionHeld`, F7 back to the form with the field marked, F9 back to the form with the select refreshed, F10 and F8 with [Close], F11 inline above the buttons with [Correct plan] enabled, F12 the global "You don't have permission to do that."), a server refusal received on submit but not shown at open (a payment that landed meanwhile) renders the matching F state, success closes the modal, refreshes the page and shows the toast with the new plan, expiry and status (`members.correctPlan.success`, the Pay-per-session variant, and `successExpired` with the past expiry), and focus returns to the [Correct plan] button
+
+**Given** the plan wording (FR-240, UX AD-23)
+**When** the Plans page, the PlanModal and every plan select render
+**Then** one reusable plan summary line, built once, produces "[price] XAF · [duration] days · Paid once" for an annual plan (EN) and « 250 000 XAF · 365 jours · Payé en une fois » (FR) and is used by the AD-23 list, the PlanModal helper, every plan select in the dashboard (AD-05 assign plan, the Inline Renewal Panel, the Correct plan select) and the plan name area of the member modal; the AD-23 list row for an annual plan reads "XAF 250,000 · 365 days · Paid once" in place of the shipped "/ monthly" suffix, with a muted second line "Includes 15% annual discount" / « Dont 15 % de remise annuelle » when `annual_discount_percent` is set; the monthly row stays "XAF 25,000 / monthly · 30 days" and the Pay-per-session row "XAF 2,000 / session"; the existing component tests that assert the old annual suffix are the tests that change, named in the PR
+
+**Given** the PlanModal with Billing Interval Annual
+**When** the staff member fills it
+**Then** under the field it shows "Members pay the full price once. The plan then runs for [D] days. Renewing is a new payment." with [D] from the Duration field (before it is filled, "…for the duration below."), then "To let members pay monthly, create a separate monthly plan. Paying an annual plan in instalments isn't available."; switching the interval never changes the Duration; Duration is not pre-filled with 365; the member app, the public gym page and the Plans data are unchanged (FR-240 says "on the dashboard")
+
+**Given** UX AD-12
+**When** the audit page renders a `subscription_plan_corrected` row
+**Then** `auditLabels.ts` shows "Plan corrected" / « Formule corrigée » with the Details cell "Annual → Monthly · 250,000 → 25,000 XAF · expires 02 Nov 2027 → 02 Dec 2026 · Reason: …" carrying both plans, both prices, both expiries and the reason in the one row, the label is added to `auditLabels.epic27.test.ts` (created in 27.3, or created here if 27.4 merges first), and `scripts/check-i18n-key-parity.mjs` passes with every new key in EN and FR
+
+**Given** the member's app
+**When** a correction commits
+**Then** the member's own existing reads (home, plan, subscription) return the new plan on their next load with no push, no notification row and no mobile code change, and an RLS test proves a member of another gym can read neither the old nor the new row
+
+**Given** the E2E baseline (NFR-015)
+**When** `scripts/ci-local.sh` runs the e2e stage
+**Then** `apps/dashboard/e2e/desk-fixes.spec.ts` gains a plan group: a Manager corrects an unpaid Annual to Monthly with a reason and sees the new expiry counted from the start date; the same action on a member with a verified payment shows F1 with [Open payments]; an annual plan card reads "Paid once" in EN and FR
+
+**Given** the migration and types
+**When** the story closes
+**Then** `packages/types/src/database.ts` is regenerated, `scripts/rollback-NNNN-correct-plan.sql` drops the three functions and registry rows (a corrected subscription is left as it is, the rollback header says so), the existing subscription, renewal, loyalty and support suites pass unedited except `support_capabilities.test.sql`, and `docs/decisions.md` records the early-renewal carry limitation and the extra `p_subscription_id` parameter
+
+
+---
+
+### Epic 28 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 28.1 | Session Validity Setting and Session Record Changes | next free at merge time | Epic 27 (`private.record_check_in`, `attendance_events` source and void columns, `attendance_counted`, `void_staff_check_in`) |
+| 28.2 | Single-Use Consumption at Check-In | next free at merge time | 28.1 |
+| 28.3 | Class Attendance in a Single-Use Gym and Setting-Change Parity | next free at merge time | 28.2 |
+
+*Strictly sequential: 28.1 lays the columns, the setting and its setter; 28.2 makes the consume function and the check-in path use them; 28.3 extends the same function to classes and proves the setting-change rules end to end. Migration numbers are "next free at merge time"; earlier stories never renumber.*
+
+*All three stories merge to `epic/28` and reach master together at the end of the epic (local CI gate per epic). The Settings section ships in 28.1, but no production gym can be switched to Single use before 28.3 is on master. Until then every gym is `whole_day` and behaves byte-for-byte as today.*
+
+*Production is live with real gyms and this epic edits the money path (`private.consume_guest_session`, `check_in()`/`private.record_check_in`, `mark_class_attendance`). Each story therefore ships behind the full `scripts/ci-local.sh` gate, the existing guest-session pgTAP suites run without fixture edits (the only tests that change are the ones a story names), and tenant isolation and session-correctness are pgTAP-tested, not just E2E-tested.*
+
+*Contradiction recorded, not silently resolved: NFR-021 says "a member never has more than one session consumed per gym-local day". FR-237 and PRD §10.3 step 2 item 2 ("a second visit on the same day consumes a second session") make that false in Single use. Stories 28.1 and 28.2 read NFR-021 as applying to Whole day rows (`validity_mode = 'whole_day'`), and the one-per-open-visit rule is the Single-use equivalent. The PRD sentence should be amended to say so; no story edits the PRD.*
+
+*Assumptions added by these stories (each is also tagged where it is used): (A1) the visit limit is evaluated at server receipt time, and a visit has ended when `checked_in_at + limit <= receipt time`; (A2) a visit's limit applies only to an open visit that a Single-use session was consumed for, so an open visit that began under Whole day or with charging off finishes under FR-044's timeout alone; (A3) in Single use a class during an open visit is covered only if that visit's own session exists (FR-238 stays `[ASSUMPTION]`); (A4) a Super Admin is not a setter of Session validity (AD-61 names Owner and Supervisor); (A5) the member app shows no new copy for a visit-covered state in this epic.*
+
+---
+
+### Story 28.1: Session Validity Setting and Session Record Changes
+
+As an Owner or Supervisor,
+I want to choose in Settings whether a paid session covers the whole day or one visit,
+So that my gym's rule is mine to set, and nothing about how guests are charged changes until I choose.
+
+*Delivers FR-236 (setting, setter, audit, Settings section), the schema half of FR-237 and FR-239 (the session record remembers the rule it was consumed under), NFR-021 (Whole day behaviour preserved). Amends FR-157, FR-159. Spine AD-55, AD-61 (setter), AD-32 (one setter, one pin trigger, excluded from the general save), AD-28, AD-29, AD-35 (support registry). UX gate: UX AD-13 "Session validity" section in EXPERIENCE.md; the screen states and copy there (Group D keys `settings.sessionValidity.*`, `settings.chargeGuests.helperSingleUse`, `settings.saveHint.v18`) are the acceptance baseline. No behaviour change for any existing gym: nothing in this story writes a Single-use row.*
+
+**Acceptance Criteria:**
+
+**Given** the `gyms` table
+**When** the migration ships
+**Then** `gyms.session_validity text not null default 'whole_day'` exists with CHECK `session_validity in ('whole_day','single_use')`, every existing and every new gym is `whole_day`, and no gym-creation path (Super Admin Create Gym, the self-signup path, seeds) needs a change to get that default
+
+**Given** `platform_session_config` (singleton, super-admin-only RLS, 0107)
+**When** the migration ships
+**Then** it gains `single_use_visit_limit_minutes integer not null default 180 check (single_use_visit_limit_minutes > 0 and single_use_visit_limit_minutes <= 1440)`, the existing singleton row reads 180, and the read idiom `select c.<col> from platform_session_config c limit 1` keeps working for the existing columns
+
+**Given** `private.audit_platform_session_config_update()` hard-codes the three old and new keys of its jsonb
+**When** the migration ships
+**Then** the function is replaced so the `old` and `new` objects also carry `single_use_visit_limit_minutes`, and a pgTAP case updates only that column as Super Admin and asserts one `platform_session_config_updated` audit row whose `old` is 180 and `new` is the new value (a change to only the new column must not be silently unaudited)
+
+**Given** AD-32's rule that each setting has exactly one write path
+**When** the setter is built
+**Then** `set_session_validity(p_gym_id uuid, p_validity text) returns void` is `SECURITY DEFINER`, has its own BEFORE UPDATE pin trigger function `private.pin_session_validity()` (a new function, not a branch of `protect_super_admin_only_gym_columns()` or of another setting's pin) and its own GUC `app.session_validity_update_bypass`, and follows the shape of `set_gym_category` (0123) with `private.current_member_role()` in place of any JWT read
+
+**Given** the setter
+**When** it is called
+**Then** the role gate is null-safe: Owner and Supervisor of `private.gym_id()` succeed; Manager, Receptionist, Coach, an ordinary Member, an anonymous caller and a caller with a null role each get `permission denied`; a Super Admin session also gets `permission denied` `[ASSUMPTION A4 — AD-61 names Owner and Supervisor; `category` admits Super Admin, this setting does not]`; a call naming another gym's id is refused; a suspended gym's staff are refused (FR-132); a value other than the two codes raises `invalid_session_validity`
+
+**Given** a successful change
+**When** the setter commits
+**Then** exactly one audit row `session_validity_changed` is written in the same transaction with metadata `{ old_validity, new_validity }`, gym-scoped, actor the caller (via `private.actor_id()` for support, AD-39); a call that sets the current value returns without writing or auditing; the audit page (`apps/dashboard/app/(dashboard)/audit/auditLabels.ts`) maps the action to `audit.actionTypes.sessionValidityChanged` and renders "Whole day → Single use" (EN) and the FR equivalent; the existing audit-label test enumerates the new action
+
+**Given** an Owner (or Manager, via the existing `owner_update_own_gym` paths, or `service_role`)
+**When** they run a direct `UPDATE gyms SET session_validity = ...` (including through the general Settings save)
+**Then** the pin trigger reverts the column with no error and no audit row, for every caller including Super Admin and `service_role`, and a pgTAP case proves it for each; a unit test of the Settings page's general save asserts its update payload never contains `session_validity`
+
+**Given** GymOS Support (AD-35)
+**When** the setter is registered
+**Then** `private.support_capabilities` gains `('session_validity', 'rpc', 'set_session_validity')`, the function resolves its gym and role through `private.support_rpc_gym_id('set_session_validity')` and `private.support_rpc_role`, a support member of an assigned gym at `aal2` succeeds and is shown to the gym as "GymOS Support" (FR-186); an unassigned gym, an opted-out gym (FR-183), a suspended assignment and an `aal1` session each get `permission denied`; `supabase/tests/support_capabilities.test.sql` is edited in the same story to the new exact totals and sorted name arrays (the counts are read from the file at merge time, not assumed here)
+
+**Given** the Settings page needs the visit limit to write "3 hours" and Owners cannot read `platform_session_config`
+**When** the section loads
+**Then** a read function `get_session_validity_settings()` (STABLE, SECURITY DEFINER, `search_path` pinned) returns `(session_validity, single_use_visit_limit_minutes)` for `private.gym_id()` only, for Owner and Supervisor (and support through the same registry entry, read kind); it returns nothing for another role and never another gym's value; `[ASSUMPTION — a definer read function is the smallest way to expose the platform value without opening the table to gyms]`
+
+**Given** the Settings page (UX AD-13)
+**When** an Owner or Supervisor opens it
+**Then** a "Session validity" section sits directly under "Charge guests per session" and above "Loyalty program", with the radio group Whole day / Single use, the two descriptions (`settings.sessionValidity.wholeDayDesc`, `settings.sessionValidity.singleUseDesc` with `[H]` filled from the platform value, never typed into the string; minutes are shown as hours, to one decimal only when not a whole hour), `settings.sessionValidity.classNote` and `settings.sessionValidity.applies` visible, and the section is absent from the DOM for Manager, Receptionist and Coach (they cannot open Settings today; a component test asserts it for every role)
+
+**Given** the section
+**When** the user changes the choice
+**Then** [Save session validity] (`settings.sessionValidity.save`) is enabled only while the choice differs from the saved value, saving calls only `set_session_validity`, shows the toast `settings.sessionValidity.saved`, and on error shows `settings.sessionValidity.error` inline with the radio left where the user put it; there is no confirmation dialog; the section saves on its own and the page hint reads "…, Session validity and Gym challenge" via `settings.saveHint.v18`
+
+**Given** "Charge guests per session" is off, or the loyalty program is on
+**When** the section renders
+**Then** with charging off the section is still editable and shows `settings.sessionValidity.chargingOff`; the loyalty note `settings.sessionValidity.loyaltyNote` shows only when loyalty is on and the chosen option is Single use; the "Charge guests per session" helper reads "One session covers the whole day." under Whole day and `settings.chargeGuests.helperSingleUse` under Single use; the charging turn-on dialog's scope line is unchanged
+
+**Given** the dependent wording
+**When** the story closes
+**Then** every key above exists in EN and FR in `packages/types` (or the dashboard i18n files, wherever Group D lives) and `scripts/check-i18n-key-parity.mjs` passes with no missing key and no hard-coded string in the new components
+
+**Given** `guest_sessions`
+**When** the migration ships
+**Then** it gains nullable `validity_mode text check (validity_mode in ('whole_day','single_use'))`, `covered_kind text check (covered_kind in ('day','visit','class'))`, and `covered_booking_id uuid references class_bookings(id)` (`covered_attendance_id` already exists, added by Story 27.3 with its unique index; this story reuses it and does not redefine it), with an index `unique (covered_booking_id) where covered_booking_id is not null`; the foreign keys do not cascade a delete into a consumed session
+
+**Given** the AD-55 cover rule
+**When** a row is consumed
+**Then** a CHECK `guest_sessions_cover_matches_kind` enforces: an unconsumed row (`consumed_at is null`) has `validity_mode`, `covered_kind`, `covered_day`, `covered_attendance_id` and `covered_booking_id` all null; a consumed `day` row is `whole_day`, has `covered_day` and neither id; a consumed `visit` row is `single_use`, has no `covered_day` and no booking id; a consumed `class` row is `single_use`, has `covered_booking_id` and no `covered_day` and no attendance id. A constraint trigger, `DEFERRABLE INITIALLY DEFERRED`, additionally requires that a consumed `visit` row has `covered_attendance_id` set **by commit** (PostgreSQL cannot defer a CHECK, and 28.2 sets the id after the attendance insert in the same transaction), and a pgTAP case proves a transaction that consumes a visit row and never sets the id fails at commit
+
+**Given** the shipped index `guest_sessions_one_consumed_per_member_day` (0107) and CHECK `guest_sessions_consumed_has_covered_day` (0111)
+**When** the migration ships
+**Then** both are rebuilt in one transaction: the unique index on `(member_id, covered_day) where consumed_at is not null and voided_at is null and validity_mode = 'whole_day'`, and the CHECK as `consumed_at is null or validity_mode is distinct from 'whole_day' or covered_day is not null`; a pgTAP case proves two consumed `whole_day` rows for one member and day are still refused, and two consumed `single_use` visit rows for one member and day are accepted
+
+**Given** consumed rows that exist in production today
+**When** the migration backfills
+**Then** every row with `consumed_at is not null` (voided or not) gets `validity_mode = 'whole_day'` and `covered_kind = 'day'`, no `covered_day`, `consumed_at`, `usable_until` or `voided_at` value changes, and a pgTAP case counts consumed rows before and after and asserts none lacks a mode
+
+**Given** older fixtures, scripts and the shipped consume function write `consumed_at` and `covered_day` with no mode
+**When** a BEFORE INSERT OR UPDATE trigger `private.guest_sessions_normalise_cover()` runs
+**Then** a consumed row with `covered_day` set and no mode and no kind is stored as `whole_day` / `day`; and a row whose `consumed_at` is set back to null (the Epic 27 void releasing a session) has `validity_mode`, `covered_kind`, `covered_day`, `covered_attendance_id` and `covered_booking_id` all cleared, so `void_staff_check_in` needs no edit and the CHECK still holds; both are pgTAP-tested
+
+**Given** `private.consume_guest_session` as shipped (0111, same signature)
+**When** this story ships
+**Then** its body is replaced with the same logic plus `validity_mode = 'whole_day', covered_kind = 'day'` in its single `UPDATE`; the signature, the return columns, the `exempt|covered|consumed|denied` outcomes and the `null` denial contract of `check_in()` are unchanged, and `audit_session_consumed()` (0113) adds `validity_mode` and `covered_kind` to its metadata while keeping `covered_day`, `consumed_at` and `source`
+
+**Given** the readers
+**When** the story closes
+**Then** `apps/mobile/src/lib/sessionState.ts` (`GuestSessionRow`, `resolveSessionsLine`, the PostgREST `or` filter, `resolveReceiptSessionDates`) and `apps/dashboard/services/guestSessions.ts` (`MemberGuestSession`, the select list) carry `validityMode`, `coveredKind`, `coveredAttendanceId`, `coveredBookingId`; "covered today" in `sessionState.ts` stays true only for a consumed row whose `coveredDay` is today (a Single-use row has none); a consumed row with a null `coveredDay` renders as used with its consumed date and never throws; the generated types in `packages/types/src/database.ts` are regenerated
+
+**Given** the whole existing guest-session surface
+**When** the story is verified
+**Then** these run unchanged and pass with no fixture edits: pgTAP `check_in_session_gate`, `check_in_session_gate.negative`, `class_session_gate`, `class_session_gate.negative`, `charge_guests_setting`, `charge_guests_setting.negative`, `charge_guests_default`, `desk_session_payment`, `desk_session_payment.negative`, `in_app_session_payment`, `in_app_session_payment.negative`, `loyalty_guest_rule`, `loyalty_guest_rule.negative`, `loyalty_foundation`, `loyalty_hook_reconciliation`, `loyalty_sweep_and_reversal`, `loyalty_sweep_and_reversal.negative`, `session_refund`, `session_refund.negative`, `session_gate_scoping`, `session_state_hygiene`, `session_alert_cooldown`, `session_alert_cooldown.negative`, `guest_sessions_overview`, `guest_sessions_overview.negative`; vitest `sessionState.test.ts`, `guestSessions.test.ts`, `MemberModal.sessions.test.tsx`, `support.identityLeak.test.ts`; the full Playwright suite (there is no guest-session Playwright spec before this epic, so the E2E claim is that no existing spec changes or breaks). The only test files edited are `support_capabilities.test.sql` and the audit-label test, both named above
+
+**Given** a member of another gym, or any role without access
+**When** they read `session_validity`, call `get_session_validity_settings()` or select `guest_sessions` cover columns
+**Then** tenant isolation holds: another gym's staff and members see nothing, and the member sees only their own rows' cover columns, as for every other column today (NFR-001), pgTAP-tested
+
+---
+
+### Story 28.2: Single-Use Consumption at Check-In
+
+As a guest at a Single-use gym,
+I want each visit to need its own paid session, and a second scan during a visit to cost me nothing,
+So that I pay for what I use, and the gym is never short-changed because someone forgot to check out.
+
+*Delivers FR-237, the Single-use half of FR-239 for check-in, NFR-021 (atomic, member-locked, every entry path), NFR-028 (visit days are unchanged by a second same-day visit). Amends FR-159, FR-161, FR-044. Spine AD-55, AD-29 (one function, one lock, denial contract), AD-28, AD-31 (attempts and alert on denial), AD-30 (one stamp per consumed paid session). Covers both entry points of `private.record_check_in` (Epic 27): the QR scan through `check_in()` and the staff check-in. `[ASSUMPTION A1, A2]` below.*
+
+**Acceptance Criteria:**
+
+**Given** `private.consume_guest_session`
+**When** this story ships
+**Then** its signature becomes `(p_member_id uuid, p_gym_id uuid, p_receipt_at timestamptz, p_kind text default 'visit')` returning `(outcome text, session_created_at timestamptz, session_id uuid)` (dropped and recreated in one migration, every caller updated in the same migration), `p_kind` accepts `visit` and `class`, `class` in a `single_use` gym raises `class_single_use_unsupported` until Story 28.3 removes the guard (pinned by one pgTAP case that 28.3 replaces), execute stays revoked from `public`, `anon` and `authenticated`, and it remains called by nothing but `private.record_check_in` and `mark_class_attendance` (a source-scan test asserts the callers)
+
+**Given** the member lock
+**When** a Pay-per-session member with charging on and a price above 0 checks in at a `single_use` gym
+**Then** `private.record_check_in` takes the member lock (`FOR NO KEY UPDATE`) first, then the open-visit handling, then the consume decision, then the attendance insert, in that order, and the function reads `gyms.session_validity` inside that lock; an `exempt` result (charging off, plan not Pay-per-session, price 0) is returned exactly as today with no session touched
+
+**Given** a Single-use gym and a member with one usable session and no open check-in
+**When** the member checks in (morning)
+**Then** the soonest-lapsing session (paid before free on a tie, FR-159's ordering) is consumed with `validity_mode = 'single_use'`, `covered_kind = 'visit'`, `covered_day` null, `consumed_at` = server receipt time; the attendance row is inserted; **after** the insert, in the same transaction, `covered_attendance_id` is set to the new attendance id (the deferred constraint of 28.1 passes at commit); one guest stamp is earned through `private.on_session_consumed` and the `session_consumed` audit row is written (FR-165, FR-162)
+
+**Given** the same member who checked out (manual or automatic) and holds a second usable session
+**When** they check in again the same gym-local day (evening)
+**Then** a second session is consumed, a second `visit` row is bound to the new attendance id, a second stamp is earned, the one-per-day unique index of 28.1 does not fire (it covers `whole_day` rows only), and the member has two consumed sessions that day
+
+**Given** the member has an open visit younger than the visit limit
+**When** they scan again (double scan, including two scans from two devices)
+**Then** the existing open-check-in rejection is returned ("You're already checked in", the shipped `check_in: member % already has an open check-in` path and its mapped client message), **before** the consume function is called: no session is consumed, no stamp is earned, no `session_attempts` row and no front-desk alert is written, and the first visit's `covered_attendance_id` is unchanged
+
+**Given** the visit limit (`platform_session_config.single_use_visit_limit_minutes`, default 180) `[ASSUMPTION A1]`
+**When** the member scans with an open visit whose `checked_in_at` is 179, 180 and 181 minutes before receipt time
+**Then** at 179 minutes the scan is rejected "already checked in" and costs nothing; at 180 and 181 the visit has ended (the test is `checked_in_at + limit <= receipt time`, the same comparison the shipped stale test makes), it is closed with `checked_out_at = checked_in_at + limit` exactly (never now(), never in the future relative to the new check-in) and `checkout_type = 'auto'`, one `attendance_stale_check_in_auto_closed` audit row is written with metadata `reason: 'visit_limit'` and `visit_limit_minutes`, and a new session is consumed for the new visit; a pgTAP case changes the platform value to 90 and repeats the boundary at 89, 90 and 91 minutes to prove the value is read, not hard-coded
+
+**Given** a visit that began under Single use with a covering session `[ASSUMPTION A2]`
+**When** the stale test runs
+**Then** the limit applies only to an open visit that is the `covered_attendance_id` of a consumed, non-voided `single_use` session; an open visit with no such session (charging was off, the member was exempt, or the visit began under Whole day) is judged by `gyms.checkin_timeout_hours` alone, exactly as FR-044 today; and where the gym's timeout is shorter than the limit the effective stale test is the earlier of the two, so the open row is closed at `checked_in_at + least(timeout, limit)`
+
+**Given** the limit and the gym timeout are different things (AD-55)
+**When** an open visit is between the limit and `checkin_timeout_hours`
+**Then** occupancy (`member_occupancy_band`, `private.gym_occupancy_band`, Currently Checked In) and the auto-timeout job still count it until the member scans, a staff member checks them out, or `checkin_timeout_hours` passes; the limit closes a visit only at the moment of a later scan; a pgTAP case asserts occupancy at limit + 1 minute is unchanged and the auto-timeout job still closes at `checked_in_at + checkin_timeout_hours` (FR-045)
+
+**Given** a member who forgot to check out and returns after the limit with **no** usable session
+**When** they scan
+**Then** the stale visit is closed at `checked_in_at + limit` as `auto` and audited, the scan is denied with `null` (the shipped contract), one `session_attempts` row (`source = 'check_in'`) and one `session_required` front-desk alert are written, no attendance row is inserted, and the stale close **commits with the denial** (as the shipped stale close does); after the desk records the session payment (FR-158) a rescan consumes it and succeeds
+
+**Given** the denial contract for older app builds (AD-29)
+**When** a Single-use denial occurs
+**Then** the return value is the same `null`, with no new result type and no coded row, and the current mobile build maps it to the "Pay for your session" state through `resolveRefusal` (unchanged), while an old build still shows its expired copy and does not admit the guest; the "reason" is read from the attempt row, never the return value (a test asserts the function's return type is unchanged for `check_in()`)
+
+**Given** an offline scan (FR-161)
+**When** it syncs
+**Then** FR-159's time rules govern: the open-visit age and the limit are judged at server receipt time; the scan time is honoured only when it is within the gym's auto-timeout window of receipt and not before the covering session existed, otherwise receipt time is used; a replay of the same `client_scan_id` returns the stored row and consumes nothing; with no usable session the sync is denied as an attempt keyed by its scan id and the FR-160 alert is raised; an offline scan whose honoured scan time is already older than the visit limit at receipt consumes one session and is recorded closed at `scan time + limit` as `auto` in the same transaction (the shipped immediate-stale pattern), so it cannot block a later scan; all four cases are pgTAP-tested
+
+**Given** the staff check-in path of Epic 27 (`staff_check_in`, `source = 'staff'`)
+**When** staff check in a Single-use guest
+**Then** the same function path applies with no separate rule: an open visit younger than the limit is rejected "already checked in" at no cost; a guest with no session is denied with a `session_attempts` row `source = 'staff'` and no front-desk alert (FR-249), and after the desk payment the check-in completes and consumes one session; `void_staff_check_in` on that visit releases exactly the session bound to it (28.1's normalising trigger clears the cover columns), appends the `stamp_reversed` event, and is allowed even when a later same-day visit exists, because in Single use no later visit relies on this session's coverage
+
+**Given** a member in a `whole_day` gym, and a gym with charging off
+**When** they check in, check out and check in again
+**Then** behaviour is byte-for-byte today's: one consumed `day` row, the second scan `covered`, no `visit` row ever written; the whole list of suites in Story 28.1's regression AC passes again, unchanged, after this story's migration
+
+**Given** the setting is flipped while a member has activity that day
+**When** the gym moves Whole day → Single use at 10:00 after a 09:00 session was consumed as `day`
+**Then** that `day` row still covers the member's later check-ins that day (coverage is judged from the row's own `validity_mode`, never the gym's current value), a return at 11:00 consumes nothing, and the first check-in after the day's `day` row no longer applies (next day) consumes a `visit` session; and when the gym moves Single use → Whole day while a visit is open, that open visit finishes under the limit rule it began with (a scan after the limit closes it at `checked_in_at + limit` and consumes a new `day` session), and a later same-day return after check-out consumes a `day` session and then covers the rest of the day
+
+**Given** concurrent scans (NFR-021)
+**When** two check-ins for one Single-use member run at the same instant, with two usable sessions
+**Then** exactly one visit is created and exactly one session is consumed and exactly one stamp is earned; the other is rejected "already checked in" with no cost; pgTAP asserts the sequential equivalent and the backstops (the open-check-in partial unique index of AD-22 and `unique (covered_attendance_id)`), and a two-connection script `scripts/single-use-race.sh` (the shape of `scripts/session-refund-race.sh`) proves the real interleaving, is wired into `scripts/ci-local.sh`, and passes; a second script case races a refund of the only unused session against a scan and proves exactly one outcome
+
+**Given** engagement counts (NFR-028, FR-225)
+**When** a member has two Single-use visits on one gym-local day
+**Then** `attendance_counted` has two rows and `member_visit_days` has one row for that day for the member (several check-ins in a day count once), a denied scan adds neither, and a visit that arrives late through offline sync takes the gym-local day of its honoured recorded time
+
+**Given** the existing suites and the tests this story must change
+**When** the story closes
+**Then** `suspension_rpc_coverage.test.sql` and the `check_in()` source check in 0111's verify block still pass with the order of the open-visit handling, consume and insert described above (updated only if Epic 27 has not already updated them, and named in the story if so); new pgTAP files `single_use_check_in.test.sql` and `single_use_check_in.negative.test.sql` carry the cases: morning and evening, double scan, forgotten check-out with and without a session, boundary at 179/180/181 minutes and at 89/90/91 with the platform value changed, concurrent scans, setting flip in both directions mid-day and mid-visit, offline replay, staff path and void, whole_day regression, tenant isolation (another gym's member and staff cannot read or consume the session), an exempt plan (price 0) and a non-Pay-per-session member consuming nothing
+
+---
+
+### Story 28.3: Class Attendance in a Single-Use Gym and Setting-Change Parity
+
+As a guest at a Single-use gym who attends a class,
+I want the class to cost nothing extra when I am already inside on a paid visit, and its own session when I am not,
+So that I am charged once for what I attended, and the owner's session counts, stamps and audit stay trustworthy whichever rule the gym uses.
+
+*Delivers FR-238 `[ASSUMPTION — class inside an open Single-use visit; confirm in stories (OQ-35)]`, FR-239 in full, FR-174 amended, NFR-021 for the class path. Spine AD-55, AD-29, AD-21 (class marking never writes `attendance_events`), AD-28, AD-30, AD-31. UX: Guest Sessions UX AD-22 "Used" column and the Sessions section of UX AD-04 (Single-use wording); the "Desk check-in" source row of UX AD-22 is Epic 27's (FR-249), this story only proves it still renders, see the last AC. Assumptions A3 and A5.*
+
+**Acceptance Criteria:**
+
+**Given** `mark_class_attendance(p_booking_id uuid)` (keeps its signature and its `{ code, message }` error surface, AD-9)
+**When** this story ships
+**Then** it calls `private.consume_guest_session(member, gym, now(), 'class')` (the same function, nothing new), the Story 28.2 guard `class_single_use_unsupported` is removed and its pgTAP case replaced, the existing `attended_at is null` guard still makes a re-mark consume nothing, and class attendance still never writes `attendance_events`
+
+**Given** a Single-use gym and a Pay-per-session member with an open visit younger than the visit limit, whose visit is the `covered_attendance_id` of a consumed `single_use` session `[ASSUMPTION A3 — FR-238 requires the visit's own session]`
+**When** staff or the coach mark the member attended at a class
+**Then** the outcome is `covered`: no session is consumed, no stamp is earned, no row is written to `guest_sessions`, `class_bookings.attended_at` is set, and a second class in the same open visit also costs nothing
+
+**Given** a Single-use gym and a member with no open visit, or an open visit older than the limit, or an open visit that no Single-use session covers (opened before charging was switched on)
+**When** the member is marked attended at a class
+**Then** one usable session is consumed (FR-159's ordering) with `validity_mode = 'single_use'`, `covered_kind = 'class'`, `covered_booking_id` = the booking, `covered_day` and `covered_attendance_id` null, set in the same transaction as `attended_at` (so a refused or failed update leaves no consumed session); one stamp is earned; and the class marking does not close a stale open visit and does not write attendance (AD-21)
+
+**Given** a class-bound session `[FR-238 assumption: it covers nothing else]`
+**When** the member later scans in at the gym the same day
+**Then** the check-in consumes another session as a `visit` (the class session covers neither the floor nor a second class that is not in the same visit), and a second class the same day with no open visit consumes a second `class` session; the reverse also holds: a class marked inside a visit consumes nothing
+
+**Given** a Whole day gym, or any `whole_day` row already consumed that day
+**When** a class is marked
+**Then** FR-174 is unchanged: a consumed `day` row covers the class, a class that consumes a session in a Whole day gym writes a `day` row that also covers the floor that day and a second class costs nothing; in a Single-use gym a `whole_day` row consumed earlier that day (the setting was flipped) still covers the class, because coverage is judged from the row's own mode
+
+**Given** no usable session at a Single-use gym
+**When** a class is marked
+**Then** the existing denial stands: `attended_at` stays null, one `session_attempts` row (`source = 'class'`, fresh scan id, `class_session_id`) and one `session_required` front-desk alert are written, and the caller receives the same `{ code, message }` error as today; an exempt plan (price 0) and a member not on Pay-per-session are marked as before
+
+**Given** two simultaneous class marks, or a class mark racing a scan, for one member
+**When** they run
+**Then** at most one session is consumed per distinct need (one `class` row per booking via `unique (covered_booking_id)`, one `visit` row per attendance via `unique (covered_attendance_id)`), the lock order of AD-29 holds, and the `scripts/single-use-race.sh` script of 28.2 gains a class-vs-scan case that passes
+
+**Given** FR-239, a setting change
+**When** the owner flips Whole day → Single use, or Single use → Whole day
+**Then** the change applies to check-ins and class marks made after it; a visit already open finishes under the rule it began with; a consumed session keeps the coverage its own row records (`validity_mode`, `covered_kind`) and no existing row is rewritten (a pgTAP case snapshots every `guest_sessions` row of the gym before and after a flip and asserts they are identical); each of the four combinations (flip with a `day` row, with an open `visit` row, with a `class` row, and with no activity) has a case
+
+**Given** lapse windows (FR-159, FR-166)
+**When** the setting is flipped
+**Then** an unused paid session still lapses 7 days after its payment and an unused free session 60 days after it is earned, read from `platform_session_config`, and the daily loyalty sweep (`run_loyalty_sweep_job`) lapses and audits the same rows under either setting; a consumed row is never lapsed; one pgTAP case per window under each setting
+
+**Given** loyalty (FR-165, FR-239)
+**When** a Single-use member consumes sessions
+**Then** exactly one guest stamp is earned per consumed paid session (two visits and one class-with-own-session in a day earn three stamps; a class covered by an open visit earns none; a free session earns none), a refund of a consumed session reverses exactly that session's stamp and does not take back a free session already earned (FR-162), the counter never goes below 0, the effect of N is unchanged, and stamps are earned only while both the loyalty program and charging are on; tested against the same fixtures as `loyalty_guest_rule`
+
+**Given** the Guest sessions card and drill-down (FR-163, UX AD-22) and the session audit (FR-162)
+**When** a Single-use gym has consumed sessions
+**Then** the card's paid count, the Paid tab and the blocked counts count consumed sessions by `consumed_at` and attempts as before, under either setting, the counts are server-side aggregates, and `session_consumed`, `session_refund_applied` and `session_attempt_blocked` audit rows are written for visit and class sessions exactly as for day sessions (`session_consumed` metadata carries `validity_mode`, `covered_kind` and, for `class`, `covered_booking_id`); a pgTAP case in `guest_sessions_overview` style asserts the totals are identical for the same sequence of consumptions under Whole day (one per day) versus Single use (one per visit)
+
+**Given** the member modal Sessions section (UX AD-04) and the Used column of UX AD-22
+**When** a session was consumed under Single use
+**Then** a `visit` row reads "Used · visit on [date], [time]" and a `class` row reads "Used · class [name], [date]" (`members.sessions.usedVisit`, `members.sessions.usedClass`, labels `members.sessions.coveredVisit` and `members.sessions.coveredClass`), a `day` row keeps today's "Covered day" wording in either gym, rows keep the label they were recorded under after a flip, and the AD-22 Used column reads "covered day", "visit [date], [time]" or "class [name], [date]" by `coveredKind`; the date and time are gym-local (the gym's timezone, never UTC), EN and FR keys exist with no hard-coded string, and component tests cover the three row kinds in both locales; a session returned by an Epic 27 void shows as Unused with its original lapse date
+
+**Given** the member app `[ASSUMPTION A5]`
+**When** the member is inside a covered Single-use visit
+**Then** the Home sessions line is unchanged in structure (usable count and soonest lapse), `sessionState.ts` is covered by vitest cases for `visit` and `class` rows (never counted as "covered today"), and no new member-facing copy is added in this epic; an Owner-facing note on older builds (UX AD-13 `[NOTE FOR UX]`) is left to the UX pass and does not hold this story
+
+**Given** the "Desk check-in" source value of UX AD-22 (Epic 27, FR-249)
+**When** a staff check-in is denied for a Single-use guest
+**Then** the Blocked tab shows the row with the "Desk check-in" source if Epic 27 wrote `session_attempts.source = 'staff'`, and this story adds no source value of its own; if Epic 27's label is absent the story records that as a defect against Epic 27, not extra scope here
+
+**Given** the PRD §10.3 Step 2 items 2 and 5
+**When** the E2E spec `apps/dashboard/e2e/single-use-validity.spec.ts` runs (APIRequestContext against the real RPCs, the pattern of `class-booking-capacity.spec.ts`, its own gym and members created through the fixtures, torn down afterwards)
+**Then** it proves in order: an Owner switches the gym to Single use through the Settings section and the audit row appears; a Pay-per-session guest with a recorded session payment checks in and is admitted (one session consumed); a second scan during the visit is rejected "You're already checked in" at no cost; after check-out and a second recorded payment the same guest's second visit the same day is admitted and a second session is consumed; a class marked inside that visit costs nothing, and a class marked with no open visit consumes its own session; the Guest sessions card counts consumed sessions per visit; a gym-level flip back to Whole day leaves every consumed session's coverage untouched; and a Receptionist and a Coach get no Session validity section and a refused setter
+
+**Given** the epic's closing gate
+**When** Story 28.3 closes
+**Then** `scripts/ci-local.sh` passes in full (static, unit, pgTAP, E2E, the race scripts), the Epic 28 requirement list FR-236 to FR-239, NFR-021 and NFR-028 each trace to at least one passing named test in the stories above, and `sprint-status.yaml` records the epic's last_updated entry
+
+
+---
+
+### Epic 29 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 29.1 | Class Schedule Slots Foundation (No UI Change) | next free at merge time | none |
+| 29.2 | Per-Day Slot Editor and Cancel Class | next free at merge time | 29.1 |
+| 29.3 | Coaches Create, Edit and Cancel Their Own Classes | next free at merge time | 29.1, 29.2 |
+| 29.4 | Coach Picker for Owner, Supervisor and Manager | next free at merge time | 29.1, 29.2 (server half); 29.3 (the My Classes list component the Classes tab reuses) |
+
+*Epic 29 is independent of Epics 27 and 28 and can run in parallel with them. Inside the epic the chain is 29.1 → 29.2 → 29.3 → 29.4; the server half of 29.4 (the read functions and the CI check) needs only 29.1 and 29.2 and may start once 29.2 has merged. Migration numbers are assigned at merge time (the next free number then; disk head today is 0172, and Epics 27, 28, 30 and 31 take numbers too); earlier stories never renumber.*
+
+*Production is live with real gyms and real classes with real bookings: 29.1 rewrites the daily session job and expands every existing recurring class, 29.3 widens who may write `classes`, and 29.4 adds the only staff read path onto coach data. Each story ships behind the full `scripts/ci-local.sh` gate, the existing pgTAP suite passes without fixture edits unless a story names the test that must change, and every new `SECURITY DEFINER` function passes the live-authorization claim inventory (`scripts/claim-inventory.mjs`, no new `claim-only` entry), `suspension_rpc_coverage.test.sql` and the AD-35 catalog test in `support_capabilities.test.sql`.*
+
+*Vocabulary. "Spine AD-nn" is an architecture decision in `ARCHITECTURE-SPINE.md`; "UX AD-nn" is a screen in `EXPERIENCE.md` (UX AD-18 Classes list, UX AD-19 Create/Edit class, UX AD-21 Coach Portal My Classes, UX AD-14/UX AD-15 Coach member list and detail, UX AD-20 Coach Overview, UX AD-32 Coach Picker). `classes.coach_id` references `members.id`, not a user; "the caller's own member row" is resolved from `auth.uid()` and the live role, never from a client value. `weekday` follows the existing 0 = Sunday .. 6 = Saturday convention (`extract(dow ...)`, as `classes.recurrence_days`).*
+
+*Names that exist today (verified in `supabase/migrations`): `classes` (0057), `class_sessions` with unique `(class_id, scheduled_at)` (0057), `class_bookings` with unique `(class_session_id, member_id)` and `attended_at` (0058, 0068), `private.materialize_sessions_for_class(uuid)` (0057, service_role only), `public.materialize_class_sessions(uuid, boolean)`, `public.create_class(...)` and `public.update_class(...)` (0057, 0058, live bodies in 0124), the daily cron job `class_session_materializer` running `run_class_session_materializer_job()` (0057, `0 2 * * *`, logs to `job_runs`), `list_my_classes()` and `list_my_class_session_roster(uuid)` (0096), `book_class_session(uuid)` (0058, row-locks the session), `cancel_class_booking(uuid)` (0058, hard-deletes the booking row), `mark_class_attendance(uuid)` (0068, 0110, 0112, 0124), `list_bookable_class_sessions()` and `list_my_class_bookings()` (0078), `private.is_own_coach_id(uuid)` (0041: true when the `members` row with that id has `user_id = auth.uid()`; it checks neither gym nor role nor deactivation), trigger `classes_validate_coach_trigger` (0057), CHECK `classes_schedule_matches_type` (recurring needs days, time and start date). There is no cancel function and no cancel column for a class or a session today.*
+
+---
+
+### Story 29.1: Class Schedule Slots Foundation (No UI Change)
+
+As a gym owner whose classes already run every week,
+I want each recurring class's times stored as one row per weekday-and-time, with the daily job reading those rows,
+So that the next stories can give a class a different time on each day without changing a single existing session, booking or screen.
+
+*Delivers FR-244 (data model, slot cap, per-session booking unchanged), FR-245 (migration of existing classes; edit rule on the data side), NFR-001 (booking and session reads stay inside the performance targets); spine AD-57, AD-21 (lock order), AD-1; amends FR-104. No UX gate: no screen changes, the Schedule column and the Create/Edit class modal read and write exactly as today. Priority tag: FR-244 and FR-245 follow the PRD's release gate 10.3 item 3 and 6; the 14-slot cap is `[ASSUMPTION]` (FR-244) and is pinned here; the rule for slot edits is `[ASSUMPTION]` (FR-245, OQ-35), confirmed in this story.*
+
+**Acceptance Criteria:**
+
+**Given** the migration is applied
+**When** the schema is inspected
+**Then** `class_schedule_slots(id uuid pk, class_id uuid not null references classes(id) on delete cascade, gym_id uuid not null references gyms(id), weekday smallint not null check (weekday between 0 and 6), start_time time not null, created_at timestamptz not null default now())` exists with a unique constraint on `(class_id, weekday, start_time)` and an index on `gym_id`
+**And** `start_time` has no seconds (`date_trunc('minute', start_time) = start_time` CHECK), because times are entered "to the minute" (UX AD-19)
+**And** `recurrence_start_date` stays on `classes`; no column is added to `classes`, `class_sessions` or `class_bookings` in this story
+
+**Given** a slot insert whose `gym_id` differs from its class's `gym_id`
+**When** it is attempted (as the definer functions below, and as a superuser fixture)
+**Then** a before-insert/update trigger refuses it (same tenancy shape as `classes_validate_coach_trigger`), and a slot cannot be moved to another class or gym by update
+
+**Given** a class that already has 14 slots
+**When** a 15th slot is inserted (for the same or a different weekday)
+**Then** a trigger refuses it with a stable message ("a class can have at most 14 weekly times")
+**And** the trigger takes `SELECT ... FOR UPDATE` on the class row before counting, so two concurrent inserts of the 14th and 15th slot cannot both pass; a pgTAP test proves the count after 14 inserts, the refusal of the 15th, and that deleting one slot allows another
+**And** inserting the same `(class_id, weekday, start_time)` twice is refused by the unique constraint, while the same weekday at two different times is accepted (FR-244)
+
+**Given** RLS and grants on `class_schedule_slots`
+**When** each role reads it
+**Then** any authenticated user of the gym reads that gym's slots (`gym_id = private.gym_id()`, the same rule as `gym_staff_read_own_classes`: class metadata is readable by the gym by design, FR-145), and a restrictive `tenant_active_gate` policy denies a suspended gym exactly as on `classes` (migration 0124 pattern)
+**And** `INSERT`, `UPDATE` and `DELETE` are revoked from `authenticated`, `anon` and `service_role`: the only writers are the definer functions below (the 0111 pattern), proven by a test that a Manager, an Owner, a Coach and the service role each get a permission error on a direct write
+**And** another gym's slots return zero rows for every role (cross-tenant negative test per role; AD-1)
+
+**Given** every existing `classes` row with `schedule_type = 'recurring'`
+**When** the migration runs
+**Then** each class gets one slot per entry of its `recurrence_days`, all at its `recurrence_time`, so the set of `(weekday, start_time)` per class equals `unnest(recurrence_days) x recurrence_time` exactly
+**And** a `do $$ ... $$` block at the end of the migration raises (rolling back the migration) if any recurring class ends with zero slots, if any slot count differs from `cardinality(recurrence_days)`, or if the `class_sessions` or `class_bookings` row counts or their `md5` over `(id, class_id, scheduled_at)` / `(id, class_session_id, member_id, attended_at)` differ before and after
+**And** a pgTAP test with a fixture of recurring classes (a daily class, a Tue/Thu class, a Sunday-only class to exercise weekday 0, a class with a past `recurrence_start_date`, a class with booked and attended sessions) proves the slot sets, and that `class_sessions` and `class_bookings` are byte-identical before and after, and that one-off classes get no slot
+**And** the migration is idempotent on a re-run in the local reset (`insert ... on conflict do nothing`)
+
+**Given** a recurring class
+**When** the schema is checked
+**Then** `classes_schedule_matches_type` is replaced so a recurring class requires only `recurrence_start_date`; `recurrence_days` and `recurrence_time` stay on the table, nullable for recurring rows, and one-off rows still require `one_off_session_at` and null recurrence columns
+**And** a deferred constraint trigger (initially deferred, so create-then-insert-slots in one transaction passes) refuses to commit a recurring class that has no slot, and refuses to commit a one-off class that has one
+**And** `recurrence_days` and `recurrence_time` are not dropped (spine AD-57: they stay for legacy and one-off rows; the clean-up migration is out of scope for Epic 29 and recorded in `deferred-work.md`)
+
+**Given** `private.materialize_sessions_for_class(p_class_id)` and `run_class_session_materializer_job()`
+**When** the daily job `class_session_materializer` runs, or `create_class`, `update_class` or `materialize_class_sessions` call the shared function
+**Then** a recurring class's sessions are generated from `class_schedule_slots` (weekday of each date in the 4-week rolling window, the slot's `start_time` converted with the gym's `timezone` at generation, dates on or after `recurrence_start_date`), inserted with `on conflict (class_id, scheduled_at) do nothing`, and the job still logs one `job_runs` row with `job_name = 'class_session_materializer'`
+**And** an equivalence test builds, for each fixture class from the migration test, the set of `(class_id, scheduled_at)` the pre-migration function would have produced from `recurrence_days`/`recurrence_time` (computed inline in the test) and proves the slot-based function produces the same set, including across a daylight-saving gym time zone and for a Sunday slot
+**And** running the job twice in a row inserts no row the second time, and a manual `materialize_class_sessions` after the job inserts none either (idempotent on `(class_id, scheduled_at)`)
+**And** the rolling-window definition (`current_date .. current_date + 4 weeks`, server date) is deliberately unchanged here; its gym-local-day imprecision is existing behaviour, recorded in `deferred-work.md`, not fixed in this story
+
+**Given** `create_class(...)` and `update_class(...)` keep their current signatures in this story (the dashboard is unchanged)
+**When** a Manager, Supervisor or Owner creates or edits a recurring class through them
+**Then** the function derives the slots as one per selected day at the single time and writes them (and, for compatibility, keeps writing `recurrence_days` and `recurrence_time`), so a class created after this migration through today's UI behaves exactly as a migrated one
+**And** the Schedule column and the modal show the same days and time as before the migration for every fixture class (a component test on the unchanged `ClassesPageClient` and `ClassModal` with fixture data, and the existing `class_creation_scheduling*.test.sql` suites pass without edit)
+
+**Given** a private function `private.apply_class_slots(p_class_id uuid, p_slots jsonb)` that returns the left-unchanged sessions (the single regeneration path used by `update_class` now and by 29.2's functions later; `service_role` and definer callers only)
+**When** the slot set of a recurring class is replaced
+**Then** it takes the class row lock (`FOR UPDATE` on `classes`) first, then locks the candidate future session rows (`class_sessions where class_id = p_class_id and scheduled_at > now()`) `FOR UPDATE` in `scheduled_at` order, never the other way round: this is AD-21's order (`book_class_session` locks a session row, and the class lock is always taken first by writers)
+**And** a future session that has no booking, **re-checked under the session lock**, and no longer matches any slot (local weekday and local time of `scheduled_at` in the gym's time zone) is deleted; a session that matches a slot is kept whether or not it has bookings; sessions that match no slot **and have at least one booking** are left exactly as they are and returned to the caller as `(class_session_id, scheduled_at, booked_count)`, never deleted and never raising
+**And** past sessions (`scheduled_at <= now()`) are never touched, and the missing sessions for the new slots are then generated through the shared materializer
+**And** the function is the reverse of migration 0058's rule: for a **recurring** class, `materialize_class_sessions(p_class_id, true)` and `update_class` no longer raise "cannot reschedule class ... existing bookings on its future sessions"; they regenerate under the rule above (`[ASSUMPTION]` decided here: one-off classes are unchanged by FR-244 and keep the 0058 refusal, so test section (u) of `class_booking_with_capacity_enforcement.test.sql`, whose fixtures 8094 and 8095 are one-off, passes without edit)
+
+**Given** a booking that lands on a future session while a slot edit is running
+**When** two sessions (two database connections, as the existing class-booking concurrency tests do) run `book_class_session` and `apply_class_slots` against the same unbooked, no-longer-matching session
+**Then** whichever commits first wins consistently: either the booking is made and the session is kept and listed as left unchanged, or the session is deleted and the booking attempt gets the not-found result; in no ordering is a booking row orphaned, a foreign-key error raised to the editor, or a deadlock reported; a repeat run of the pair (50 iterations) shows no deadlock
+
+**Given** a gym whose time zone is later changed
+**When** the daily job next runs
+**Then** new sessions use the new zone and existing sessions are not moved (consistent with how the current job behaves); stated in Dev Notes, no code
+
+**Given** the new functions and trigger bodies
+**When** the repo-wide checks run
+**Then** `scripts/claim-inventory.mjs` shows no new `claim-only` entry, `scripts/check-migration-guardrails.mjs` passes, the `suspension_rpc_coverage` test passes for any new public function (the "gym is not active" guard and no comments in the body, as `list_my_classes`), and `support_capabilities.test.sql` totals and name lists are unchanged (nothing here is a support capability)
+**And** `packages/types/src/database.ts` is regenerated and the dashboard type-check passes with no source change
+
+---
+
+### Story 29.2: Per-Day Slot Editor and Cancel Class
+
+As a Manager, Supervisor or Owner,
+I want to give a class a different time on each day, see which booked sessions an edit left alone, and cancel a class that will not run again,
+So that the gym's real weekly timetable fits in one class and a class that stops can be ended in one action.
+
+*Delivers FR-244 (per-day editor, up to 14 slots, duplicates refused), FR-245 (edits apply to future sessions without bookings; sessions with bookings listed to the editor), and the `cancel_class` function that spine AD-57 and FR-246 rely on; NFR-001; spine AD-57, AD-21, AD-34 (live write gate), AD-35 (not a support capability), AD-1; amends FR-104, FR-121. UX gate: UX AD-18 (Schedule column, [Cancel class], Cancelled badge, "Old time" tag), UX AD-19 (weekly-times editor and the "left unchanged" result view) and the Cancel class dialog in EXPERIENCE.md; the screen states and copy there, and the keys in "Group F" and `classes.cancel.*`, are the acceptance baseline. Priority: the `[ASSUMPTION]` tags in the UX text (Monday-first order, pre-fill, cancelled classes stay listed, the server can tell an old-time session by comparing) are carried as written.*
+
+**Acceptance Criteria:**
+
+**Given** the existing `create_class` / `update_class` signatures used by the live dashboard
+**When** this migration lands
+**Then** new overloads `create_class(..., p_slots jsonb)` and `update_class(..., p_slots jsonb)` exist (every old parameter kept in the same order, plus a trailing `p_slots jsonb` with **no** default so PostgREST resolves by argument names unambiguously), the old signatures stay and keep working unchanged for the rollout window (production is live: the migration deploys before the dashboard), and a pgTAP test proves both signatures resolve and behave
+**And** `p_slots` is a JSON array of `{weekday, start_time}` (`weekday` 0 = Sunday .. 6 = Saturday, `start_time` `HH:MM`); the server rejects with stable messages: no slot for a recurring class, more than 14, a malformed or out-of-range weekday or time, a duplicate `(weekday, start_time)` in the array, seconds in a time, and `p_slots` supplied for a one-off class
+**And** `update_class(..., p_slots)` returns `jsonb` `{ "left_unchanged": [ {class_session_id, scheduled_at, booked_count, capacity} ... ] }` (empty array when nothing was left), produced by 29.1's `private.apply_class_slots`; it is never an error to have bookings
+**And** a recurring class saved with different times per day stores `recurrence_days = null`, `recurrence_time = null` (the legacy columns cannot express it); `update_class` on a one-off class is unchanged
+
+**Given** a recurring class with future sessions, some booked
+**When** its slots change (a time moved, a day added, a day removed, a weekday given a second time)
+**Then** pgTAP proves: unbooked future sessions that no longer match are deleted and the new ones appear; a booked session that no longer matches is kept with its bookings and returned in `left_unchanged`; a booked session that still matches is untouched and not returned; past sessions are untouched; repeating the same edit returns the same `left_unchanged` list and changes no row (idempotent, no orphan duplicates); "Mon 07:00 → 07:30" with the 07:00 session booked yields the old session listed and a new 07:30 session created beside it
+**And** a switch between One-off and Recurring follows the same rule (leaving recurring lists booked future sessions; entering recurring creates slots), and `recurrence_start_date` continues to bound generation
+
+**Given** `public.cancel_class(p_class_id uuid)` and the columns it needs
+**When** this migration lands
+**Then** `classes` gains `cancelled_at timestamptz` and `cancelled_by uuid references members(id)`, and `class_sessions` gains `cancelled_at timestamptz` (these are the only schema changes of the story besides the overloads and the view below); a CHECK keeps `cancelled_by` null whenever `cancelled_at` is null
+**And** `cancel_class` is `SECURITY DEFINER`, revoked from `public` and `anon`, granted to `authenticated`, and gated by the live role read (`private.current_member_role()` in `manager`, `supervisor`, `owner`; Receptionist and Coach refused in this story, Coach own-class access arrives in 29.3) and `gym_id = private.gym_id()`; it returns `{ "bookings_cancelled": N }`, where N is the number of bookings on the class's future sessions at the moment of cancelling, computed by the server (the dialog shows the server's number)
+**And** it takes the class row lock, then the future session rows `FOR UPDATE`, sets `cancelled_at` and `cancelled_by` on the class and `cancelled_at` on every future session (`scheduled_at > now()`), **flags rather than deletes** (a session row is never deleted by it, booking rows stay, past sessions and all attendance stay untouched), and writes one audit row with action `class_cancelled` and "[N] bookings cancelled" in the metadata
+**And** cancelling an already cancelled class raises the stable message mapped to `classes.cancel.already`; another gym's class, a missing class and an unauthorised caller get the uniform not-found / permission message (no information about other gyms); a deactivated or suspended-gym caller is refused through the live gate (AD-34)
+**And** a cancelled class is excluded from the daily job (`private.materialize_sessions_for_class` returns without inserting), `update_class` and `materialize_class_sessions` refuse it with the same "already cancelled" message, and `book_class_session`, `mark_class_attendance` and `cancel_class_booking` treat a cancelled session as not bookable, not markable and not "cancellable by the member" (the booking stays on record) with their own stable messages; the class reminder job (N-07, `private.send_class_reminder`) sends nothing for a cancelled session (pgTAP: a booked, cancelled session with a reminder due produces no `class_reminder_dispatches` row)
+**And** `cancel_class` is **not** registered in `private.support_capabilities` and `support_capabilities.test.sql` totals and name arrays are unchanged; it mentions `'supervisor'`, so the catalog test's classification of such functions is extended in the same story (Support is refused with the uniform denied result)
+
+**Given** booked members whose class is cancelled
+**When** the class is cancelled in V1.8
+**Then** no push, SMS or in-app notification is sent (product owner decision 2026-11-15; recorded as a story note and in `docs/decisions.md`): a pgTAP test proves no `notifications` row and no dispatch row is created by `cancel_class`
+**And** the mobile Classes screen (MA-16) reads the cancelled state: `list_bookable_class_sessions()` omits sessions of a cancelled class, `list_my_class_bookings()` returns `class_cancelled boolean` for each booking, and the booking shows the neutral badge "Cancelled" / « Annulé » on MA-16 and on Home's upcoming-classes list (which drops it); `[ASSUMPTION]` this member-side display is not drafted in the UX contract (`[NOTE FOR UX]` in UX AD-18): the story reuses the shared "Cancelled" badge style and adds the EN and FR mobile keys, with a mobile component test and EN/FR parity check; whether a single session can be cancelled without cancelling the class is out of scope and stays recorded as not drafted
+
+**Given** the sessions of a class and its slots
+**When** the dashboard lists sessions for UX AD-18
+**Then** a `security_invoker` view `class_sessions_with_match` (class_session id, `matches_slots boolean` computed by comparing the session's local weekday and local time in the gym's zone with the class's slots, `cancelled_at`) is the single source of the "Old time" tag; a one-off class's session always matches; RLS on `class_sessions` is unchanged and a gym-B reader sees no gym-A rows
+**And** `list_my_classes()` is dropped and re-created with the same named columns plus `slots jsonb` (array of `{weekday, start_time}`), `cancelled_at` and per-session `matches_slots`, the legacy `recurrence_days` and `recurrence_time` columns removed from its output, and `services/classes.ts` (`listClasses`, `listMyClasses`) and `coach/classes/page.tsx` read slots instead of `recurrence_days` / `recurrence_time`; the existing `classes.listMyClasses.test.ts` is updated for the new shape and still proves an empty result for a non-coach, another gym's coach and a suspended gym
+
+**Given** the Classes page (UX AD-18) as Manager, Supervisor or Owner
+**When** it renders
+**Then** the Schedule column shows recurring times grouped by identical hour, Monday first, 24-hour, in the gym's time zone, three groups then "+N more" with a tooltip carrying the full list ("Mon 07:00 · Wed 18:30 · Sat 09:00", "Tue, Thu 18:00 · Sat 09:00"); a migrated class reads "Tue, Thu 18:00" exactly as before (component tests with fixtures for one group, three groups, four groups, a one-off class and a migrated class)
+**And** each row has [Edit] and [Cancel class] / [Annuler le cours] for Manager and above, both absent from the DOM for Receptionist (existing role test extended); a cancelled class shows the neutral "Cancelled" / « Annulé » badge, sorts below live classes, and offers neither action; the "Old time" tag (`classes.times.oldTimeTag`) appears in the expanded row of a future session with bookings that does not match the class's times
+
+**Given** the Create / Edit class modal (UX AD-19)
+**When** a Manager, Supervisor or Owner picks Recurring
+**Then** the weekly-times editor replaces the Days and Time lines: one row per time with Day select (Monday to Sunday) and 24-hour Time, [Remove] per row, [+ Add a time] appending a row pre-filled with the next weekday after the last row and the last row's time and moving focus to its Day select, the counter "[n] of 14" always visible, rows re-sorted Monday first on blur and on save with the polite announcement `classes.times.sorted`, the time-zone line `classes.times.timezone`
+**And** at 14 rows [+ Add a time] stays visible with `aria-disabled` and shows `classes.times.limit`; the same weekday may appear twice at different times; an identical day and time on a later row shows `classes.times.error.duplicate`; no row (the only row removed) shows `classes.times.error.none` on save; a row with no day or time shows `classes.times.error.day` / `classes.times.error.time`; errors are inline per row with `aria-describedby` and an error summary on submit
+**And** switching One-off and Recurring keeps what was entered for the other mode until save; opening a migrated class shows its old days as one row per day at its old hour with no banner and no "migrated" label
+
+**Given** a class that has upcoming sessions is edited
+**When** the modal opens
+**Then** the info notice `classes.times.editNotice` sits above "Weekly times"
+**And** on Save the modal shows the result view in place: heading `classes.times.saved.title` and `classes.times.saved.summary`; when `left_unchanged` is not empty, `classes.times.left.title` (or `classes.times.left.title1`) with `classes.times.left.help` and one row per session formatted by `classes.times.left.row` (day, date, hour, "n / capacity booked"), read-only, with [Done]; when it is empty an edit shows `classes.times.left.none` with [Done]; a create (never has bookings) closes on save as today
+**And** focus moves to the result heading and [Done] returns focus to the class's [Edit] button; a booking that lands during the save never produces an error, the session is simply listed (the concurrency rule of 29.1)
+
+**Given** the Cancel class dialog (UX AD-18; Escape disabled)
+**When** a Manager and above opens it for a class with 8 upcoming bookings
+**Then** it shows `classes.cancel.title` and `classes.cancel.body` with the server's count, buttons [Keep class] / [Cancel class] (not the generic [Cancel]), `classes.cancel.bodyNoBookings` for zero, success toast `classes.cancel.toast`, and the refusals `classes.cancel.already`, `classes.coach.ownOnly` (stale Coach case reserved for 29.3) and `classes.cancel.error` for any other failure
+**And** the audit log (UX AD-12) shows the new labels `audit.actionTypes.classTimesChanged` ("Class weekly times changed", details: class name, old → new summary, "[N] sessions with bookings left unchanged") and `audit.actionTypes.classCancelled` ("Class cancelled", details: class name, "[N] bookings cancelled"); `update_class` and `create_class` write the corresponding audit rows
+
+**Given** EN and FR
+**When** `scripts/check-i18n-key-parity.mjs` runs
+**Then** every key in "Group F" (`classes.times.*`, `classes.cancel.*`, `classes.coach.*` where used here), the two audit labels and the new mobile keys exist in both `apps/dashboard/locales/{en,fr}.json` and the mobile catalog with matching placeholders and counts
+
+**Given** a Receptionist, a Coach and a member
+**When** each calls `create_class`, `update_class` (either signature) or `cancel_class` directly, or writes `classes`, `class_sessions` or `class_schedule_slots` directly
+**Then** every call is refused (negative tests per role, including a Manager of gym B against a gym A class: uniform not-found), the existing `class_creation_scheduling.negative.test.sql` and `class_attendance_marking*.test.sql` pass without edit, and an E2E spec `apps/dashboard/e2e/class-weekly-times.spec.ts` covers the golden path (create a class with three different times, book a session as a member, move a time, see it listed as left unchanged with the "Old time" tag, cancel the class, see "Cancelled")
+
+---
+
+### Story 29.3: Coaches Create, Edit and Cancel Their Own Classes
+
+As a Coach,
+I want to create, change and cancel the classes I teach from My Classes,
+So that I run my own timetable without asking a manager for every change, while the admin Classes page and other coaches' classes stay closed to me.
+
+*Delivers FR-246 (Coach create, edit, cancel own classes; cannot assign another coach or change another coach's class; Manager, Supervisor and Owner keep full control), FR-053 (unchanged: the admin Classes page stays closed to the Coach role), FR-145 (amended: the read-only rule no longer applies to a coach's own classes; the roster and attendance marking stay read-only, FR-107), FR-122, FR-121; NFR-001; spine AD-57, AD-34 (live write gate), AD-35, AD-21, AD-1. UX gate: UX AD-21 (My Classes: [+ Create class], [Edit], [Cancel class], empty state) and UX AD-19 Coach mode in EXPERIENCE.md; the screen states and copy there are the acceptance baseline. Reuses 29.1's `private.apply_class_slots` and 29.2's overloads, `cancel_class`, editor and dialog.*
+
+**Acceptance Criteria:**
+
+**Given** `create_class(..., p_slots)`, `update_class(..., p_slots)` and `cancel_class(p_class_id)` from 29.2
+**When** a caller with the live role `coach` (read through `private.current_member_role()`, never the token claim, AD-34) invokes them
+**Then** the function resolves the caller's own member row (`members.user_id = auth.uid()`, `gym_id = private.gym_id()`, `role = 'coach'`, `deactivated_at is null`) and checks `private.is_own_coach_id(<coach id>)` together with that live row, because `is_own_coach_id` alone checks neither gym, role nor deactivation
+**And** on **create**, `p_coach_id` must be the caller's own member id or null (null is stored as the caller): any other value raises the stable message mapped to `classes.coach.ownOnly`, so a Coach cannot create a class for another coach
+**And** on **update** and **cancel**, the class's current `coach_id` must be the caller's own member id **and** the new `p_coach_id` (if supplied) must also be the caller's own member id (the check applies to the old row and to the new values, so a Coach can neither edit another coach's class, nor reassign their own class to someone else, nor adopt a class that is about to be assigned to them); the refusal for another coach's class, another gym's class and a missing class is the same message and shape, so a Coach learns nothing about classes they do not own
+**And** Manager, Supervisor and Owner keep every existing behaviour of the functions on every class of their gym, with the same check expressed as "not limited to their own classes", and the existing role-matrix tests for those roles pass without edit
+
+**Given** a Coach deactivated, moved to another role, or whose gym is suspended after their token was issued
+**When** they call any of the three functions on their next request
+**Then** the call is refused through the live gate (a deactivated coach loses the gate through the live `members` read, not through the claim; a suspended gym raises the standard "gym is not active" error as `list_my_classes` does), proven by one pgTAP case each
+**And** a class whose coach is reassigned by a Manager from coach A to coach B stops being editable by A and becomes editable by B on the next request (test), and sessions, bookings and attendance of the reassigned class are untouched
+
+**Given** the direct table paths
+**When** a Coach writes `classes`, `class_sessions`, `class_schedule_slots` or `class_bookings` directly through PostgREST
+**Then** every write is refused: the RLS write policies on `classes` stay Manager, Supervisor and Owner only and **no Coach write policy is added** (`[ASSUMPTION]` decided here, consistent with the definer-only writes of AD-29 and 29.1: the coach grant is the three functions, gated by `private.is_own_coach_id` plus the live row, not table policies), proven by negative tests for insert, update and delete on each table
+**And** a Coach has no read on `class_bookings` and no new read: the roster stays `list_my_class_session_roster(uuid)` and attendance marking stays Receptionist and above (`mark_class_attendance` refuses a Coach, test unchanged)
+
+**Given** `list_my_classes()` and `list_my_class_session_roster(uuid)`
+**When** a Coach creates a class
+**Then** it appears in `list_my_classes()` for that Coach immediately, in the UX AD-18 list for Receptionist and above, and in the members' class list after its sessions are generated (create materializes the first window synchronously, as today)
+**And** a cancelled own class appears in the Coach's list with the "Cancelled" badge and no [Edit] or [Cancel class] (as UX AD-18), its future sessions flagged cancelled and excluded from the roster function's results; the roster function still returns empty for another coach's session, another gym's session and a deactivated Coach (existing behaviour, `coach_portal_my_classes.test.sql` passes without edit)
+
+**Given** a Coach on the Coach Portal My Classes screen (UX AD-21)
+**When** it renders
+**Then** the page shows [+ Create class] (`classes.coach.create`), and each class row shows [Edit] and [Cancel class]; roster and attendance remain read-only, with no mark-attendance control, checkbox or booking add/remove, absent from the DOM
+**And** [+ Create class] and [Edit] open the same modal as 29.2 in Coach mode: **Coach** is plain text of the signed-in coach (`classes.coach.fixed`, helper `classes.coach.fixedHelp`), not a select; the weekly-times editor, the notice and the "left unchanged" result view behave exactly as 29.2; [Cancel class] opens 29.2's dialog
+**And** the empty state is `classes.coach.empty` with [+ Create class]; a stale tab after reassignment that triggers the server refusal shows `classes.coach.ownOnly` and refreshes the list; a Manager, Supervisor or Owner opening the same class in UX AD-19 still sees the full Coach select
+**And** a Coach's request for the admin Classes route `/classes` is still refused with the global "You don't have permission to do that." and the sidebar still has no Classes item for the Coach role (the FR-053 regression test, unchanged)
+
+**Given** audit
+**When** a Coach creates, edits or cancels an own class
+**Then** the audit log shows "Class created" (`audit.actionTypes.classCreatedByCoach`), "Class weekly times changed" and "Class cancelled" with the Coach as actor, and the same rows for Manager and above creating classes use the existing class-created label
+
+**Given** negative and cross-tenant tests
+**When** the suite runs
+**Then** pgTAP files `coach_own_classes.test.sql` and `coach_own_classes.negative.test.sql` cover: Coach A creating for Coach B (refused), Coach A editing and cancelling Coach B's class (refused, class and sessions unchanged), Coach A reassigning own class to B (refused), Coach of gym A on a gym B class (refused, uniform), a Coach passing a manager's member id, a Receptionist and a member (refused), a Coach calling `cancel_class` on an already cancelled class (the "already" message), and the 14-slot cap and duplicate refusal for a Coach exactly as for a Manager
+**And** `support_capabilities.test.sql` still passes with unchanged totals (no Coach function is a support capability) and `scripts/claim-inventory.mjs` shows no new `claim-only` entry
+**And** `apps/dashboard/e2e/coach-own-classes.spec.ts` (new) proves: a Coach creates a class with two different times, sees it in My Classes, edits one time, cancels it; a second Coach does not see it; the first Coach cannot open `/classes`; and the existing `progress-data-privacy.spec.ts` still passes
+**And** EN and FR parity holds for every key used (`classes.coach.*`, audit labels)
+
+---
+
+### Story 29.4: Coach Picker for Owner, Supervisor and Manager
+
+As an Owner, Supervisor or Manager,
+I want to choose any coach of my gym and see that coach's classes, class lists, assigned members, session notes and workout plans, read-only,
+So that I can check on my coaches' work without being given any coach's members' body or progress data.
+
+*Delivers FR-247 (coach picker; body and progress data stay excluded; Receptionist and Coach have no picker; limited to the caller's own gym), FR-053 (amended: the Coach Portal also opens for Owner, Supervisor and Manager through the picker; Coach and admin pages otherwise unchanged), FR-145, FR-122; NFR-011, NFR-016 (progress access remains re-verified on every request, untouched), NFR-001; spine AD-58, AD-34 (live read gate), AD-35 (not a support capability, FR-251), AD-1. UX gate: UX AD-32 Coach Picker, picker-mode amendments of UX AD-14, UX AD-15, UX AD-20 and UX AD-21, and the sidebar role table in EXPERIENCE.md (V1.8 sidebar change and role visibility); the screen states and copy there, and "Group G" keys, are the acceptance baseline. Priority tags: the PRD marks FR-247 as part of the gym-operations step; the picker's `[ASSUMPTION]` UX tags (active coaches only, `?coach=` query parameter, default tab Classes, pre-select with a single coach, read-only banner style) are carried as written; OQ-34 is resolved (2026-11-15).*
+
+**Acceptance Criteria:**
+
+**Given** the read functions the picker needs
+**When** the migration lands
+**Then** these `SECURITY DEFINER` functions exist, each with a `p_coach_id uuid` parameter, `STABLE`, `set search_path = public, pg_temp`, `REVOKE ... FROM public, anon`, `GRANT ... TO authenticated`, and shaped like `list_my_classes()` and `list_my_class_session_roster(uuid)` (0096): `list_coach_classes(p_coach_id)` (one row per class and per session from 00:00 today in the gym's time zone, plus slots, `cancelled_at`, booked count), `list_coach_class_session_roster(p_coach_id, p_class_session_id)` (exactly `(member_id, member_name, attended_at)`), `list_coach_assigned_members(p_coach_id)` (the chosen coach's currently assigned members, `coach_assignments.ended_at is null`, with profile columns below, plan name, subscription status and expiry, and the latest session-note snippet of that coach), `get_coach_assigned_member(p_coach_id, p_member_id)` (the one-member header for UX AD-15), `list_coach_member_session_notes(p_coach_id, p_member_id)` (the chosen coach's own notes only, newest first, with author and time) and `get_coach_member_workout_plan(p_coach_id, p_member_id)` (the ordered plan: exercise, sets, reps, note, plan author name; no completion data), plus `list_picker_coaches()` for the select (this gym's active Coach-role members: id and name)
+**And** each function (1) reads the live role and refuses with an **empty result** (never an error that reveals state) unless the caller is Owner, Supervisor or Manager of the caller's gym through the live check (`private.current_member_role()` and `private.gym_id()`, AD-34, not the claim), (2) raises the standard "gym is not active" error for a suspended gym exactly as `list_my_classes` does (so `suspension_rpc_coverage.test.sql` passes), (3) filters every table it touches on `gym_id = private.gym_id()`, (4) **asserts first** that `p_coach_id` is a member of `private.gym_id()` with role `coach` (null-safe; a coach of another gym, a non-coach id, a null and a random uuid all return an empty result), and for the member-scoped functions that the member is **currently assigned to that coach**, (5) returns `RETURNS TABLE` with a named column allow-list, never `select *`, never a row type, never `to_jsonb` of a row, and carries no comments in the function body (the coverage meta-test scans `prosrc`)
+**And** the assigned-member profile columns are exactly: member id, name, phone, photo URL, goal, experience level, status, plan name, expiry date, join date; `members.starting_weight_kg`, `height_cm`, `birth_year`, `dob`, `emergency_contact`, `email`, `neighborhood`, `profession` are **not** returned (body measurements sit on the `members` row, so a profile `select *` would leak them), proven by a column-allow-list test per function against `pg_proc`/`information_schema` result columns
+
+**Given** the body and progress boundary (FR-247, FR-095, NFR-011, NFR-016)
+**When** the CI check `scripts/check-coach-picker-isolation.mjs` (plus a pgTAP twin `coach_picker_isolation.test.sql`) runs in `scripts/ci-local.sh` and in the GitHub Actions workflow
+**Then** it finds every picker function by name pattern and by a committed allow-list (`scripts/coach-picker-functions.json`, so a function renamed out of the pattern still fails), walks `pg_depend` **transitively** (functions called, views read, tables, policies' functions, types) and fails with the object path when any picker function depends on `progress_entries`, `progress_photos`, the progress notes table, `workout_plan_completions` or the Coach Overview's progress feed (the function or view behind the UX AD-20 "Recent Progress Activity" and "Needs Follow-Up" lists, named by grep of `apps/dashboard/app/(dashboard)/coach/overview` and the migrations that define it; the real object names go into the deny list, since no object is literally named "measurements" or "progress notes")
+**And** a self-test feeds the check a fixture function that reaches `progress_entries` through a helper view two levels down and proves the check fails, and a fixture that reaches a progress table only through another picker function's dependency also fails; the check also fails if a picker function appears in `private.support_capabilities`, or if a function in the allow-list cannot be found (a stale list)
+**And** the deny list is built from the real table names verified in `supabase/migrations` at story time (`progress_entries` 0066, `progress_photos` 0067, `workout_plan_completions` 0081, and the progress-notes table of FR-098 under its real name), and a comment in the check says that a new body-data table must be added there
+
+**Given** a seeded gym with a coach, assigned members and body data
+**When** the positive pgTAP test `coach_picker_no_body_data.test.sql` seeds, for the coach's assigned member, a progress entry with measurements and weight, a progress photo (shared and not shared), a progress note, a workout plan with a recorded plan completion, a session note, a class booking and a Coach-Overview-visible progress event
+**Then** it calls **every** picker function as Owner, Supervisor and Manager of that gym and proves, by scanning the full text of every returned row for each seeded value (weights, measurements, photo path, note text, completion marks) and for the member's `starting_weight_kg` and `height_cm`, that none appears; the session note and the plan as authored do appear; the test fails if a new picker function is added to the allow-list without being called here
+**And** RLS on `progress_entries`, `progress_photos`, the progress notes table and `workout_plan_completions` is unchanged: a diff of `pg_policies` for those tables before and after the migration is empty (test), so an Owner, Supervisor or Manager still reads no progress data by any direct read (existing `progress-data-privacy.spec.ts` passes without edit)
+
+**Given** every unauthorised caller and every tenant boundary
+**When** the negative tests run
+**Then** a Receptionist, a Coach (including the chosen coach calling the picker for themselves or for another coach), a member, an anonymous caller, a GymOS Support session (aal2, live assignment: refused, not registered in `private.support_capabilities`, FR-251) and a deactivated Owner each get an empty result from every picker function, and a Manager of gym B passing a gym A coach id gets an empty result from every function (cross-gym test per function)
+**And** a coach who is deactivated returns empty, a coach whose assignment of a member ended returns no member and no note for that pair, a member assigned to coach A asked for with coach B's id returns empty (the assignment is checked against the chosen coach), and an Owner who becomes deactivated loses access on the next request (live gate)
+**And** `support_capabilities.test.sql` still passes with its pinned totals unchanged, and its catalog section classifies the picker functions as non-support; `scripts/claim-inventory.mjs` shows no new `claim-only` entry
+
+**Given** the Coach Portal as Owner, Supervisor or Manager (UX AD-32)
+**When** they open Coach Portal from the sidebar
+**Then** the sidebar item is present for those three roles and absent for Receptionist and GymOS Support (route returns the global "You don't have permission to do that."), and for the Coach role the portal is their own, with no picker, no banner, and a typed `?coach=` ignored (their own id is resolved server-side) (the role table in the V1.8 sidebar paragraph; `Sidebar.test.tsx` and `CoachPortalNav.test.tsx` extended)
+**And** with nothing chosen the page shows `coach.picker.choose` with the select focused and loads no coach data; the select (`coach.picker.label`) lists the gym's active coaches, is carried as `?coach=<id>` so back, refresh and a shared link keep it, is pre-set when the gym has exactly one coach, and changing the coach reloads the current tab and keeps it
+**And** a gym with no coaches shows `coach.picker.noCoaches` with an [Open Staff] link for Owner and Supervisor and `coach.picker.noCoachesManager` for Manager; a coach id not in the gym or not a coach shows `coach.picker.unavailable` and clears the select; a deactivated coach shows `coach.picker.inactive`
+
+**Given** a chosen coach
+**When** the read-only banner and tabs render
+**Then** the neutral, non-dismissible banner `coach.picker.banner` is always visible under the select, the sub-navigation is **Classes** and **Members** only (no Overview; default tab Classes), and a direct address of `/coach/overview?coach=...` or of a member's Progress tab shows the single message `coach.picker.partUnavailable` with links to Classes and Members, never any content
+**And** the Classes tab is UX AD-21 in read-only mode built from `list_coach_classes` and `list_coach_class_session_roster` (sessions from 00:00 today, booked counts, roster with name and attendance status), with no [+ Create class], [Edit] or [Cancel class] in the DOM and a text link [Open in Classes] (`coach.picker.openInClasses`) to UX AD-18; empty state `coach.picker.noClasses`
+**And** the Members tab is UX AD-14 in read-only mode built from `list_coach_assigned_members` (same columns, search and sort), empty state `coach.picker.noMembers`; a row opens UX AD-15 in picker mode
+
+**Given** UX AD-15 in picker mode
+**When** it renders for a member currently assigned to the chosen coach
+**Then** the header shows avatar, name, status, plan, expiry, goal, experience and phone only; the tabs are **Session Notes** and **Workout Plan** only (the Progress tab is absent from the DOM, not locked, blurred or empty); the expired bar reads `coach.picker.expiredBar`; the persistent line `coach.picker.noBodyData` sits under the tabs
+**And** Session Notes lists only the chosen coach's own notes newest first with author and time and no [+ Add note], Edit or hover affordance; Workout Plan shows the ordered exercises with sets, reps and notes, the line `coach.picker.planAuthor` when the plan's author is not the chosen coach, and no [Edit], [+ New plan], drag handle, Move up/down, [Take ownership] banner, completion mark or progress count of any kind
+**And** a member who is not currently assigned to the chosen coach shows `coach.picker.notAssigned` with [Back to members] (`coach.picker.backToMembers`) and never the profile; the picker never shows a count, chart, thumbnail, "last logged" date or "no data yet" placeholder for any body or progress item (component tests assert none of those elements render)
+**And** the picker issues no write: no server action in the picker route calls an insert, update or delete, proven by a test that renders the whole flow with a Supabase client double that throws on any non-`rpc` read and on any RPC outside the allow-list
+
+**Given** performance and scale
+**When** the picker lists a coach with 40 classes and 200 assigned members
+**Then** `list_coach_classes` and `list_coach_assigned_members` return within the existing page-load target (NFR-001, p95 < 2 s on the local seed), each result set stays under the API `max_rows` cap (1000) or is paged by the story with a test at the cap boundary (the same caveat `list_my_classes` records), and both functions are covered by an index check (`explain` shows no sequential scan on `class_sessions`, `coach_assignments` or `class_bookings` for the seeded size)
+
+**Given** EN and FR
+**When** `scripts/check-i18n-key-parity.mjs` runs
+**Then** every "Group G" key used here (`coach.picker.*`, `coach.portal.nav`) exists in both locales with matching placeholders, and an E2E spec `apps/dashboard/e2e/coach-picker.spec.ts` proves, with seeded body data present: an Owner and a Manager see the coach's classes, rosters, assigned members, notes and plans; no measurement, photo, progress note, plan-completion mark or Overview feed is anywhere in the DOM or in the network responses; a Receptionist and a Coach have no picker; a Manager of another gym cannot open the coach by URL
+
+
+---
+
+### Epic 30 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 30.1 | Engagement Configuration, Weekly Goal & Wording Catalog | next free at merge time | none |
+| 30.2 | Engagement Facts, the Fold & Settle | next free at merge time | 30.1, Epic 27 (`visit_day`, `member_visit_days`, `attendance_counted`) |
+| 30.3 | Settle Triggers & the At-Risk State | next free at merge time | 30.2, Epic 27 (`record_check_in`, `void_staff_check_in`) |
+| 30.4 | Weekly Ring & Streak on Home | none | 30.1, 30.3 |
+| 30.5 | Attendance Calendar | next free at merge time | 30.3, Epic 27 (`member_visit_days`) |
+| 30.6 | Gym Leaderboard & Anonymous Choice | next free at merge time | 30.1, Epic 27 (`attendance_counted`) |
+| 30.7 | Milestones & Celebration | next free at merge time | 30.2, 30.3, 30.4, 30.5 |
+
+*30.6 shares no table or function with 30.2–30.5 and can run in parallel with them once 30.1 has merged (it only needs the `engage.*` catalog and the Epic 27 views). 30.4 and 30.5 are independent of each other once 30.3 has merged. 30.7 closes the epic because it amends the settle function (30.2), the state read (30.3) and the calendar (30.5), and pushes its screen from Home (30.4). Migration numbers are assigned at merge time (the latest at planning time is 0172, and Epics 27–29 land first); earlier stories never renumber.*
+
+*Production is live with real gyms. 30.3 re-creates two Epic 27 check-in functions (`private.record_check_in`, `public.void_staff_check_in`), so it ships behind the full `scripts/ci-local.sh` gate with the existing check-in pgTAP files passing unedited. Every other story adds tables and functions that no existing path calls. The engagement area stays **dark** until the operator sets `platform_engagement_config.release_week_start` (30.1): the migrations and the mobile code can be deployed ahead of the 1.8.0 release with no member-visible effect.*
+
+*Conventions for every story in this epic (not repeated in each story). (1) Every count reads `attendance_counted` or `member_visit_days` (spine AD-56), never `attendance_events`; the day of a visit is the stored `visit_day`, never recomputed from the gym's current timezone (spine AD-53); week and month arithmetic is on `date`, using `private.gym_today`, `private.gym_local_day_bounds`, `private.gym_local_month_bounds` and the new week helper (30.1). (2) Class-only attendance (`class_bookings.attended_at`) writes no `attendance_events` row and is **not** a visit day (spine AD-53; reality review §2): no story in this epic counts it. (3) The member-facing RPCs of this epic resolve the caller live (spine AD-34), not from the token: `private.current_member_role() = 'member'`, `private.gym_id()`, the member's own `members` row with `deactivated_at is null`, and `private.current_gym_status() = 'active'`; staff, support, anon, deactivated members and members of a suspended gym get a refusal (writes) or an empty result (reads). None of these RPCs is registered in `private.support_capabilities` (FR-251: no member-app capability for support), so `supabase/tests/support_capabilities.test.sql` keeps its pinned counts and names unchanged; each story that adds an RPC asserts that. (4) The engagement tables enable RLS, carry no policy and grant nothing to `anon`, `authenticated` or `service_role`: the definer functions are the only door (spine AD-1, AD-30 ledger precedent, FR-228 "no role can edit a count or rank"). (5) Mobile wording lives only in `apps/mobile/src/locales/{en,fr}.json` under the `engage.*` namespace (FR-232); every screen story adds its own keys to **both** files and `pnpm run check:i18n` stays green. (6) Screens carry the line "UX gate: ... in EXPERIENCE.md; the screen states and copy there are the acceptance baseline". The mobile app has no E2E harness (the Playwright baseline covers the dashboard); the release-gate E2E of PRD 10.3 Step 3 item 11 is met here by pgTAP journey tests plus component tests, and a mobile E2E spec is not claimed.*
+
+---
+
+### Story 30.1: Engagement Configuration, Weekly Goal & Wording Catalog
+
+As a member,
+I want to choose how many days a week I want to come and see that choice in my Profile,
+So that the ring and the streak measure my own target, and the app's wording can change without a redesign.
+
+*Delivers FR-219 (goal, range, default, next-week rule; Must), FR-232 (wording as editable EN/FR text; Must), and the configuration and week helper that FR-220, FR-222 and FR-223 read. Spine AD-53 (`platform_engagement_config`, `member_weekly_goals`, `private.gym_local_week_bounds`), AD-61 (the weekly goal has exactly one write path), AD-34 (live caller), AD-1. `[ASSUMPTION]` Monday week start, default 3, range 1–7 (OQ-33, confirmed against pilot data after release). UX gate: MA-23 Weekly Goal sheet and the MA-12 Profile "Training" card with its Weekly goal row in EXPERIENCE.md; the screen states and copy there are the acceptance baseline. Migration at merge time.*
+
+**Acceptance Criteria:**
+
+**Given** the migration
+**When** it runs on a database that already holds gyms and members
+**Then** `platform_engagement_config` exists as a singleton (unique index on `((true))`, the `platform_session_config` pattern) with one seeded row: `goal_min` 1, `goal_max` 7, `goal_default` 3, `shield_every_weeks` 4, `shield_cap` 2, `comeback_visits` 3, `comeback_window_days` 10, `daily_streak_min` 3 and `release_week_start` NULL, with CHECKs (`goal_min >= 1`, `goal_min <= goal_default <= goal_max`, `shield_cap >= 0`, every other integer `> 0`, and `release_week_start` is NULL or a Monday (`extract(isodow from release_week_start) = 1`))
+**And** no existing table, function or policy is altered, and the existing pgTAP suite passes with no edited file
+
+**Given** `release_week_start` is NULL (the seed)
+**When** any later story reads the epoch
+**Then** NULL means the engagement area is **dark** (nothing is settled, `my_engagement().enabled` is false in 30.3); the operator turns it on by setting a Monday, and the exact statement is recorded in a dated `docs/decisions.md` entry together with this meaning of NULL `[ASSUMPTION — dark launch, so migrations and the mobile build can be deployed before the 1.8.0 release]`
+
+**Given** the config table's grants
+**When** a Super Admin, an Owner, a member and an anonymous caller each try to select and update it
+**Then** only the Super Admin can read and update (RLS `private.is_super_admin()`, the `platform_session_config` policies), insert and delete are refused for everyone, and an Owner or member read returns nothing or is refused
+
+**Given** an UPDATE of any config column by the Super Admin
+**When** it commits
+**Then** an audit entry is written (`log_audit_event`, action `platform_engagement_config_updated`, `gym_id` null) whose metadata holds `old` and `new` built from the **whole row** (`to_jsonb(old)` and `to_jsonb(new)`), not a hand-listed set of keys
+**And** a pgTAP test updates **each column in turn** (read from `information_schema.columns`, so a column added later is covered) and asserts the entry names that column's old and new value (the 0107 audit trigger hard-coded its keys, so a new column was silently unaudited)
+
+**Given** `private.gym_local_week_bounds(p_timezone text, p_at timestamptz)` returning `(week_start timestamptz, next_week_start timestamptz)`, IMMUTABLE, beside `gym_local_month_bounds`, with no EXECUTE for `anon` or `authenticated` beyond what the month helper has
+**When** it is called for Africa/Douala, America/Los_Angeles and Europe/Paris
+**Then** the week is Monday 00:00 gym-local to the next Monday 00:00 gym-local; an instant that is Sunday 23:30 UTC is Monday 00:30 in Douala and so falls in the **new** week; an instant exactly at Monday 00:00 local belongs to the new week and one second earlier to the old one
+**And** the Paris week containing the last Sunday of March has `next_week_start - week_start = 167 hours` and the one containing the last Sunday of October 169 hours, because the interval is added to the local timestamp and not to the timestamptz (the 0095 rule)
+**And** a second IMMUTABLE helper `private.week_start_of(p_day date) returns date` returns the Monday on or before a date and is the only way later stories turn a `visit_day` into its week
+
+**Given** the table `member_weekly_goals(member_id, gym_id, effective_week date, goal smallint, created_at)` with a primary key `(member_id, effective_week)`, `effective_week` a Monday (CHECK), `goal` between 1 and 7 (CHECK)
+**When** a member, a staff member of the same gym and a member of another gym each try to select, insert, update or delete a row directly
+**Then** all are refused (RLS enabled, no policy, no grants), and a pgTAP test asserts `has_table_privilege` is false for `anon`, `authenticated` and `service_role` on all four verbs
+
+**Given** a member with no goal row, whose gym is in Africa/Douala
+**When** they call `set_weekly_goal(p_goal smallint)` on a Wednesday
+**Then** exactly one row is inserted with `effective_week` = the next gym-local Monday (computed on the server through the week helper; there is no date parameter) and the function returns `(goal, effective_week, current_goal, current_goal_is_default)` where `current_goal` is still 3 (the default applies meanwhile, NFR-028)
+**And** choosing 3 on a member with no rows still records an explicit row at 3 `[ASSUMPTION — UX MA-23]`
+
+**Given** a member whose goal row for next Monday already exists
+**When** they call `set_weekly_goal` again in the same week with another value
+**Then** the pending row is **replaced** (same `effective_week`, new goal; it is not history yet) and no unique-key error is raised
+**And** when they call it with the goal that is currently in force while a pending row exists, the pending row is deleted (the change is cancelled); when they call it with the goal in force and no pending row exists after at least one explicit row, nothing is written and the same result is returned
+
+**Given** the goal-history trigger
+**When** anything (including a SECURITY DEFINER function or the table owner) tries to insert, update or delete a row whose `effective_week` is less than or equal to the current gym-local week start
+**Then** it is refused, so a goal already in force or in the past can never be lowered or rewritten (FR-219: "a goal cannot be lowered after a bad week")
+
+**Given** a member on Wednesday with a goal of 3 in force
+**When** they set 5 and the test reads `my_weekly_goal()`
+**Then** it returns `current_goal` 3, `pending_goal` 5 and `pending_effective_week` the next Monday, `goal_min` 1 and `goal_max` 7 from the config, and it is STABLE and writes nothing
+**And** with the clock moved to that Monday the same call returns `current_goal` 5 and no pending goal, and the earlier week's value is unchanged
+
+**Given** values of `p_goal` of 0, 8, -1 and NULL
+**When** `set_weekly_goal` is called
+**Then** each is refused with a stable error code (`invalid_goal`) and nothing is written; the range is read from `platform_engagement_config`, so a config change of `goal_max` to 6 refuses 7 without a code change
+
+**Given** callers who are not a live member: an Owner, a Receptionist, a support person, an anonymous caller, a deactivated member, a member whose gym is suspended, and a member of gym B passing nothing that names gym A
+**When** each calls `set_weekly_goal` and `my_weekly_goal`
+**Then** writes are refused and reads return no row, no `member_weekly_goals` row appears for anyone, and a member can only ever affect their own row (the function takes no member id)
+**And** the functions are `revoke ... from public, anon`, granted to `authenticated` only, and `support_capabilities.test.sql` passes unchanged
+
+**Given** a member at a gym with a timezone change after they set a goal
+**When** the Owner changes `gyms.timezone` between Douala and Nairobi
+**Then** `member_weekly_goals.effective_week` (a stored date) does not move, and the pending goal still takes effect on that date
+
+**Given** `apps/mobile/src/locales/en.json` and `fr.json`
+**When** this story ships
+**Then** both gain, verbatim from the EN and FR columns of the V1.8 string catalog in EXPERIENCE.md, the namespaces `engage.goal.*`, `engage.ring.*`, `engage.streak.*`, `engage.shield.*`, `engage.comeback.*`, `engage.celebration.*`, `engage.profile.section`, `engage.profile.goal.*`, `engage.profile.reminder.*`, `engage.updatedAt` and `n08.*` (the Shield, comeback, celebration and reminder wording is added now so Epic 31 needs no wording work; the server-side N-08 copy store is Epic 31's), and the **reserved mascot keys** `engage.celebration.mascot.7`, `.30`, `.100`, `engage.comeback.mascot`, `engage.shield.mascot` and `n08.mascot`, present in both files with the **empty string** as value
+**And** the namespaces for the calendar, at-risk hint, leaderboard, Home error states and Anonymous rows are added by the screen stories 30.4, 30.5 and 30.6 that render them
+
+**Given** a Vitest file in `apps/mobile` that holds the required key list for this story (copied from the catalog rows, one array)
+**When** it runs
+**Then** it fails if any required key is missing from either file, if a key's placeholders (`{n}`, `{date}`, `{goal}` and the plural variables) differ between EN and FR, if a plural key lacks `one` or `other` in either language, if any `engage.*` or `n08.*` value contains an exclamation mark or the words "last chance" or "streak lost" (the tone rule: no loss, no countdown), or if a mascot key is non-empty
+**And** `pnpm run check:i18n` (the repo's key-parity gate, which already walks `apps/mobile/src/locales`) passes with the new keys
+
+**Given** MA-23 and the Profile row (UX gate)
+**When** the member opens Profile
+**Then** a new `flat` "Training" Card (`engage.profile.section`) sits between the account Card and the Notifications Card with one row, **Weekly goal**, glyph `flag`, value "3 days" (`engage.profile.goal.value`), a chevron; with a pending change the value reads "3 days, then 4 from Mon 24 Nov" (`engage.profile.goal.pending`); the Badges and Anonymous rows are not added here
+**And** tapping the row opens the MA-23 bottom sheet at route `/goal` (slide up, up to 60% of the screen, swipe down or Android back dismisses without saving)
+
+**Given** the Weekly Goal sheet
+**When** it renders
+**Then** it shows the title, the prompt, seven option pills "1" to "7" (one row at 360pt or wider, two rows 1–4 and 5–7 below that), each 44pt wide at least, the member's current goal pre-selected with a check glyph and the word "current" in its accessible name (`engage.goal.option.a11y`, `engage.goal.current`), the effect line, the `engage.goal.why` line and a primary **[Save goal]** button
+**And** the effect line reads `engage.goal.effective` ("Starts Monday 24 Nov. This week stays at 3.") when the choice differs from the current goal, `engage.goal.noChange` when it equals it, and `engage.goal.pending` when a change is already pending (the new choice then replaces the pending one)
+**And** [Save goal] is disabled until the choice differs from the current or pending goal
+
+**Given** the member taps [Save goal] online
+**When** `set_weekly_goal` succeeds
+**Then** a Light impact haptic fires, the sheet closes, the toast `engage.goal.saved` ("Goal saved. Starts Mon 24 Nov") shows, and the Profile row shows the pending form; when the call fails the sheet stays open with `engage.goal.error` above the button
+**And** offline, the options still work but [Save goal] is disabled with `engage.goal.offline` (a goal change is never queued, because the effective Monday depends on the server's gym-local week)
+
+**Given** a member who has never set a goal
+**When** the sheet opens
+**Then** "3" is selected, and a member whose `my_weekly_goal()` says `current_goal_is_default` sees the one-time hint `engage.ring.goalHint.default` dismissed when they open the sheet (device storage `[ASSUMPTION — UX]`)
+
+**Given** English and French
+**When** the sheet and the Profile row render in each
+**Then** every string comes from the catalog, long French strings do not clip at 360pt width and +2 text size, option pills have 44pt targets, and a Vitest that swaps one catalog value for a sentinel proves the screen shows the sentinel (FR-232: wording is data, not screen text)
+
+---
+
+### Story 30.2: Engagement Facts, the Fold & Settle
+
+As a member,
+I want my weeks, streak and best streak to be worked out on the server from my real visits and to stay correct when a late visit arrives,
+So that the streak I see can be trusted and never depends on my phone.
+
+*Delivers FR-220 (weekly streak settled on the server, best streak never lowered; Must), FR-225 (visit day, release epoch, existing history; Must) and NFR-028 (deterministic counts, late offline visit, goal in force kept, timezone change). Spine AD-53 (ledger, fold, settle, epoch), AD-56 (counting views), AD-29 (member lock order), AD-1. `[ASSUMPTION]` "Consecutive" is strict: a week below goal ends the run (FR-220); existing attendance counts and the streak starts from `release_week_start` (FR-225). Shield and comeback arrive in Epic 31 through the same fold. No UX gate (no screen). Migration at merge time.*
+
+**Acceptance Criteria:**
+
+**Given** the migration
+**When** it runs
+**Then** `engagement_facts(member_id, gym_id, kind, subject_key, revision, outcome, goal, visits, silent, acknowledged_at, detail jsonb, created_at)` exists with primary key `(member_id, kind, subject_key, revision)`, `kind` CHECKed to `week`, `day_shield`, `milestone`, `badge`, `comeback` (the five kinds of AD-53, so Epic 31 alters no table), `revision >= 1`, and per-kind CHECKs: a `week` fact has `outcome` in (`met`, `missed`, `saved`), `goal` 1–7 and `visits >= 0`, `subject_key` the week's Monday as `YYYY-MM-DD`; a `milestone` fact has `subject_key` in (`7`, `30`, `100`) and no outcome
+**And** `engagement_state(member_id primary key, gym_id, settled_through date, dirty_from date, updated_at)` exists
+**And** both tables enable RLS with no policy and no grant to `anon`, `authenticated` or `service_role` (asserted with `has_table_privilege`), and a member's `member_id` foreign key cascades on member delete
+
+**Given** `engagement_facts` is append-only
+**When** anything tries to UPDATE or DELETE a row
+**Then** a trigger refuses it, with exactly two exceptions: a DELETE caused by the owning `members` row being deleted (cascade), and an UPDATE that sets `acknowledged_at` from NULL to a timestamp on a `milestone` fact while the transaction-local flag set only by the acknowledge function of 30.7 is on (no other column may change)
+**And** a pgTAP test proves a direct UPDATE of `outcome` or `visits`, an UPDATE of `acknowledged_at` without the flag, and an UPDATE that tries to clear `acknowledged_at` are all refused
+
+**Given** several revisions of the same `(member_id, kind, subject_key)`
+**When** the effective fact is read through `private.effective_engagement_facts(p_member_id uuid)`
+**Then** it returns the **highest revision** per subject, so a replay inserts nothing and a correction is never dropped by a unique key (AD-53)
+
+**Given** `private.engagement_fold(p_member_id uuid)`, STABLE, returning `(streak_weeks int, best_streak_weeks int, last_settled_week date, shields_held int, comeback_state text)`
+**When** it folds the effective `week` facts in week order
+**Then** `met` adds 1 to the run, `missed` sets the run to 0, a week that is not the Monday after the previous week's (a gap) also restarts the run, and `best_streak_weeks` is the highest run ever reached, so it never decreases as weeks are added
+**And** a week with outcome `saved` keeps the run unchanged and adds nothing (FR-220: a Shield-saved week keeps the streak without adding to its count), kinds `day_shield`, `badge` and `comeback` are accepted and ignored, `shields_held` is 0 and `comeback_state` is `'none'` in this epic, and a pgTAP case inserts a synthetic `saved` fact and a `comeback` fact as the table owner to prove the fold neither errors nor miscounts, so Epic 31 plugs its Shield earn/spend and comeback steps into this one function without changing its callers or the tables
+**And** the fold reads facts only: no attendance, no config, no clock
+
+**Given** `private.settle_engagement(p_member_id uuid, p_gym_id uuid, p_up_to date)`, called with `private.gym_today(gym_id)` by the cron job and by `open_engagement()` in 30.3 and with a fixed date by tests
+**When** it runs
+**Then** it first takes the member lock (`select ... from members where id = p_member_id for no key update`, spine AD-29 and AD-53), before reading `member_visit_days` or writing any fact; it raises when the member does not belong to `p_gym_id`
+**And** when `release_week_start` is NULL it writes nothing and leaves `dirty_from` untouched (dark)
+**And** the member's start week is `greatest(release_week_start, week_start_of(min visit_day from member_visit_days))`; a member with no counted visit day writes nothing, so a gym's dormant never-visited members cost no rows
+
+**Given** a member with visit days before and after `release_week_start`
+**When** settle runs with `p_up_to` three weeks after the epoch
+**Then** no fact exists for any week before `release_week_start` (weeks before the epoch are never settled), the calendar and total visit count still include those earlier days (they read `member_visit_days`), and the first week fact is the epoch week
+**And** a week is closed only when `p_up_to >= week_start + 7`; the open week never gets a fact
+
+**Given** a closed week
+**When** settle evaluates it
+**Then** `visits` is the number of distinct `visit_day` values in `member_visit_days` between the Monday and the Sunday (date comparison, no timezone arithmetic), `goal` is the goal in force that week, and `outcome` is `met` when `visits >= goal` and `missed` otherwise, written as revision 1 with the goal and visit count used
+**And** the goal in force is the goal of the effective fact when the week already has one (frozen: a later change of the default or of the goal history never rewrites a settled week), otherwise the `member_weekly_goals` row with the greatest `effective_week` at or before that Monday, otherwise `goal_default`
+**And** empty weeks between the member's start week and the last closed week get `missed` facts, so a closed week with no visits is distinguishable from an unsettled one
+
+**Given** settle is called twice with the same arguments and no new attendance
+**When** the second call finishes
+**Then** it inserts no fact, `engagement_state.settled_through` is unchanged and the call returns zero weeks written (idempotent)
+**And** `settled_through` is the Monday of the last settled closed week, `dirty_from` is cleared by every successful run, and a run never moves `settled_through` backwards
+
+**Given** `engagement_state.dirty_from` is set to a Monday inside already-settled weeks
+**When** settle runs
+**Then** it re-evaluates every week from `least(dirty_from, settled_through + 7)` to the last closed week, and inserts a **new revision** only for a week whose `(outcome, goal, visits)` differs from its effective fact; a week whose recount is identical gets no new row
+
+**Given** the platform epoch
+**When** an operator tries to change `release_week_start` after any `week` fact exists
+**Then** a second trigger on the config table refuses it (moving the epoch would invalidate settled history); setting it while no fact exists is allowed (NFR-028)
+
+**Given** `private.rebuild_engagement(p_member_id uuid, p_up_to date)` (diagnostic, returns, never writes) and `private.engagement_derived_state(p_member_id uuid)` (the same shape read from the effective facts)
+**When** both are called for the same member
+**Then** each returns `(streak_weeks, best_streak_weeks, last_settled_week, weeks jsonb)` where `weeks` is the ordered array of `{week, visits, goal, outcome}`; rebuild re-derives visits and outcomes from `member_visit_days` and takes the goal in force as settle does, and the two results are **equal as jsonb** (derived state, not row counts, per AD-53)
+
+**Given** the NFR-028 pgTAP test `engagement_determinism.test.sql` with fixtures in Africa/Douala
+**When** it runs these cases and compares `engagement_derived_state` with `rebuild_engagement` after each
+**Then** all hold:
+- a **late offline visit**: a Sunday visit synced on the Tuesday after the week was settled `missed` (goal 3, two visits) makes the week `met` as **revision 2**, `visits` 3, and the derived state equals the rebuild (the week of the visit, not the week of receipt, is corrected);
+- a **void**: a same-day voided staff visit lowers the open week's count only, writes no fact, and never lowers `best_streak_weeks` (Epic 27 permits a void only on the visit's own gym-local day, so a closed week is never lowered);
+- a **goal change mid-week**: a goal of 3 in force, changed to 5 on a Wednesday, leaves that week's fact at goal 3 and the next week's at goal 5, and the member who made 3 visits in the changed week is `met`;
+- a **timezone change**: a 23:30 Douala visit has `visit_day` D; after `gyms.timezone` changes to Africa/Nairobi, the member's visit days, week facts and rebuild are identical and the visit is still on D;
+- a **default change**: `goal_default` changed from 3 to 4 after a week settled leaves that week's `goal` at 3, and a new unsettled week uses 4;
+- a **regained streak**: met, met, missed, met gives `streak_weeks` 1 and `best_streak_weeks` 2.
+
+**Given** `scripts/engagement-race.sh` (the `scripts/session-refund-race.sh` pattern: real second session inside the DB container, throwaway gym, default 8 iterations, wired into `scripts/ci-local.sh`'s pgtap stage and `.github/workflows/ci.yml` beside the refund race)
+**When** a settle of a member and an offline check-in whose recorded time is in the just-closed week start at the same moment behind a third session holding the member lock
+**Then** whichever commits first, the final state after one more settle shows the visit counted in the right week and `engagement_derived_state` equals `rebuild_engagement` (the week never stays `missed` with the visit present), and no iteration deadlocks or leaves `dirty_from` unset
+**And** the test fails if `record_check_in` is run with the lock order changed (member lock must come first and unconditionally, because the shipped `check_in` takes it only when charging is on)
+
+**Given** two members in different gyms and a staff member of each
+**When** each calls any function of this story through the API
+**Then** none of the helper functions is callable by `authenticated` (all in `private`, EXECUTE revoked), and the tenant-isolation test shows that a settle for a member of gym A never reads or writes a row for gym B
+
+**Given** `supabase/tests/suspension_rpc_coverage.test.sql`
+**When** it runs with the new SECURITY DEFINER settle function that writes the engagement tables
+**Then** it passes with the function listed in the exclusion array with an inline reason (a system path called by the cron job, which skips suspended gyms, and by `open_engagement`, which refuses a suspended gym before calling it); no other edit to that test and no other existing test file is changed
+
+---
+
+### Story 30.3: Settle Triggers & the At-Risk State
+
+As a member,
+I want my week to be settled when it ends and the app to know whether a visit today matters,
+So that Home and the calendar tell me the truth in the same words, and reading never changes anything behind my back.
+
+*Delivers FR-219 and FR-220 (the open week, goal, count and settled streak the screens read; Must), FR-224 (the at-risk definition and `day_ends_at`; Must), NFR-028 (late visits reach the right week), NFR-029 (check-in never waits on settle). Spine AD-53 (`engagement_settle` job, `open_engagement()`, `private.engagement_state_view`), AD-19 (job independence, `job_runs`), AD-56 (`record_check_in`, `void_staff_check_in`), AD-29, AD-34. `[ASSUMPTION]` the at-risk hint is hidden for an expired subscription (owner decision 2026-11-15, EXPERIENCE.md MA-09). No UX gate (no screen). Migration at merge time; amends two Epic 27 functions.*
+
+**Acceptance Criteria:**
+
+**Given** `private.record_check_in` and `public.void_staff_check_in` as Epic 27 left them
+**When** this story's migration re-creates them
+**Then** the only change to each body is one added statement in the same transaction, after the attendance row is written and with the member lock already held: `insert into engagement_state(member_id, gym_id, dirty_from) values (..., private.week_start_of(<the row's visit_day>)) on conflict (member_id) do update set dirty_from = least(coalesce(engagement_state.dirty_from, excluded.dirty_from), excluded.dirty_from)`, and the migration review shows the rest of each body byte-identical to Epic 27's final version
+**And** nothing else runs inside a check-in or a void: no settle, no fold, no fact insert, no milestone check (FR-225: engagement features change no check-in rule), and a pgTAP test asserts a QR check-in, a staff check-in and a void write exactly one `engagement_state` upsert and no `engagement_facts` row
+**And** the dirty mark is the single indexed upsert on the primary key and is not wrapped in an exception handler, so a dirty mark can never be silently lost (a lost mark would leave a week missed for good, NFR-028)
+
+**Given** the existing Epic 27 check-in and void pgTAP files, `check_in_session_gate*.test.sql`, `check_in_one_open_session_enforcement.test.sql` and `suspension_rpc_coverage.test.sql`
+**When** the full pgTAP suite runs after the migration
+**Then** every file passes **without any edit** (outcomes, the `NULL` refusals, the session consumption, the stamps, the alerts and the audit entries are unchanged), and `check_in()` returns the same row shapes as before
+**And** with `release_week_start` NULL a check-in still succeeds and still writes only the dirty mark
+
+**Given** a check-in whose recorded time falls in a previous, already-settled week (an offline scan within the auto-timeout window, FR-061)
+**When** it commits
+**Then** `engagement_state.dirty_from` is the Monday of the **recorded** visit's week (its stored `visit_day`), not the week of receipt, and a later `dirty_from` never replaces an earlier one
+
+**Given** a void of a staff check-in
+**When** it commits
+**Then** `dirty_from` is the week of the voided visit's `visit_day`, and no milestone, badge or week fact is deleted or edited by the void (FR-230)
+
+**Given** the cron job `engagement_settle`, registered with `cron.schedule` (upsert by name) at five past every hour, running as a procedure with a commit per member
+**When** it runs
+**Then** it logs a `job_runs` row (`job_name = 'engagement_settle'`, `started_at`, `finished_at`, `status`, `error`) and shares no lock, function or code path with `check_in()` (AD-19)
+**And** candidates are members of **active, non-suspended** gyms with `deactivated_at is null` whose `engagement_state.dirty_from` is not null or whose `settled_through` is before the Monday of the gym's last closed week (gym-local, so each gym's week closes within an hour of its own Monday 00:00), ordered by `member_id`, processed in batches
+**And** each member is settled in its **own short transaction** after `select ... from members ... for no key update skip locked`; a member whose row is locked (a check-in in flight) is skipped and picked up on the next run, so the job never holds a lock a scan needs and never blocks a check-in
+
+**Given** one member whose settle raises an error
+**When** the job runs over ten members
+**Then** the other nine are settled and committed, the failing member's error is captured, and the run ends with `job_runs.status = 'failure'` and an `error` text naming the count and the first error (one bad member never fails the run, AD-19)
+**And** a run with no failure ends `success`; a job re-run immediately afterwards settles nothing and inserts no fact
+
+**Given** `release_week_start` NULL
+**When** the job runs
+**Then** it logs `success`, settles nothing and touches no member
+
+**Given** `private.engagement_state_view(p_member_id uuid)`, STABLE, returning one row
+**When** it is called for a member
+**Then** it returns exactly: `enabled` (config epoch is set), `gym_today date`, `week_start date`, `week_end date`, `in_release_week` (the open week is before the epoch), `goal`, `goal_is_default` (no explicit goal row ever), `pending_goal` and `pending_effective_week`, `visits_this_week`, `goal_met`, `visited_today`, `streak_weeks` (the **settled** streak from the fold, never counting the open week), `streak_if_met` (settled streak plus one when the open week's goal is already met and the week is after the epoch, else NULL), `best_streak_weeks`, `has_settled_week`, `days_left_in_week` (including today), `visits_needed`, `at_risk_weekly`, `at_risk_daily`, `daily_run`, `shields_held`, `comeback_state`, `day_starts_at timestamptz`, `day_ends_at timestamptz`, `server_now timestamptz`, `needs_settle boolean` and `pending_milestone smallint`
+**And** `daily_run`, `shields_held` and `comeback_state` are constants (NULL, 0, `'none'`) and `at_risk_daily` is false until Epic 31 fills them, and `pending_milestone` is NULL until 30.7, so later stories re-create the function body without changing its row type
+**And** `needs_settle` is true when `dirty_from` is not null or the gym's last closed week is after `settled_through` (and the epoch is set), which is how the app learns it must call `open_engagement()`
+
+**Given** the weekly at-risk rule (FR-233 (b))
+**When** `visits_needed = goal - visits_this_week` and `days_left_in_week` are computed from `week_start + 6 - gym_today + 1` on dates
+**Then** `at_risk_weekly` is true only when the member has **not visited today**, the goal is not met, `visits_needed = days_left_in_week` (no rest day remains), the open week is after the epoch, and the member's current subscription is not `expired`; pgTAP boundary cases with goal 3:
+- Saturday, 1 visit, none today: needed 2, left 2: true;
+- Friday, 1 visit: needed 2, left 3: false (a rest day remains);
+- Sunday, 1 visit: needed 2, left 1: false (cannot be met);
+- Sunday, 2 visits, none today: needed 1, left 1: true;
+- Saturday, 1 visit including one today: false (visited today);
+- goal 7 on a Monday with 0 visits: needed 7, left 7: true, and false on the same Monday after a visit that day (the definition applies literally; a goal of 7 is at risk all week until a visit is made each day);
+- the same Saturday case for a member whose subscription is `expired`: false;
+- a Pay-per-session member with no subscription expiry: treated like any other member (no plan gating, FR-225).
+**And** the release week returns false for both flags (UX MA-09: no hint in the release week)
+
+**Given** `day_ends_at`
+**When** it is computed
+**Then** it is the next gym-local midnight from `private.gym_local_day_bounds(gyms.timezone, now())` (so a 23-hour or 25-hour DST day is right), `day_starts_at` is the matching start, and `server_now` is `now()` so a client can derive hours left without trusting the phone clock; the calendar, the ring and (in Epic 31) the reminder read these flags and this value only
+
+**Given** a member in a gym whose timezone was changed after the member's earlier visits
+**When** the view is read
+**Then** `visits_this_week` and the week bounds use the stored `visit_day` and the gym's current timezone only for "today" and `day_ends_at`; past days do not move (NFR-028)
+
+**Given** `public.my_engagement()` (STABLE, no arguments, read only) and `public.open_engagement()` (VOLATILE, no arguments)
+**When** a live member calls `my_engagement()`
+**Then** it returns the view row for that member's own member row and **writes nothing**: a pgTAP test asserts `provolatile = 's'`, and that `engagement_state` and `engagement_facts` row counts and contents are identical before and after
+**And** when the same member calls `open_engagement()` it settles through `private.settle_engagement(member, gym, gym_today)` under the member lock and returns the same row type after settling; calling it twice returns the same state and writes nothing the second time; it is the only member-callable function that settles (plain reads never mutate)
+
+**Given** callers who are not a live member (Owner, Receptionist, support, anon, deactivated member, a member of a suspended gym)
+**When** each calls `my_engagement()` or `open_engagement()`
+**Then** each gets no row or a refusal, and no engagement row is written for anyone; both functions are revoked from `public` and `anon`, the member id is never a parameter (no IDOR), and `support_capabilities.test.sql` passes unchanged
+**And** two members of the same gym each see only their own row
+
+**Given** a Pay-per-session member, a member on a monthly plan, a member awaiting the registration fee and a member whose subscription is `grace_period`
+**When** each calls `my_engagement()`
+**Then** each gets a row (all members see the same features whatever their plan, FR-225); an expired member gets the row with `at_risk_weekly` false
+
+**Given** the journey test `engagement_journey.test.sql` (PRD UJ-15 without Shields, in Africa/Douala, with the clock moved by test)
+**When** a member with goal 3 checks in on three days of week 1, misses week 2 entirely, and meets the goal in week 3, with `open_engagement()` called each Monday
+**Then** the settled streak reads 1 after week 1, 0 after week 2 (best stays 1), 1 after week 3, the ring counts (`visits_this_week`) follow the check-ins, a late offline visit for week 2 synced during week 3 turns week 2 into `met` (revision 2) and the streak becomes 3 with best 3 on the next `open_engagement()`, and at no point does a plain `my_engagement()` change a row
+
+**Given** the generated database types and the mobile service layer
+**When** this story ships
+**Then** `packages/types/src/database.ts` is regenerated, and `apps/mobile/src/services/engagement.ts` exposes typed `getMyEngagement()` and `openEngagement()` with a Vitest that mocks the client and covers the success, empty (non-member) and error shapes
+
+---
+
+### Story 30.4: Weekly Ring & Streak on Home
+
+As a member,
+I want a ring on Home that fills with each day I visit and a streak I can see growing,
+So that I know where I stand this week and feel the pull to keep it going.
+
+*Delivers FR-219 (ring; Must), FR-220 (weekly streak display; Must), the Home half of FR-224 (at-risk hint; Must), FR-232 (wording from the catalog), FR-225 (same for every plan), NFR-028 (the screen shows the server's numbers), NFR-029 (loads independently, within the budget). Spine AD-53 (reads `my_engagement`, calls `open_engagement` on first open after a week closes), AD-56. No mascot. Shield chips, the comeback card and the daily chip are Epic 31 (their slots exist but render nothing). UX gate: MA-09 amendment N1 "This week" card and all its states in EXPERIENCE.md; the screen states and copy there are the acceptance baseline. No migration.*
+
+**Acceptance Criteria:**
+
+**Given** the Home screen with `my_engagement().enabled` true
+**When** it renders
+**Then** the **N1 "This week" section** appears after the quick actions and before the Rewards card: a heading row with "This week" (`engage.ring.title`) and a goal button "Goal: 3 days" with a pencil glyph (`engage.ring.goalLabel`, 44pt target, opens the `/goal` sheet of 30.1), and one `flat` Card, tappable as a whole, containing the Goal Ring, the weekly streak chip, the caption and the footer row
+**And** when `enabled` is false (epoch not set) the section does not render at all and Home is unchanged from today
+
+**Given** the Goal Ring (`{components.goalRing}`, 120pt, react-native-svg)
+**When** a member has goal G (1 to 7) and V visit days this week
+**Then** the ring has exactly G equal arc segments with small gaps, the first `min(V, G)` filled in the gym accent colour, the rest in the `border` colour, the centre shows "V / G" in `statNumeral` with the word "days" beneath (`engage.ring.unit`), and visits beyond the goal add no segments (the centre stays "G / G" and the caption is `engage.ring.caption.extra`)
+**And** when `goal_met` every segment is `success` green with a check glyph, a new week with no visits shows "0 / 3" (a progress figure, not a streak), and the ring is one element with role `progressbar` and `accessibilityValue {min 0, max G, now V}` whose label is the sentence "Weekly goal: 2 of 3 visit days this week. 1 more visit closes your ring." (and "Weekly goal met: 3 of 3."), arcs decorative, in EN and FR
+
+**Given** the weekly streak chip (`{components.streakChip}`)
+**When** `streak_weeks` is 5
+**Then** it shows the flame glyph and "5 weeks in a row" (`engage.streak.weeks`); at exactly 1 settled week it reads "First week done" (`engage.streak.first`); it is never shown as "0 weeks" and its accessible label is the sentence, never "0"
+**And** while `shields_held` is 0 the line `engage.streak.nextShield` is not shown in this epic (Shields are Epic 31), and when `streak_weeks` is 0 and `best_streak_weeks` is at least 1 the card shows the muted line `engage.streak.best` ("Best: 8 weeks") in place of the chip `[ASSUMPTION — UX to confirm; Epic 31's comeback card supersedes it]`, so the card never shows a bare zero
+
+**Given** the card's states (each tested with a fixture row of `my_engagement()` and rendered in EN and FR)
+**When** the data matches a state of the UX table
+**Then** the card renders exactly that state's ring, streak area, caption key and footer:
+- **Loading**: a 120pt circle skeleton and two text-line skeletons in a card of about 168pt, loading independently of the status card;
+- **Release week** (`in_release_week`): ring fills normally, no streak chip, caption `engage.streak.startsMonday`, no footer;
+- **First week** (`has_settled_week` false, not the release week): ring fills, no chip, the line `engage.streak.firstWeek`, caption `engage.ring.caption.progress` or `.fresh`, at-risk hint if it applies;
+- **No goal chosen yet** (`goal_is_default`): 3 segments and, once, the hint `engage.ring.goalHint.default` under the goal button, dismissed by tapping it or opening the goal sheet (dismissal stored on the device);
+- **Goal change pending** (`pending_goal` set): the goal button reads `engage.ring.goalPending` ("Changes to 4 days on Mon 24 Nov") and the ring uses the current week's goal;
+- **In progress**: caption `engage.ring.caption.progress` ("2 more visits close your ring"), at-risk hint only when `at_risk_weekly` is true;
+- **Fresh week, 0 visits**: caption `engage.ring.caption.fresh`, streak chip kept;
+- **Goal met**: caption `engage.ring.caption.metStreak` using `streak_if_met` (or `engage.ring.caption.met` with no streak yet), the chip shows the **settled** count, and no at-risk hint;
+- **At risk**: ring and streak unchanged, the footer shows the hint (see below);
+- **Offline**, **Error**, **Settle failed**, **Expired status** (below).
+
+**Given** `at_risk_weekly` is true
+**When** Home is visible
+**Then** the footer row shows the hint with glyph `schedule` in the warning colour, the line `engage.atRisk.weekly`, and the hours left (`engage.atRisk.hoursLeft`, minutes under one hour), recomputed every minute while Home is visible from `day_ends_at` and the offset between `server_now` and the device clock taken at fetch time (so a wrong or travelling phone clock still shows the gym's day); a Vitest with a skewed device clock proves the hours shown are right
+**And** the pulse runs for three cycles on focus and then stays static, and with the system reduce-motion or animations-off setting it never pulses (a static 2pt warning outline and the glyph remain); nothing flashes more than once a second
+**And** the hint is announced once on focus in a polite live region (never `alert`), is not re-announced as minutes tick, and is never shown once the goal is met or when `at_risk_weekly` is false
+**And** the namespace `engage.atRisk.*` is added to both locale files by this story with EN/FR parity
+
+**Given** an **expired** member (subscription status `expired`)
+**When** Home renders
+**Then** the ring and streak chip show as normal and the at-risk hint is hidden (the server already returns false, and the screen also does not show a stale cached hint)
+
+**Given** `needs_settle` is true when Home gains focus (first open after a week closes, or after a check-in that left `dirty_from` set)
+**When** the screen loads
+**Then** it calls `open_engagement()` **once per focus**, shows the card's loading skeleton for at most 2 seconds, then the settled state; a plain pull-to-refresh calls `my_engagement()` and calls `open_engagement()` only when `needs_settle` is true
+**And** when `open_engagement()` fails the card keeps its last known state and shows the small line `engage.home.settleError`, retried on the next focus, never blocking the card
+
+**Given** no connection
+**When** Home opens
+**Then** the card shows the last `my_engagement()` result stored on the device (per member and gym) plus the segments for scans queued on this device **today only** (a scan whose recorded time is at or after the cached `day_starts_at`; the device does no timezone arithmetic), each shown as one segment with a dashed outline and the caption note `engage.ring.pendingSync` `[ASSUMPTION — an earlier-day queued scan lights its day after sync]`; the at-risk hint shows from cached flags only when the device clock is still before the cached `day_ends_at`, otherwise it is hidden; the existing offline banner shows
+**And** with no cache and no connection the card is replaced by the error card `engage.home.error` with pull to refresh; `engage.home.error` and `engage.home.settleError` are added to both locale files
+
+**Given** wording
+**When** a Vitest swaps a catalog value (`engage.ring.caption.met`) for a sentinel
+**Then** the card shows the sentinel, and the screen file contains no literal English or French sentence (FR-232); the reserved Shield, comeback and daily slots render nothing and leave no gap
+
+**Given** a Pay-per-session member and a monthly-plan member
+**When** each opens Home
+**Then** both see the same card (no plan gating, FR-225)
+
+**Given** a member checks in and returns to Home
+**When** the check-in result overlay has gone and Home focuses
+**Then** the ring fills for the visit once `open_engagement()` has run, and the card never computes visit counts, streaks or week bounds itself; a component test fails if the screen file imports a date library to derive a week or a day
+
+**Given** performance
+**When** Home renders the card
+**Then** `my_engagement()` is called once per focus (no per-segment calls), the card's skeleton does not wait for the status card, and the server-side timing of the call is recorded by the load script in 30.6 against NFR-029
+
+---
+
+### Story 30.5: Attendance Calendar
+
+As a member,
+I want a calendar of every day I came, and to be told calmly when a visit today keeps my week going,
+So that I can see what I have built and know when today matters.
+
+*Delivers FR-224 (calendar, earlier months, today's "at risk" cell with hours left; Must), FR-225 (stored history counts, class-only attendance does not, same for every plan), NFR-028 (late visits light their own day; past days do not move), NFR-029 (loads within the budget), NFR-027 (own data only). Spine AD-53, AD-56 (`member_visit_days`). Milestone markers are added by 30.7. UX gate: MA-18 in EXPERIENCE.md; the screen states and copy there are the acceptance baseline. Migration at merge time.*
+
+**Acceptance Criteria:**
+
+**Given** `public.my_visit_days(p_month date)` (STABLE, SECURITY DEFINER, no member id parameter) returning one row per visit day `(visit_day date, milestone smallint)`, and `public.my_first_visit_day()` (STABLE, no arguments) returning the member's earliest counted `visit_day` or NULL (so a month with no rows still has a way to bound the previous-month chevron)
+**When** a live member calls it with the first day of a month
+**Then** it returns the member's distinct `visit_day` values in that month from `member_visit_days` (date comparison against `p_month` and `p_month + 1 month`, no timezone arithmetic), `milestone` is NULL on every row in this story (30.7 fills it without changing the signature); the summary line count is the number of rows returned
+**And** `p_month` that is not the first of a month, or is after the gym's current gym-local month, is refused with a stable error code, and a month with no visits returns no rows, never an error
+
+**Given** callers who are not a live member (Owner, Receptionist, support, anon, deactivated, suspended gym) and a member of another gym
+**When** each calls `my_visit_days`
+**Then** each gets no rows, the member of another gym can never read gym A's days, a member reads only their own rows even when passing another member's gym month, and `support_capabilities.test.sql` passes unchanged
+
+**Given** a member who attended a class (a `class_bookings.attended_at` set) on a day with no check-in
+**When** the calendar loads that month
+**Then** that day is **not** lit (class-only attendance is not a visit day, convention 2)
+**And** a staff-entered check-in (Epic 27) lights its day exactly like a scan, a voided one does not, and a visit synced late through offline sync lights its own past day on the next load with no message (NFR-028)
+
+**Given** existing attendance from before the release
+**When** the member opens the calendar in the first week after release
+**Then** every earlier day with an attendance record is lit as stored (FR-225: history counts), and a day before the member's first visit is an empty past day
+
+**Given** the MA-18 screen at route `/calendar`, opened from the Home "This week" card or from the Profile
+**When** it renders
+**Then** the header bar shows the back arrow and "My visits" (`engage.calendar.title`) with no tab bar; the month bar shows the previous chevron, the month and year in `smallBold`, and the next chevron (44pt targets, the next chevron disabled at 40% opacity on the current month: no future months); one summary line "9 visit days in November" (`engage.calendar.monthSummary`, numeral as `statNumeral`); the month grid in a `flat` Card with a Monday-first weekday header and 4 to 6 rows of day cells (44pt); the legend row; and the day detail line
+**And** the screen always opens on the current month (the month viewed is not remembered), the previous chevron is disabled at the member's earliest month with any visit (or the current month if none), and pull to refresh reloads the month
+**And** the namespaces `engage.calendar.*` are added to both locale files by this story with EN/FR parity, and the grid generation is plain calendar-date arithmetic on dates (no device timezone, no `Date.now()` for the month shown; "today" comes from `gym_today` in the server response)
+
+**Given** the cell states (`{components.calendarDayCell}`), each rendered from a fixture and snapshot-tested in EN and FR
+**When** a month is shown
+**Then** the cells match the UX table: **empty past day** (outline, muted numeral); **visit day** (accent fill, check glyph, on-accent numeral); **today, not yet visited, nothing at risk** (2pt accent outline, bold numeral); **today, visited** (lit plus the outline); **future day** (40% opacity, no outline, not tappable); **day outside the month** (blank, not focusable); **offline queued visit today** (lit with a dashed outline and the detail line "Waiting to sync")
+**And** shape or glyph always accompanies colour; the Shield markers and milestone star are not drawn in this story (30.7 and Epic 31)
+
+**Given** `my_engagement().at_risk_weekly` is true and the member has not visited today
+**When** the current month is shown
+**Then** today's cell is the **at-risk** cell: a 2pt warning outline pulsing (three cycles on focus, then static; none with reduce motion), glyph `schedule` top-right and the hours left in 10pt text inside the cell ("6 h", "45 m" under an hour), and an **at-risk line** under the grid with the same strings as Home's hint (`engage.atRisk.weekly` and the hours), so the information is also in readable text
+**And** the conditions are read from `my_engagement()` (spine AD-53: the calendar, the ring and the reminder read only that function), the cell and the line are shown whether or not the reminder (Epic 31) ships or is switched on, and an expired member sees no at-risk cell (the flag is false)
+**And** the hours left recompute every minute while the screen is visible from `day_ends_at` and the `server_now` offset, not the phone clock; the hint is announced once on focus and never as `alert`
+
+**Given** the day detail line
+**When** the screen opens and when a cell is tapped
+**Then** it initially shows today's line, then names the tapped date and, for a lit day, "Visited"; it never shows a check-in time; tapping moves a 2pt focus ring there and navigates nowhere; swiping left or right moves a month (disabled while a screen reader is on)
+
+**Given** the states of the screen
+**When** each is forced
+**Then** the behaviour matches the table: **Loading** (month bar and legend at once, the grid as 35 rounded-square skeletons); **current month with no visits** (`engage.calendar.empty.current`, grid still rendered); **past month with no visits** (`engage.calendar.empty.past`); **offline** (cached months render with `engage.calendar.offline`, a month never loaded shows `engage.calendar.offline.none` and a retry); **error** (`engage.calendar.error` in the grid slot, pull to refresh)
+
+**Given** accessibility
+**When** a screen reader traverses the calendar
+**Then** the month heading is a header read first with the summary ("November 2026. 9 visit days."), each cell is its own element in reading order with a full-sentence label ("Tuesday 12 November, visited" / "Wednesday 13 November, no visit"), each row of cells is grouped and labelled "Week of 10 November, 3 visit days", and a cell is never described by colour alone
+
+**Given** a member in a gym whose timezone changes
+**When** the Owner changes `gyms.timezone`
+**Then** previously lit days stay on their stored `visit_day`, and a pgTAP case on `my_visit_days` for a 23:30 visit shows it on the same day before and after the change
+
+**Given** the load script of 30.6
+**When** it runs `my_visit_days` for a member with two years of attendance at the largest tier's member cap
+**Then** the server time is recorded there against NFR-029; this story's Definition of Done lists that figure
+
+---
+
+### Story 30.6: Gym Leaderboard & Anonymous Choice
+
+As a member,
+I want to see where I stand among my gym's members this month and to choose whether others see my name,
+So that I get a little healthy company without anyone being named who has not agreed to it.
+
+*Delivers FR-226 (monthly gym leaderboard; Must), FR-227 (Anonymous, first-open notice; Must), FR-228 (server-side enforcement, no prizes; Must), NFR-027 (privacy enforced and tested per read path), NFR-029 (the 2-second target, baseline recorded), NFR-001 (a gym never sees another gym's board). Spine AD-54 (`gym_leaderboard`), AD-1, AD-34, AD-56. `[ASSUMPTION]` ties share a rank and are ordered by who reached the count first; one neighbour above and below; members with no visit in the month are not ranked; fewer than 3 ranked shows no names (FR-226); decided 2026-11-15 (OQ-32): "Anonymous" until the notice is seen. UX gate: MA-19 (list, notice, states), the MA-12 Profile Anonymous toggle row and the MA-09 N3 Leaderboard card in EXPERIENCE.md; the screen states and copy there are the acceptance baseline. Migration at merge time.*
+
+**Acceptance Criteria:**
+
+**Given** the migration
+**When** it runs
+**Then** `member_preferences` gains `leaderboard_hidden boolean not null default false` and `leaderboard_notice_seen_at timestamptz` (NULL for every existing and every new row, so no existing member is named before seeing the notice, FR-227), on the per-gym `member_preferences` row (a member in two gyms sees the notice once at each)
+**And** the existing `protect_self_managed_member_preferences_columns` trigger is extended so a member's **direct** UPDATE of either column is refused (error `leaderboard_columns_write_protected`, not a silent pin-back) unless the transaction-local flag set only inside `set_leaderboard_visibility` and `mark_leaderboard_notice_seen` is on; existing updates of the two notification opt-out columns keep working unchanged and the existing preferences pgTAP files pass unedited
+
+**Given** `set_leaderboard_visibility(p_hidden boolean)` and `mark_leaderboard_notice_seen()` (SECURITY DEFINER, no member id parameter, live-member gate with the suspension guard)
+**When** a live member calls them
+**Then** `set_leaderboard_visibility` writes `leaderboard_hidden` on the caller's own preferences row only and does **not** touch the notice column; `mark_leaderboard_notice_seen` sets `leaderboard_notice_seen_at = now()` only when it is NULL (idempotent); opening the leaderboard never marks the notice seen
+**And** for a staff member, support person, anon, deactivated member or suspended gym both are refused and write nothing, `p_hidden` NULL is refused, and `support_capabilities.test.sql` passes unchanged
+
+**Given** `public.gym_leaderboard(p_month date)`, SECURITY DEFINER, STABLE, returning rows with this **exact** column allow-list: `position int`, `rank int`, `label text`, `is_anonymous boolean`, `visits int`, `is_self boolean`, `is_tied boolean`, `visits_behind int` (set only on the caller's row), `ranked_total int`, `self_ranked boolean`
+**When** a live member calls it with the first day of the current gym-local month or of the previous one
+**Then** it resolves the caller live (AD-34) and returns rows for **that member's gym only**, with `private.gym_id()` and `private.current_member_role() = 'member'` and `private.current_gym_status() = 'active'`, and a month that is neither of those two is refused with the stable error `invalid_month` (the server decides which month is current from the gym's timezone, never the device)
+**And** no row contains a member id, photo, phone, user id, email, name column or any column outside the allow-list (asserted by comparing the function's result column names to the list)
+
+**Given** the ranking rules
+**When** visits are counted
+**Then** `visits` is the number of distinct `visit_day` values of the member in that month from `attendance_counted` (a day on or after the first and before the first of the next month; a voided visit and class-only attendance count for nothing), eligible members are those with `deactivated_at is null` and a role that is not `support` (null-safe: `role is distinct from 'support'`), and a member with zero visits is not ranked
+**And** order is `visits` descending, then the time the member reached that count (the earliest check-in time on their Nth distinct visit day, N = their visits) ascending, then member id (never returned); `rank` is the competition rank over `visits` alone, so ties share a rank (1, 2, 2, 4), `is_tied` is true for each member sharing a rank with another, and `position` is the 1-based place in the full order
+
+**Given** a gym with 43 ranked members and a caller at position 17
+**When** the board is returned
+**Then** the rows are positions 1 to 10, the position 16 row, the caller's row (`is_self` true, `visits_behind` = the visits of the position-16 row minus the caller's, 0 when level, NULL when first), and the position 18 row; a caller at position 10 gets rows 1 to 10 and 11; a caller at positions 1 to 9 gets positions 1 to 10 only (neighbours are already in the list); a tie crossing position 10 shows exactly the first 10 positions by the order above
+**And** `ranked_total` is the count of all ranked members (43) on every row, `self_ranked` is false and no `is_self` row exists for a caller with no visits that month (unranked), and `position` lets the client draw the separator where positions are not consecutive
+
+**Given** fewer than 3 ranked members (0, 1 or 2) in the month
+**When** the board is called
+**Then** exactly **one** row is returned with `position`, `rank`, `label` and `visits` NULL, `is_self` false, `ranked_total` 0, 1 or 2, and `self_ranked` set, so the screen can choose `engage.leaderboard.empty.month`, `.onlyYou` or `.unranked` with no name, no own row and no neighbours, and nobody can be identified by elimination; the rule applies to both months
+
+**Given** the label rule
+**When** another member's row is built
+**Then** `label` is the first space-separated token of `members.name` followed by a space, the first letter of the **last** token and a period ("CHANTAL N."; a single-token name is shown alone, with no period and no initial), the capitalisation being the one stored (names are saved in capitals, migration 0159, owner decision 2026-10-25: the UX examples show "Chantal N." only for readability), and is the literal `'Anonymous'` with `is_anonymous` true when `leaderboard_hidden` is true **or** `leaderboard_notice_seen_at` is NULL
+**And** the caller's own row carries the label **as others see it** (so a hidden or unseen caller sees `'Anonymous'` with `is_anonymous` true), the screen shows "You" and the `engage.leaderboard.hidden.self` line; the screen maps `is_anonymous` to the localised "Anonymous" / « Anonyme » string, the server being the only place that decides who is anonymous (NFR-027)
+
+**Given** the NFR-027 pgTAP test `leaderboard_privacy.test.sql`, one block per read path (`gym_leaderboard`, `my_leaderboard_settings()` below, and the Home card's use of `gym_leaderboard`)
+**When** it runs with seeded gyms A and B
+**Then** for member M1 hidden, M2 with the notice unseen, M3 visible, M4 deactivated and M5 a support member, as seen by viewer V of gym A: M1 and M2 appear as `'Anonymous'` with their rank and visits intact, M3 by label, M4 and M5 not at all, no result contains any M name text or id, and flipping M1 to visible changes only M1's label on V's next call (nothing is stored or cached, so a hide never leaves a name behind)
+**And** a viewer of gym B never receives any gym A row and vice versa; a staff caller (Owner, Manager, Receptionist, Coach), a support caller and an anon caller each get an **empty** result; a deactivated member and a member of a suspended gym get an empty result; two viewers of the same gym receive identical rows for the top 10 except for `is_self` and `visits_behind`
+**And** the function has no INSERT, UPDATE or DELETE in its body and `provolatile` is `'s'`
+
+**Given** `public.my_leaderboard_settings()` (STABLE, no arguments)
+**When** a live member calls it
+**Then** it returns `(hidden boolean, notice_seen boolean, own_label text)` for the caller only, where `own_label` is the label as the server would show the caller **if visible** (so the notice can preview "MIREILLE K."), and it returns nothing for anyone else; the preview contains only the caller's own name
+
+**Given** FR-228
+**When** a test enumerates the tables and functions of the loyalty, session, stamp, Shield and payment families
+**Then** none reads `gym_leaderboard`, a rank or a visit count from it, no table stores a rank, and `has_table_privilege` is false for every role on the engagement and attendance count paths, so no role can edit a count or rank directly and rank carries no prize, discount, session, Shield or stamp; the footnote `engage.leaderboard.footnote` ("Just for fun: rank earns no prizes") is in both locale files
+
+**Given** the MA-19 screen at route `/leaderboard`, opened from the Home leaderboard card or the Profile link
+**When** the member opens it for the first time (`my_leaderboard_settings().notice_seen` false)
+**Then** the first-open notice sheet shows **before** the list: opaque and full height, the list behind it is **not rendered** and `gym_leaderboard` is not called yet; Icon Chip `groups`, the title, the body with the preview of the member's own label from `own_label`, the line saying never the photo or phone number, `engage.leaderboard.notice.until`, `engage.leaderboard.notice.change`, and two equal-weight 52pt buttons stacked, **[Show my name]** (primary) and **[Appear as Anonymous]** (secondary), neither pre-selected
+**And** [Appear as Anonymous] calls `set_leaderboard_visibility(true)` **first** and only then `mark_leaderboard_notice_seen()`, so a failure between the two leaves the member hidden and never named; [Show my name] calls only `mark_leaderboard_notice_seen()`; both buttons show a spinner and are disabled until the call returns, and on success the sheet closes and the list loads
+**And** there is no swipe-down and no tap-outside dismissal; the back arrow or Android back leaves for Home with the notice **not** marked seen and the member still shown as Anonymous (leaving never names anyone); a failure shows `engage.leaderboard.notice.error` and re-enables the buttons; offline both buttons are disabled with `engage.leaderboard.offline.notice` while the member can still leave
+
+**Given** the board screen after the notice
+**When** it renders in each state
+**Then** it matches the UX states: segmented control "This month" | "Last month" (default This month, the second tab calls with the previous month); the list as rows of `{components.leaderboardRow}` (rank numeral, a neutral Icon Chip `person` or `visibility_off`, never a photo, the label, "11 visits"), ties show the same rank and the word `engage.leaderboard.row.tied`, a separator row labelled "Rows between are not shown" where positions are not consecutive, the member's own row labelled "You" with a 2pt accent border and a "You" tag, the behind/level/leading line under it (not on the previous month), the footnote, and the visibility row with the toggle; there is no crown, medal, gold or special treatment of ranks 1 to 3
+**And** the states **loading** (6 row skeletons, then the member's row; under 2 s), **unranked** (`engage.leaderboard.unranked`, no neighbours), **fewer than 3 ranked** (`engage.leaderboard.notEnough` replaces the list, with the supporting line, the visibility row still shown), **hidden** (own row "You" plus `hidden.self`, rank and count unchanged), **offline** (cached board with `engage.updatedAt` and a banner, the toggle and notice buttons disabled), **error** (`engage.leaderboard.error` in the list slot with pull to refresh, the visibility row still shown) each render as specified; rows are not tappable and no member id, phone or photo reaches the device
+**And** the screen reads every label from the server and a Vitest asserts it never derives a label, a rank, a tie or a total on the device
+
+**Given** the Profile "Training" card of 30.1
+**When** it renders
+**Then** it gains the row "Appear as Anonymous on the gym leaderboard" (glyph `visibility_off`) as a toggle showing the stored choice (on = hidden), saved immediately and optimistically with the existing inline error and revert on failure, a helper line stating the current effect (`engage.profile.anonymous.helperOn`, `.helperOff` with the member's own label, or `.helperUnseen` while the notice is unseen) and the link "See the leaderboard" to MA-19
+**And** turning the toggle **on** saves at once; turning it **off** while the notice is unseen does **not** save but opens the notice sheet (the same sheet, unchanged), and choosing there saves; the toggle never affects the member's count, rank, ring or streak; the helper never says the change is instant for others (it applies from their next load); the toggle's accessible label states its state
+
+**Given** the Home leaderboard card (N3)
+**When** Home renders
+**Then** it shows the member's own standing from `gym_leaderboard` only: "Rank 9 of 43 this month" (`engage.home.rank`, rank and `ranked_total` from the server), the behind line, `engage.leaderboard.level` or `engage.leaderboard.leading`, `engage.leaderboard.unranked` for no visit, `engage.leaderboard.notEnough` when fewer than 3 are ranked, no names on Home, a loading rectangle of about 72pt, the last cached rank with `engage.updatedAt` offline, and `engage.leaderboard.error.short` with tap-to-retry on error; a member who has not seen the notice still sees their own rank here and no notice appears (only MA-19 opens it)
+**And** the namespaces `engage.leaderboard.*`, `engage.home.rank` and `engage.profile.anonymous.*` are added to both locale files by this story with EN/FR parity
+
+**Given** `scripts/engagement-load.sh` (seeded in a throwaway gym on the local stack, removed on exit)
+**When** it seeds the **largest tier's** member cap read from `tiers.member_cap` at run time (about a month of attendance each, mixed hidden and visible) and calls `gym_leaderboard`, `my_engagement` and `my_visit_days` 50 times each as different members, 10 at a time
+**Then** it prints p50 and p95 server time per function and writes the baseline to `docs/decisions.md` (a dated entry, newest first) against NFR-029's 2-second target, with the device-side figure to be added at the owner's end-of-epic check (the on-device 4G measurement cannot run in CI)
+**And** when the p95 of `gym_leaderboard` exceeds 1 second the story adds the supporting index (for example on `attendance_events (gym_id, visit_day)`, checked with `EXPLAIN` so it is not a sequential scan) before closing, and a stored or cached board is **not** built here (the spine allows a cache only if the baseline still fails, and it never holds names); the script's seeding is synthetic only
+
+**Given** the rest of the suite
+**When** the full pgTAP suite and `scripts/ci-local.sh` run
+**Then** the existing preferences, tenant-isolation and support-capability tests pass unchanged, and `supabase/tests/leaderboard_privacy.test.sql` plus a `leaderboard_ranking.test.sql` (ties, the 10-row boundary, neighbours at positions 1, 9, 10, 11, last, the unranked caller, the fewer-than-3 case, both months, the month validation) are added
+
+---
+
+### Story 30.7: Milestones & Celebration
+
+As a member,
+I want a moment of recognition at my 7th, 30th and 100th visit day, shown once,
+So that I feel proud of what I have built.
+
+*Delivers FR-229 (milestone at the 7th, 30th and 100th visit day, shown once, offline milestone shown after sync, calendar marker; Must), FR-225 (history at release is silent), FR-232 (celebration wording from the catalog), NFR-028 (milestones recompute and never double), and the "a void never reverses a milestone" half of FR-230 that Epic 30 can own. The badge shelf, the Share button and the badge rows are Epic 31. Spine AD-53 (milestone facts, `acknowledged_at` set by one function), AD-56. `[ASSUMPTION]` a milestone earned before `release_week_start` is written silent; this includes a milestone reached in the release week itself, because AD-53 defines the epoch as the line (the PRD says "existing history at release"). UX gate: MA-20 without the Share button, and the milestone markers of MA-18, in EXPERIENCE.md; the screen states and copy there are the acceptance baseline. Migration at merge time.*
+
+**Acceptance Criteria:**
+
+**Given** `private.award_milestones(p_member_id uuid)`
+**When** it runs for a member with N distinct `visit_day` values in `member_visit_days` (all of the member's time at that gym)
+**Then** for each of 7, 30 and 100 that N has reached and for which no `milestone` fact exists, it inserts one fact (`kind = 'milestone'`, `subject_key` the number, `revision` 1) and nothing else; a milestone fact is never inserted twice for the same number (replay inserts nothing)
+**And** it is called only from the tail of `private.settle_engagement` (re-created by this migration with one added call and otherwise identical to 30.2's body; 30.2's tests pass unedited), and never from `record_check_in` or `void_staff_check_in` (a scan only sets the dirty mark; the app read that follows runs the award)
+
+**Given** a member whose Nth visit day (the Nth distinct day in order) is before `release_week_start`
+**When** the milestone is awarded
+**Then** the fact is written `silent = true` with `acknowledged_at = now()` (no celebration), whatever the value of N, and a member with 120 visit days all before the epoch gets three silent milestones and no pending celebration
+**And** a milestone whose Nth day is on or after the epoch is `silent = false` and `acknowledged_at` NULL
+
+**Given** a milestone fact exists and a staff check-in that was the 7th visit day is voided (the count drops to 6)
+**When** settle runs again and later the member visits again (the count returns to 7)
+**Then** the milestone row is unchanged, `acknowledged_at` is unchanged, no second row or second celebration appears, and the calendar marker follows the 7th distinct day as now derived (a void never reverses a milestone, FR-230; AD-53)
+**And** a late offline visit that makes an earlier date the 7th day moves the **marker** (derived from `member_visit_days`) but writes no new fact
+
+**Given** `public.my_engagement()`
+**When** a member has unacknowledged, non-silent milestones
+**Then** `pending_milestone` returns the **highest** such number (30 when both 7 and 30 are waiting), NULL otherwise; the view row type is the one 30.3 defined
+**And** an offline visit that earns a milestone appears as `pending_milestone` after the visit syncs and the next `open_engagement()` runs on Home focus, possibly hours later, with no special case (FR-229)
+
+**Given** `public.acknowledge_milestone(p_milestone smallint)` (SECURITY DEFINER, the **only** function that sets `acknowledged_at`, live-member gate, no member id)
+**When** the member calls it for the milestone they were shown
+**Then** it sets `acknowledged_at = now()` on that milestone and on every **lower** unacknowledged milestone of the same member (the app shows only the highest and the lower ones are acknowledged silently), by raising the transaction-local flag that 30.2's append-only trigger requires, changing no other column
+**And** a second call is a no-op and returns the same result, a call for a milestone the member does not hold or for a number other than 7, 30 or 100 is refused or a no-op without writing, and a staff, support, anon, deactivated or suspended-gym caller is refused; `support_capabilities.test.sql` passes unchanged
+
+**Given** two gyms and two members
+**When** member A calls `acknowledge_milestone` or reads `pending_milestone`
+**Then** A can never acknowledge or read B's milestone, and the NFR-001 isolation test shows no cross-member or cross-gym effect
+
+**Given** the NFR-028 test of 30.2
+**When** it is extended
+**Then** `engagement_derived_state` and `rebuild_engagement` also return the sorted array of milestone numbers reached and compare equal after the late-visit, void and timezone cases, and the journey test of 30.3 gains a case where a member's 7th visit day arrives by offline sync after the week was settled and the milestone becomes pending exactly once
+
+**Given** `my_visit_days(p_month)` of 30.5
+**When** the month contains the day that is the member's 7th, 30th or 100th distinct visit day
+**Then** that row's `milestone` column is 7, 30 or 100 (derived from the ordered distinct days, never stored), a milestone that exists as a fact whose day is now in another month shows in that month, and the signature is unchanged
+**And** MA-18 draws on such a cell the small star-badge corner (glyph `star`, 14pt) over the lit cell, adds the legend entry "Milestone", and the day detail line says "Your 30th visit"; the cell label reads "Friday 15 November, your 30th visit"; shape and text, not colour alone; snapshot tests in EN and FR
+
+**Given** MA-20 at route `/celebration/:milestoneId`, where `milestoneId` is the milestone number
+**When** Home mounts and `pending_milestone` is not NULL (after the check-in result overlay has gone)
+**Then** the screen is pushed over Home about 600 ms after Home has painted, as a full-screen overlay on the dark background with no tab bar and no back arrow, never from a tab and never from a push notification; the screen is not shown to an expired or suspended member (the root guards win)
+**And** an already-acknowledged milestone number opens to Home instead
+
+**Given** the celebration card
+**When** it renders
+**Then** it shows, centred at 480pt maximum width: an empty zero-height **mascot slot** bound to `engage.celebration.mascot.7|30|100` that renders nothing and leaves no gap while those keys are empty (and renders the key's text when a test sets one, with no layout change); a `{components.celebrationOverlay}` card with the gym logo (48pt, omitted if not in the branding cache) and the gym name, the milestone numeral in the celebration numeral size, the word "visits" (`engage.celebration.unit`), the headline (`engage.celebration.<n>.headline`) and one sentence (`engage.celebration.<n>.sub`); and a read-only mini month calendar of the current month with lit days only (28pt, no numerals, no at-risk) when the screen height is at least 640pt and never at +2 text size
+**And** there is **no Share button and no "See your badges" link** in this epic; **[Keep going]** is the only button, 52pt, primary
+
+**Given** the motion rules
+**When** the screen appears
+**Then** a Success notification haptic fires (it fires with reduced motion too), the numeral counts up from 0 to the milestone over 700 ms and the card scales from 96% to 100% with a fade over 400 ms, with **no confetti, no looping animation and no sound**; with the system reduce-motion setting there is no count-up and no scale, the card shows its final state with a 150 ms cross-fade; a Vitest with reduced motion mocked on and off proves both variants, and a test fails if any looping animation or sound asset is referenced by the screen
+
+**Given** the member taps [Keep going] or uses Android back
+**When** the screen closes
+**Then** `acknowledge_milestone(n)` is called and the member returns to Home (never back into the check-in overlay); swipe down does nothing
+**And** when the call fails (offline) the screen still closes, the acknowledgement is retried silently, the milestone number is stored on the device as shown so the celebration is **not shown twice**, and a later successful retry clears the server flag; the shown-store is cleared if the member signs out or switches gym
+
+**Given** several milestones waiting after a long offline gap
+**When** Home mounts
+**Then** only the highest is celebrated, the lower ones are acknowledged by the same call, and none is shown afterwards
+
+**Given** accessibility and wording
+**When** the screen renders in EN and FR
+**Then** it is announced once as an `alert` with `engage.celebration.a11y` ("Milestone: 30 visits at {gym}"), focus starts on the headline, the numeral and the mini calendar are decorative (`accessibilityRole: 'none'`), the 52pt button has a clear label, every string comes from the catalog (a sentinel-value Vitest, FR-232), the headlines and sentences contain no exclamation marks or loss wording, and EN and FR key counts match
+
+**Given** the release epoch and history
+**When** a member with 35 visit days before `release_week_start` and 2 after opens the app on the first day after the epoch
+**Then** the 7th and 30th milestones exist as silent facts, the calendar shows the earlier days and markers on the stored 7th and 30th days, no celebration appears, and the member's next milestone (the 100th) is celebrated when it is reached
+
+**Given** the full suite
+**When** `scripts/ci-local.sh` runs
+**Then** the pgTAP files `engagement_milestones.test.sql` and the extended determinism and journey tests pass, the component tests for MA-20 and the calendar marker pass, no Epic 27–29 test is edited, and `check_in()` behaviour is byte-for-byte unchanged (no award runs inside a check-in)
+
+
+---
+
+### Epic 31 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 31.1 | Streak Shields and Comeback | next free at merge time | Epic 30 (engagement_facts, fold, `private.engagement_state_view`, Home "This week" card, wording catalog) |
+| 31.2 | Streak Reminder N-08 | next free at merge time | Epic 30 (`private.engagement_state_view`, `platform_engagement_config.release_week_start`, Profile Training/Notifications sections) |
+| 31.3 | Badge Shelf and Share Image | next free at merge time (badge award and `get_my_badges()` only; the share image has no migration) | Epic 30 (milestone award path, celebration screen MA-20, calendar read), 31.1 (the "4 weeks in a row" badge is awarded from the fold's first earned Shield) |
+
+*Scope of this release: only the Should items ship (FR-222, FR-223, FR-230, FR-231, FR-233). FR-221, FR-234 and FR-235 are Could items and get no stories now; see "Deferred (no stories in V1.8)" at the end of this section.*
+
+*31.1 and 31.2 can run in parallel (31.2 reads only the at-risk flags that Epic 30 already puts in `private.engagement_state_view`, and neither touches the other's tables). 31.3 starts after 31.1 is merged to the epic branch. 31.2 and any later epic that adds a notification type both re-create `private.process_notification_deliveries()` in whole (the last-writer-wins hazard of spine AD-32): the story that merges second copies the live definition at merge time, not the one in its own branch. Migration numbers are assigned at merge time (latest at planning time: 0172, with Epics 27-30 ahead of this epic); earlier stories never renumber.*
+
+*Production is live with real gyms: every story here ships behind the full `scripts/ci-local.sh` gate. 31.1 changes the fold that every member's streak is derived from, so its rebuild-equivalence test (NFR-028) is the release gate for it. 31.2 sends a push to members on a schedule and defaults on, so its at-most-once tests are the release gate for it. None of the three changes `check_in()`, `record_check_in`, `consume_guest_session`, authorization or the support registry; each story states the regression assertion that proves it.*
+
+---
+
+### Story 31.1: Streak Shields and Comeback
+
+As a member who trains regularly,
+I want one missed week not to wipe out my streak, and a clear way back if it does end,
+So that illness or a holiday does not make me feel I have lost everything I built.
+
+*Delivers FR-222 (Should), FR-223 (Should), FR-232 (Shield and comeback wording), NFR-028 (Shield, comeback and correction determinism), FR-170 untouched; spine AD-53 (Shield and comeback fold), AD-19 (settle job unchanged), AD-61 (config singleton); UX gate: MA-09 (Shield chips, comeback card N2, "Shield saved" and "Shield earned" states) in EXPERIENCE.md; the screen states and copy there are the acceptance baseline.*
+
+*Extends, and does not replace, Epic 30's fold: `engagement_facts` (append-only, keyed `(member_id, kind, subject_key, revision)`, effective fact = highest revision), `private.settle_engagement`, `rebuild_engagement(member_id)`, `engagement_state(member_id, settled_through, dirty_from)`, `private.engagement_state_view(member_id)` and `platform_engagement_config`. Where this story needs a config column that Epic 30 did not create (Shield interval 4, Shield cap 2, comeback visits 3, comeback window 10 days), it adds it to the singleton with the existing audit trigger; the values are the PRD defaults (OQ-33) and are not read from anywhere else. The facts this story writes use the kinds AD-53 already names: `week` (outcome `met`, `missed` or `saved`), `comeback`, and `day_shield` (designed, never written in V1.8). No new table.*
+
+**Acceptance Criteria:**
+
+**Given** a member whose run has `n` met weeks and who holds fewer than 2 Shields
+**When** a week settles as met and that week makes the run's met-week count a multiple of 4 (the 4th, 8th, 12th ... consecutive met week)
+**Then** the fold reports one more Shield held, so a member with a run of 4 holds 1, a run of 8 holds 2 (if none was spent), and `engagement_state_view` returns `shields_held`, `weeks_to_next_shield` (1 to 4) and `shield_cap` (2) read from `platform_engagement_config`
+**And** a Shield earned at the cap is not stored: a run of 12 with none spent still holds 2, and `weeks_to_next_shield` is null while the cap is held
+**And** no Shield row or counter is written anywhere: the number held is derived only by folding the effective `week` facts in order, so a corrected week corrects every later Shield (AD-53)
+
+**Given** a member with an active run and at least 1 Shield held
+**When** a week closes as missed (below the goal in force that week, FR-220)
+**Then** the settle writes that week's effective fact as `saved` (with the goal and visit count used), the held count falls by 1, the streak count is unchanged (a saved week keeps the streak but adds nothing to it), the best streak is unchanged, and no `comeback` fact is written
+**And** the same member with 2 held, missing two weeks in a row, spends both; a third missed week with none left ends the run (one Shield saves one period)
+**And** a week saved by a Shield does not count toward the next Shield: with a run of 6 that spent a Shield on week 7 and met weeks 8 and 9, the next Shield is earned when the run's met-week count reaches 8, not earlier
+**And** `engagement_state_view` returns the newest saved week (`week_start`, streak length after it) so the app can show the "Shield saved" notice
+
+**Given** a member with an active run and no Shield held
+**When** a week closes as missed
+**Then** the run ends: the effective fact for that week is `missed`, the current streak is 0 internally, the best streak is raised only if the ended run was longer than the previous best and is never lowered, and a `comeback` fact `started` is written (subject_key the missed week's start date, revision 1)
+**And** consecutive is strict: a week below the goal with no Shield ends the run, and a missed visit inside a week that still meets the goal costs nothing and spends nothing `[ASSUMPTION, FR-220]`
+**And** a member who is not in a run (no met week yet, or the run already ended) never spends a Shield on a missed week, and a member's held Shields at the moment a run ends are always 0 (a run only ends when none is held)
+**And** a member who restarts after a break earns a Shield again only after 4 more consecutive met weeks `[ASSUMPTION, FR-222]`
+
+**Given** a week that was settled as `saved` or `missed` and a visit arrives late (an offline scan that syncs, FR-061) or a staff check-in is voided (`void_staff_check_in`, AD-56)
+**When** `record_check_in` or the void sets `dirty_from` to the earliest week it touches and the next settle runs
+**Then** settle re-folds from `dirty_from` to the present under the member lock and inserts the next `revision` only for each week, `comeback` subject and run whose effective value changed (a replay inserts nothing and an A to B to A sequence flips back)
+**And** a late visit that turns a `saved` week into `met` gives the Shield back and adds the week to the streak count (so every later 4th-week Shield moves, and a Shield that was earned at a week which is no longer the 4th is no longer held)
+**And** a void that turns a `met` week into `missed` spends a held Shield on it or ends the run, and re-evaluates every later week in the same transaction
+**And** a Shield cannot be used twice for the same period: one effective `week` fact exists per `(member, week_start)`, so two settles racing (cron plus first-open) under the member lock, or the same settle retried, leave one `saved` fact, one Shield spent and one revision per change (pgTAP, two-session race script)
+
+**Given** a member whose streak ended with no Shield (a `comeback` `started` fact exists)
+**When** the fold evaluates visit days from the day the missed week closed
+**Then** the comeback goal is `comeback_visits` (3) visit days within `comeback_window_days` (10) days, counted from the first visit day after the run ended (the window is the 10 gym-local days starting with that visit day, inclusive), reading `member_visit_days` only (FR-225: several check-ins in a day count once; a class-only attendance is not a visit day, AD-56)
+**And** reaching the third visit day inside the window writes `comeback` `completed` (subject_key the window's start date); a window that ends with fewer than 3 writes `comeback` `lapsed` for that window, and the next visit day starts a new window `[ASSUMPTION, FR-223: 10 days is a proposal, OQ-35]`
+**And** a week that settles as met while a comeback is open starts a new run (count 1) and also closes the comeback as `completed` with `completed_by = 'week'` `[ASSUMPTION: FR-223 leaves open what happens when the goal is met before three visits, for example at a goal of 1; closing the card here avoids showing a comeback card beside a live streak chip]`
+**And** completing a comeback restores active status only: the new streak is counted from the first week the goal is met again, no count is invented, and no Shield, stamp, session or other reward is granted (FR-223, FR-170)
+**And** `engagement_state_view` returns `best_streak` (always, never null once a run has existed), `comeback` (`state` one of none, active, lapsed, restored; `visits_done`, `visits_goal`, `window_ends_on`) and never a bare 0: the streak is returned as null, not 0, when no run is active
+
+**Given** the Shield and comeback fold
+**When** the daily streak does not exist yet (FR-221 is deferred to a later release)
+**Then** the `day_shield` fact kind and the reservation rule "a missed day uses a Shield only when the member holds two, so the last Shield is always kept for the weekly streak" (AD-53 `[ASSUMPTION, resolves OQ-35]`) exist in the fold design as a single step guarded by `private.engagement_daily_streak_enabled()`, which returns false in V1.8
+**And** the day path is inactive: running settle on a member with 5 consecutive visit days and 2 Shields writes no `day_shield` fact and leaves the Shield count unchanged (pgTAP)
+**And** a pgTAP test replaces `private.engagement_daily_streak_enabled()` inside a rolled-back transaction to return true and proves the reservation rule on synthetic data (a missed day spends a Shield with 2 held, never with 1; a whole missed week that would end both streaks spends one Shield on the weekly streak and ends the daily one), so the rule is pinned before the daily streak story reuses it
+
+**Given** the existing rebuild equivalence test (NFR-028)
+**When** this story extends it
+**Then** `rebuild_engagement(member_id)` returns the derived state (current streak, best streak, Shields held, comeback state and window, per-week outcomes) and the test compares it with the live fold, not row counts, over seeded attendance that includes: a run that earns a Shield at week 4 and spends it at week 6; two Shields held and both spent; a run ended with no Shield followed by a comeback that completes; a comeback window that lapses and restarts; a late offline visit (stamped Sunday 23:50 and synced after Monday's settle) that turns a saved week back into met; a void that turns a met week into missed; and a gym timezone changed after the weeks were settled (past `visit_day` values do not move)
+**And** a repair from `rebuild_engagement` appends the difference and never truncates `engagement_facts`, and never touches `acknowledged_at` or `silent` on milestone and badge facts
+**And** the week fold reads the stored `visit_day` and the goal in force that week from the week fact, so a goal change after the week began does not change that week's outcome or any Shield decision (NFR-028)
+
+**Given** Shields, comeback and loyalty
+**When** any role calls any function in this story, or searches the schema for a write path
+**Then** there is no function that buys, gives, transfers or grants a Shield or edits a streak, comeback or best-streak value; `anon` and `authenticated` hold no INSERT, UPDATE or DELETE on `engagement_facts` (unchanged from Epic 30) and no new function is granted to staff roles or registered in `private.support_capabilities` (`supabase/tests/support_capabilities.test.sql` is unchanged, FR-251 is not widened)
+**And** nothing in this story reads or writes the loyalty ledger, `guest_sessions` or stamps (FR-170 untouched), proven by a pgTAP test that a completed comeback and an earned Shield leave the loyalty ledger and `guest_sessions` row counts identical
+
+**Given** the settle and read paths already live from Epic 30
+**When** this story ships
+**Then** the existing pgTAP suite passes without fixture edits except the Epic 30 fold and `engagement_state_view` tests that this story names and extends; `check_in()`, `record_check_in` and `void_staff_check_in` bodies are not edited, and a test shows a check-in writes no `engagement_facts` row and calls no fold code (it only sets `dirty_from`)
+**And** the extended `engagement_state_view` is dropped and re-created with its return columns extended, EXECUTE is revoked from `public` and `anon` and granted only as Epic 30 granted it (the default-privilege trap: a new function is anon-executable unless revoked), and a pgTAP test asserts `has_function_privilege('anon', ...)` is false
+**And** the view answers from the member's own facts and `member_visit_days` only (no per-call full-history scan beyond Epic 30's), so the ring, calendar and leaderboard NFR-029 target is not regressed; an `explain` check on a seeded 3-year member shows no sequential scan of `attendance_events`
+
+**Given** the Home "This week" card on the mobile app (UX gate MA-09)
+**When** the extended state arrives
+**Then** the Shield chip (`engage.shield.chip`, glyph `shield`) shows only when 1 or 2 are held (never "0 Shields"), its tap target is 44pt and it opens the explainer sheet (`engage.shield.explainer.title`, `.body` with `{max}` from the server, [Got it] `engage.shield.gotIt`); the muted line `engage.streak.nextShield` shows below the streak chip when fewer than the cap are held and `engage.streak.shieldMax` at the cap
+**And** the card renders every Shield and comeback row of the UX state table by name: "Shield saved a week" (chip shows the preserved length, notice row `engage.shield.saved.week` with {date} and {n}, dismissible, persisted on the device until dismissed), "Shield earned" (chip +1, notice `engage.shield.earned`), at most one notice row at a time, newest first, each dismissed on its own; the at-risk hint's optional second line `engage.atRisk.shieldReady` shows when a Shield is held; the calendar legend entry `engage.calendar.legend.shield` and the week-saved glyph are supplied with the data Epic 30's calendar already renders
+**And** the comeback card N2 shows the phases "Active, no comeback visit yet" (3 empty stamp segments, no "0 / 3" numeral), "Visits 1 or 2" ("1 / 3", accessible label `engage.comeback.progress`), "Window lapsed" (`engage.comeback.windowRestart`, no failure wording, no warning or red tint) and "Restored" (one-time `engage.comeback.restored.title` and `.body`, then gone on next load, the chip reading "Best: n weeks" until the first new week is met), with `engage.comeback.title`, `.best` (best streak in `statNumeral`) and `.goal` built from `{n}` and `{days}` returned by the server, never hard-coded 3 and 10
+**And** a bare "0" is never rendered: with no run and no best streak the streak area is hidden, as Epic 30 already specifies
+
+**Given** the new wording
+**When** the mobile EN and FR catalogs are checked
+**Then** every key in the UX catalog groups `engage.shield.*` and `engage.comeback.*` plus `engage.streak.nextShield`, `engage.streak.shieldMax`, `engage.atRisk.shieldReady` and `engage.calendar.legend.shield` exists in both `apps/mobile/src/locales/en.json` and `fr.json` with the UX plural forms (`one` and `other`), the existing i18n parity check (`scripts/check-i18n-key-parity.mjs`) passes with no missing key, and the words "freeze", "insurance" and "token" appear in no Shield string (UX glossary; FR uses "bouclier")
+**And** the wording lives in the same editable catalog Epic 30 uses for the ring and celebration (FR-232), so changing a word changes no screen code
+
+**Given** offline and staleness states
+**When** the device is offline or the settle call fails
+**Then** Home shows the last known Shield and comeback state without error, a visit queued on the device is shown as the pending (dashed) segment only and never changes a Shield or comeback figure locally (the server is the only place a streak, Shield or comeback is decided, FR-220), and `engage.home.settleError` shows as Epic 30 specified if `open_engagement()` fails
+
+**Given** the full gate
+**When** `scripts/ci-local.sh` runs
+**Then** pgTAP covers: earning at 4 and 8 and the cap; spending on a missed week; the saved week not counting; two missed weeks with one Shield; run end with best streak kept; comeback start, completion, lapse and restart; the met-week-closes-comeback assumption; late-visit and void corrections cascading to later Shields; the double-settle race; the inactive day path and its rolled-back activation proof; no write path for staff or support; loyalty untouched; anon privilege; the extended rebuild equivalence; and the existing suite unchanged
+**And** the mobile component tests cover each Shield and comeback state named above in EN and FR, plural forms at 1 and 2, the dismissal persistence, and reduced text-size layout; there is no new device E2E harness in this repo, so the release gate 10.3 item 1 (Shields and the comeback state work) is evidenced by the pgTAP scenarios plus these component tests, and manual browser/device QA stays with the product owner at the end of the epic
+
+---
+
+### Story 31.2: Streak Reminder N-08
+
+As a member who is one visit away from keeping my week,
+I want a single, calm evening reminder when a visit today is what keeps my week on track, and a switch to turn it off,
+So that I do not lose a week by forgetting, and I never feel nagged.
+
+*Delivers FR-233 (Should), FR-232 (N-08 wording), NFR-029 (at most one per member per day, safe to run twice, never blocks a check-in), Amendment to FR-076 (N-08 is a non-critical notification with one off-switch), FR-075 (new row N-08); spine AD-60, AD-25, AD-19, AD-53 (at-risk flags read from `private.engagement_state_view` only); UX gate: the "Streak reminder" toggle in MA-12 Notifications Card and the N-08 EN and FR copy (`n08.*`, `engage.profile.reminder.*`) in EXPERIENCE.md; the screen states and copy there are the acceptance baseline.*
+
+*Real code facts this story follows (verified against migrations 0045, 0056, 0059, 0084): `private.send_push_notification(p_subscription_id, p_notification_code)` serves only N-01 to N-03 and raises `unsupported notification code` for anything else, so N-08 gets its own sender `private.send_engagement_reminder(p_member_id uuid)`; each family has its own dispatch and delivery tables (`private.class_reminder_dispatches` is unique on `(class_session_id, member_id)` and claimed with `on conflict do nothing returning id`); `public.notifications.type` is an inline CHECK on N-01..N-07 (0084) and each sender inserts one history row after its claim succeeds; `private.process_notification_deliveries()` is one function replaced in whole by each family; `member_preferences` opt-outs are `<x>_opted_out boolean not null default false` with self read/update policies and a protect trigger that pins only `member_id` and `gym_id`; cron registration is `cron.schedule(name, expr, command)` upserting by name; the language is read from `users.preferred_language` (fr, else en). `private.gym_today(gym_id)` is the gym-local date and is what `gym_local_date` means below.*
+
+**Acceptance Criteria:**
+
+**Given** the schema
+**When** the migration ships
+**Then** `private.engagement_reminder_dispatches (id uuid pk, member_id uuid not null references members on delete cascade, gym_id uuid not null references gyms, gym_local_date date not null, sent_at timestamptz not null default now(), status text not null default 'pending' check in ('pending','queued','no_tokens'), updated_at, unique (member_id, gym_local_date))` and `private.engagement_reminder_deliveries` (the identical column shape and indexes of `private.class_reminder_deliveries`: `dispatch_id`, `expo_push_token`, `push_request_id`, `expo_ticket_id`, `receipt_request_id`, `status` in push_pending, receipt_pending, delivered, failed, device_not_registered, unique `(dispatch_id, expo_push_token)`, and the two unique request-id indexes) exist in the `private` schema with no grant to `anon` or `authenticated`
+**And** `public.notifications.type` CHECK is extended to `('N-01'..'N-08')` by dropping and re-adding the constraint, and `apps/mobile/src/services/notificationHistory.ts` (`NotificationType`) and the history screen's type-to-icon map in `apps/mobile/src/app/notifications.tsx` gain N-08
+**And** `member_preferences.streak_reminder_opted_out boolean not null default false` is added, every existing row reads false (on by default, FR-233), the member's own row is readable and updatable through the existing self policies, another member's row is neither, and `memberPreferencesUpdateSchema` in `@gymos/types` and `apps/mobile/src/services/notificationPreferences.ts` carry the new field
+
+**Given** `private.process_notification_deliveries()`
+**When** this story re-creates it
+**Then** the new definition starts from the live definition at merge time (not from the one in this branch), keeps every existing family's polling branch byte-for-byte equivalent in behaviour, and adds the `engagement_reminder_deliveries` branch (push request, receipt check, failed and `device_not_registered` handling) in the same shape as the class-reminder branch
+**And** the existing notification pgTAP files (`class_reminder_notification`, `quiet_gym_alerts`, `payment_notifications`, `subscription_lifecycle_notifications`, `notification_history` and their `.negative` variants) pass without fixture edits except `notification_history.test.sql` where it pins the CHECK list, which this story names and extends to N-08
+
+**Given** the cron job
+**When** it is registered
+**Then** exactly one job `engagement_reminder` runs `*/15 * * * *` through a `run_engagement_reminder_job()` function (EXECUTE revoked from `public`, `anon` and `authenticated`), and it writes one `job_runs` row per run with `job_name = 'engagement_reminder'`, status `success` or `failure` and the error text on failure
+**And** the job selects only gyms whose gym-local time (from `gyms.timezone`, via the existing gym-local helpers, never the server's UTC date) is at or after 18:00 and before 21:00 `[ASSUMPTION, adversarial review L-02: the 18:00 target is the first 15-minute tick at or after 18:00 local; the 21:00 limit lets a later tick catch up when one run was missed, and the unique dispatch key keeps it to one]`, and only gyms that are active (not suspended or cancelled)
+**And** nothing is sent while `now()` is before `platform_engagement_config.release_week_start` (the engagement epoch), so enabling the job at release does not notify every existing member on the first evening before their first settled week `[ASSUMPTION: rollout guard, no extra flag]`
+
+**Given** a candidate member in a gym in the window
+**When** the job evaluates them
+**Then** the member is eligible only if all hold: the member row is active (not deactivated); `streak_reminder_opted_out` is false; the member's subscription status is not `expired` (a member who would be refused at the door, owner decision 2026-11-15); the member has no visit day today (`member_visit_days` for `private.gym_today(gym_id)`, read from `attendance_counted` so a voided visit does not count as a visit); and `private.engagement_state_view(member_id)` reports FR-233 condition (b) true: the weekly goal in force can still be met but only if the member visits today, i.e. the visit days still needed this week are at least 1 and equal the gym-local days left in the week, today included (Monday start, Sunday the last day)
+**And** the job reads the at-risk flag, the visits still needed and the days left only from `engagement_state_view`; it never recomputes week boundaries, goals or visit counts itself, and never writes `engagement_facts`
+**And** a Pay-per-session member, a rare visitor and a member with no streak are eligible exactly like any other (no plan gating, FR-225), and a member who holds a Shield is still reminded (the Shield does not suppress the reminder; the Home hint shows "a Shield is ready" at the same moment, UX) `[ASSUMPTION: resolves adversarial review L-02 for AD-60]`
+
+**Given** FR-233 condition (a) (a daily streak of 3 or more days would end today)
+**When** this release ships
+**Then** condition (a) is inactive, because it needs the daily streak (FR-221), which is deferred: only condition (b) sends in V1.8, the `n08.daily.*` copy keys are not used, and the job's selection reads a single `at_risk_weekly` style flag from the view so that a later daily-streak story adds condition (a) by reading one more flag, with no change to the claim, dispatch table or schedule (document this in the function's migration header)
+
+**Given** an eligible member
+**When** the job sends
+**Then** it claims first: `insert into private.engagement_reminder_dispatches (member_id, gym_id, gym_local_date) ... on conflict (member_id, gym_local_date) do nothing returning id`, and calls `private.send_engagement_reminder(member_id)` only if a row was returned, so two overlapping runs, or the same run twice, send at most one per member per gym-local day (NFR-029)
+**And** the visit and eligibility checks run again immediately before the claim, so a member who checked in between selection and send is skipped, and no lock a scan takes (the member lock, `record_check_in`'s lock order) is acquired by the job: it reads `attendance_counted` and the state view only
+**And** the member's claim, history row (`public.notifications` type `N-08`), push request and delivery rows are one transaction per member (the existing N-06/N-07 shape), so a failure for one member rolls back only that member (their claim included, so the next tick retries) and does not stop the batch; a failure is counted into the `job_runs` row
+**And** a dispatch row that exists with no delivery rows is never re-sent that day (at most once beats at least once for a reminder), and a failed push for a claimed dispatch is retried by `process_notification_deliveries()`, not by re-claiming
+**And** a member with no registered push token still gets a claimed dispatch with status `no_tokens` and a history row, exactly as N-07
+
+**Given** the sender
+**When** it builds the message
+**Then** the title and body come from the weekly copy `n08.weekly.title` ("Your week is in reach" / "Votre semaine est à portée") and `n08.weekly.body` with `{n}` = the visits still needed (1 or more, plural-aware: "1 visit" / "2 visits"; "encore 1 visite" / "encore 2 visites"), in the member's language (`users.preferred_language`, fr else en); the push title is that string and never the gym name; the push payload carries `notificationCode: 'N-08'` and no deep link, so tapping it opens the app on Home as any push does today, and no response handler is added `[UX: N-08 push opens Home, not the calendar]`
+**And** wording is not a fixed string inside screens (FR-232): the strings are read by key from the same wording store the engagement copy uses; if Epic 30 delivered only the device i18n catalog and there is no server-readable store (the N-07 reminder text is hard-coded in `send_class_reminder`, 0059:115-121, although AD-60 says "the same copy store"), the function holds the two languages inline like N-07 and a pgTAP test pins each string byte-for-byte to the UX catalog keys `n08.weekly.title` and `n08.weekly.body`, with the choice recorded in this story's Dev Notes
+**And** the history row (Home bell and notification history screen) carries the same title and body, and the history screen renders N-08 with a primary-tinted icon
+
+**Given** the member's preference
+**When** the member opens Profile (MA-12) Notifications Card
+**Then** a "Streak reminder" row (`engage.profile.reminder.label`, bell Icon Chip, helper `engage.profile.reminder.helper` with `{time}` read from the same configuration the job uses, formatted "6 pm" in EN and "18 h" in FR) shows a toggle that is on by default, independent of the quiet-gym and class-reminder toggles, saved immediately on change with an optimistic flip and the existing inline error toast and revert on failure
+**And** turning it off sets `streak_reminder_opted_out = true` and the next job tick sends nothing to that member, even if a claim has not yet happened; turning it on again resumes the next qualifying day; the toggle is hidden only if N-08 is not shipped (it is shipped here)
+
+**Given** the existing notification limits
+**When** N-06 and N-07 have been sent to the same member on the same day
+**Then** N-08 is still sent (N-08 shares no limit with N-06 or N-07), and a sent N-08 does not suppress N-06 or N-07; the N-01 to N-05 mandatory notifications are untouched and cannot be opted out of (FR-076)
+
+**Given** the job and `check_in()`
+**When** the reminder job is slow, failing or running
+**Then** a check-in (`check_in()`, `staff_check_in`) completes with the same result and without waiting: the job and the check-in share no lock, no table write and no code path (a static test asserts neither `check_in()` nor `record_check_in` references `engagement_reminder_*`, and that the job body does not take the member lock), and a two-session script test holds the job's per-member transaction open while a scan succeeds (NFR-029)
+**And** no existing check-in, attendance, session or authorization behaviour changes; the existing check-in pgTAP suite passes without fixture edits
+
+**Given** the tests (`supabase/tests/engagement_reminder.test.sql` and `.negative.test.sql`)
+**When** `scripts/ci-local.sh` runs
+**Then** pgTAP and job tests prove:
+- double run: running the job twice in the same tick, and two ticks in the window, produce exactly one dispatch row, one history row and one push request per qualifying member per gym-local day;
+- crash after claim: an error injected after the claim inside the member's transaction leaves no dispatch row and no request (the next tick sends once), and a committed claim with no delivery rows is never re-sent that day;
+- DST and timezones: gyms in `Africa/Douala` (UTC+1), `Europe/Paris` across the spring and autumn change days, `America/Sao_Paulo`, `Asia/Kolkata` (UTC+5:30) and `Asia/Kathmandu` (UTC+5:45) are selected only inside their own 18:00 to 21:00 window, exactly once per local day, and a gym just before and just after the window is not selected; the "days left in the week" uses the gym-local weekday, not the UTC weekday, around local midnight;
+- opted out: a member with `streak_reminder_opted_out = true` gets nothing;
+- expired: a member whose subscription is `expired` gets nothing, while `expiring_soon` and `grace_period` are still reminded;
+- already visited today: a member with a visit day today (including one synced offline with today's recorded time) gets nothing, and a member whose only visit today was voided is still reminded;
+- condition (b) boundaries: needed equals days left sends (goal 3, 0 visits, Friday; goal 1, Sunday, no visit; goal 3, 2 visits, Sunday), needed less than days left sends nothing (rest day remains), needed greater than days left sends nothing (cannot be met), goal already met sends nothing;
+- before `release_week_start` nothing is sent; a suspended gym sends nothing;
+- tenant isolation: a member of gym A never receives a reminder built from gym B's data, and `anon`/`authenticated` cannot read or write either new table or call the job function;
+- N-06 and N-07 independence, the `notifications.type` CHECK accepting N-08 and still rejecting N-09, and the extended delivery processor polling the new delivery table
+**And** the mobile tests cover the toggle states (on by default, off, save failure revert), helper text with the `{time}` token in EN and FR, and `NotificationType` including N-08; EN and FR strings for `engage.profile.reminder.*` and `n08.weekly.*` exist in both catalogs with no missing key
+
+---
+
+### Story 31.3: Badge Shelf and Share Image
+
+As a member,
+I want a shelf of the badges I have earned and a button that turns a milestone into a picture I can post,
+So that I can be proud of what I have built and show my gym to my friends, without giving anything away about me.
+
+*Delivers FR-230 (Should), FR-231 (Should), FR-232 (badge and share wording), FR-225 (existing history counts silently at release), NFR-028 (badge determinism); spine AD-53 (badge facts, never reversed), AD-60 (the share image has no server side), AD-25; UX gate: MA-21 Badge Shelf, the Share button on MA-20 and on earned badges (badge detail sheet), and the share image spec ("Composition equals the shared image", 1080 by 1920 px) in EXPERIENCE.md; the screen states and copy there are the acceptance baseline. The badge facts reuse Epic 30's `engagement_facts` (kind `badge`); there is no new table. The share image has no server endpoint, table or storage.*
+
+**Acceptance Criteria:**
+
+**Given** the badge set
+**When** the migration ships
+**Then** the V1.8 badges are five codes stored as `badge` facts with `subject_key` in `first_visit`, `visits_7`, `visits_30`, `visits_100`, `four_weeks` (FR-230 `[ASSUMPTION]`: the set beyond 7, 30 and 100 is a proposal confirmed in OQ-35), each carrying `earned_on` (date) and `silent` (boolean) in its payload, with one effective row per `(member_id, subject_key)` and revision 1 only (a badge is never revised, reversed or deleted)
+**And** a badge is earned once and never lost: a void (`void_staff_check_in`), a late-visit correction or a rebuild that lowers the visit-day count below a threshold leaves the badge row and its `earned_on` unchanged, and a later visit that reaches the threshold again inserts nothing (pgTAP)
+**And** a badge grants nothing: no function in this story writes the loyalty ledger, `guest_sessions`, a Shield, a stamp or any plan or discount value, proven by identical row counts in those tables before and after earning all five badges
+
+**Given** a member's total visit days and the fold
+**When** the award step Epic 30 runs from settle's tail (`private.award_milestones(member_id)` on first open and from the cron settle, never inline in the scan transaction) is extended
+**Then** it writes `first_visit` at the 1st visit day, `visits_7` at the 7th, `visits_30` at the 30th, `visits_100` at the 100th (counted from `member_visit_days`, one per visit day over the member's time at that gym), with `earned_on` the gym-local date of the n-th visit day, and `four_weeks` the first time the fold reports a Shield earned (31.1), with `earned_on` the last day of the week that earned it ("4 weeks in a row" is the week a Shield is earned, FR-230)
+**And** the award is idempotent and runs under the member lock: awarding twice, or racing settle and first-open, inserts each badge once (unique key), and a visit that arrives late through offline sync (FR-061) awards the badge on the next settle with `earned_on` the n-th visit day's true date
+**And** earning `visits_7`, `visits_30` or `visits_100` is the same award as the milestone of Epic 30 and never produces a second celebration; `first_visit` and `four_weeks` produce no celebration screen (FR-229 celebrates only 7, 30 and 100)
+
+**Given** members with history before release (FR-225 `[ASSUMPTION]`)
+**When** the migration runs on production data
+**Then** every existing member who already passed 1, 7, 30 or 100 visit days gets those badges written with `silent = true` and `earned_on` the real date of that visit day from stored `visit_day` (a timezone change does not move it), no `acknowledged_at` celebration is created, and no `four_weeks` badge is back-filled because weeks before `release_week_start` are never settled
+**And** the back-fill is idempotent (running it twice inserts nothing), runs per gym without a long lock on `attendance_events` (batched, per-member short transactions), and the pgTAP test seeds members at 0, 1, 6, 7, 29, 30, 99, 100 and 250 visit days and asserts the exact badge sets
+
+**Given** a member
+**When** the member app opens the shelf
+**Then** `get_my_badges()` (a member-owned SECURITY DEFINER read; EXECUTE revoked from `public` and `anon`, granted to `authenticated`; it resolves the caller's own live member row and returns an empty set for a deactivated, support or unauthorised caller; it never mutates, so a plain read never awards, AD-53) returns exactly five rows in shelf order with `code`, `earned` (boolean), `earned_on`, `silent`, and for unearned badges the progress needed by the tile: `visits_remaining` for the three visit badges (threshold minus total visit days, never negative), nothing for `first_visit`, and `weeks_progress` (0 to 3, the current run's met weeks, 0 meaning no run started) for `four_weeks`
+**And** a pgTAP test proves the function returns only the caller's own rows (member A never sees member B's earned dates, nor another gym's), returns a stable shape for a member with no visit (five unearned rows, never empty), and that staff roles get no extra reach
+
+**Given** the Badge Shelf screen MA-21
+**When** the member opens `/badges` from the MA-12 Profile "Badges" row (value `engage.profile.badges.value`, "2 of 5") or from MA-20 [See your badges] (which acknowledges the milestone and replaces the route so Back returns to Home)
+**Then** the screen shows the header and `engage.badges.title`, the summary `engage.badges.summary` ("2 of 5 earned"), a two-column grid of five tiles in the order First visit, 7, 30, 100, 4 weeks (glyphs per UX), and the footnote `engage.badges.grantsNothing`; the 4-weeks tile is shown because Shields ship in 31.1
+**And** the tile states render as the UX table names them: Earned (accent Icon Chip, check corner, "Earned 14 Oct" `engage.badges.earnedOn`); Earned silently at release (identical, the real historic date); Locked in reach (outline, neutral glyph, no lock icon, "12 more visits to go" `engage.badges.locked.visits`, `engage.badges.locked.first`, "2 of 4 weeks" `engage.badges.locked.weeksProgress`); Locked with no 4-week streak started (`engage.badges.locked.weeks`); a tile never shows "locked" as its only text and never "0 of N" as a failure
+**And** tapping an earned tile opens the badge detail bottom sheet (large chip, name, date, [Share]); tapping a locked tile opens the same sheet without Share, showing the progress line; pull to refresh reloads; loading shows 5 tile skeletons; a failed load shows the `engage.badges.error` card; offline shows the cached tiles (cached on the device after the last load) and Share still works; a new member sees five locked tiles with progress lines, never an empty screen
+**And** all strings `engage.badges.*` exist in EN and FR with no missing key (`scripts/check-i18n-key-parity.mjs` passes), and the tiles meet the accessibility floor (tile accessible label states name, earned or not, and date or progress)
+
+**Given** the share library decision (made in this story, binding nothing before it is verified)
+**When** the developer starts the story
+**Then** they verify on the web, on the day of the work, the current published version of each candidate, its changelog, its maintenance status and its compatibility with the app's Expo SDK 57 (react-native 0.86, `expo` ~57.0.20 in `apps/mobile/package.json`) before adding any dependency; the default plan, pre-checked at planning time on 2026-11-15, is `react-native-view-shot` pinned to the version Expo SDK 57 bundles (5.1.0 in `expo/bundledNativeModules.json`; npm latest at that date 6.2.1, recommended for SDK 58 only) to capture an off-screen React view, plus `expo-sharing` at the SDK 57 version (~57.0.18) to open the OS share sheet with `shareAsync` and to test `isAvailableAsync()`; `expo-file-system` (~57.0.6) and `react-native-svg` (15.15.4, `toDataURL`) are already installed and are the fallback capture route if view-shot cannot meet the 1080 by 1920 requirement or a verified incompatibility appears; the installed version is the one `npx expo install` selects for SDK 57, never a floating range
+**And** the choice, the exact versions, the evidence (source URLs, dates, what was checked) and the rejected options (a canvas or Skia drawing library: heavy and not already a dependency; a server-rendered image: forbidden by AD-60; React Native's built-in `Share`: cannot share an image file on Android) are written as one dated entry at the top of `docs/decisions.md` (newest first), and the `ARCHITECTURE-SPINE.md` Deferred bullet that says the library is "chosen at story time" is updated to point to it
+**And** the entry records that both candidates add native code, so the feature ships only in a new EAS store build (the app uses no over-the-air update channel today), and that an older installed build must not receive a bundle that imports a missing native module; the story states the build order for the product owner (build first, then it is safe to release) and does not run the build itself
+
+**Given** the Share button on MA-20 and on the badge detail sheet
+**When** the member taps [Share]
+**Then** the button shows its spinner and stays disabled with its label unchanged (no width change), the app renders the image on the device from local data only, writes it to the app's cache directory as a PNG of exactly 1080 by 1920 px (the portrait ratio of a WhatsApp status) on the same dark background as the card, and calls the OS share sheet with that file (`mimeType image/png`, `UTI public.png`, `dialogTitle` from the catalog); on iPad the sheet is anchored to the button
+**And** the milestone composition carries: gym logo (omitted without error if not cached or not loadable) and gym name, the milestone numeral and headline, the optional mini month calendar of the member's current month with lit days only (shown when the card has room, as MA-20 specifies: height at least 640pt, never at +2 text sizes) and the caption `engage.share.caption.7`, `.30`, `.100` with `{gym}`; the badge composition carries the badge name and glyph, the date earned, the gym name and logo, the calendar where it fits and `engage.share.caption.badge`; the image equals what the member sees on the card ("composition equals the shared image")
+**And** the image contains no member name, no phone number, no payment figure, no other member's data and no GymOS watermark (owner decision 2026-11-15); a component test renders the composition for a member named "Aïcha Test" with a phone number, a plan price and a loyalty reward in state, serialises the tree and asserts none of those strings appear, and that the composition's props type has no field for them (a type-level test), and that nothing but the gym's name and logo, the milestone or badge, the date and the member's own lit days enter the composition
+**And** the share caption is in the member's app language (EN and FR keys both exist), and nothing is sent to any GymOS service: a test asserts that tapping Share makes no network call to Supabase or any other host (the existing client mock records zero calls), and no table, endpoint, storage bucket or analytics event records what was shared (FR-231: GymOS stores nothing about what was shared)
+
+**Given** the share result handling (UX Share flow, step 4)
+**When** the flow ends or fails
+**Then** the share sheet closed with no target chosen: nothing happens, no message, the screen stays; shared: nothing happens, no toast (the OS shows its own)
+**And** image could not be made (the capture throws, out of memory, the cache file cannot be written, or a storage or file permission error): the inline message `engage.share.error` shows above the buttons with [Try again] (`engage.share.retry`), the button returns to its normal state and the screen otherwise works
+**And** the OS reports that the share sheet cannot be opened, or `isAvailableAsync()` is false: the inline message `engage.share.unavailable` shows and the Share button is hidden on the next view of the screen
+**And** permission-denied: the flow never asks for a photo-library or storage permission, because the image is written only to the app's own cache directory and handed to the share sheet (no save-to-gallery action is offered); if the platform nevertheless refuses the file hand-off, it is shown as `engage.share.error` (retry), not as a permission prompt, and a test asserts the permission request APIs are never called
+**And** the temporary image file is deleted after the share sheet closes and on failure, and any older leftover file in the cache directory is removed at the next share, so no image of the member persists on the device
+**And** offline: building and sharing the image works without network (a test runs the flow with the network mock failing)
+
+**Given** the existing celebration screen (MA-20, Epic 30)
+**When** this story adds Share
+**Then** MA-20 gains [Share] as the primary button with [Keep going] secondary and the [See your badges] text link, exactly as the UX layout orders them, and the screen without Share (Epic 30) is unchanged in behaviour for acknowledge, reduced motion, offline and "already acknowledged" handling; the existing Epic 30 celebration tests pass without edits except the button-order assertions this story names
+
+**Given** the determinism and gate requirements
+**When** `scripts/ci-local.sh` runs
+**Then** the NFR-028 rebuild equivalence test is extended so that `rebuild_engagement` returns the badge set and the live fold equals it, including the silent release back-fill, a late offline visit that earns a badge, and a void that does not remove one (a stored `earned_on` wins over a recomputed one after a void, and the test says so)
+**And** the existing pgTAP suite passes without fixture edits except the Epic 30 award-step tests this story extends; `check_in()` and `record_check_in` are not edited; no new table is created, no endpoint or edge function is added, and no new `private.support_capabilities` entry is made (`support_capabilities.test.sql` unchanged)
+**And** the mobile component tests cover the shelf in every tile state in EN and FR, the badge detail sheet with and without Share, the Share flow's every result state above with the library mocked at its module boundary, and the composition's privacy assertions; the on-device behaviour of the real library (that the PNG really is 1080 by 1920 and opens WhatsApp) is checked by the product owner on a device build, which is the one thing automated tests here cannot show, and the story's Dev Notes list the exact steps for that check
+
+---
+
+### Deferred (no stories in V1.8)
+
+The Could items of this epic are **not** built in this release. PRD 10.3 item 8 and the Release Definition say Could items ship "only if ready" and "their absence never holds the release", and epics.md decision 3 (2026-11-15) makes Epic 31 the cut line. They are recorded here so a later release can take them without redesign.
+
+| Requirement | Why deferred | What a later story reuses |
+|---|---|---|
+| FR-221 Daily streak (Could) | Not required to ship; the weekly streak stays the main streak. Its absence leaves FR-233 condition (a) and the Shield "day" path inactive, which stories 31.1 and 31.2 state. | The `day_shield` fact kind, the "last Shield is reserved for the weekly streak" rule and its rolled-back activation test (31.1), `private.engagement_daily_streak_enabled()`, `engagement_state_view`'s daily run and the `n08.daily.*` and `engage.atRisk.daily` keys already in the UX catalog, MA-09's compact daily chip, and the reminder's single extra flag (31.2). |
+| FR-234 Gym-wide monthly challenge (Could) | Needs a Settings screen, a setter pair and a Home card; not needed for the gate. | Spine AD-61 `gym_challenges (gym_id, month, target, reward text, cancelled_at)` with its two audited setters (Owner and Supervisor, support-registered, AD-32 pin pattern, `support_capabilities.test.sql` pinned counts), `gym_challenge_progress()` counting distinct `(member, visit_day)` pairs from `attendance_counted` with counts only, the UX Home challenge card and the Settings challenge form with its `engage.challenge.*` keys. Open points from the adversarial review L-03 (create on a cancelled not-yet-started month, gym-local "month has started", excluded support-proxy rows) are carried to that story. |
+| FR-235 "Your month" summary (Could) | Pure summary, no gate. | UX MA-22 Your Month (`/month/:yyyy-mm`) and its Home "N5" card with `engage.month.*` keys, and `member_visit_days` and `private.gym_local_month_bounds` for the month's visit days, best week and change from the month before. |
+
+---
+
+#### Notes for the epic owner (assumptions and open points carried by these stories)
+
+- Spine AD-60 names `private.engagement_state` as the source of the at-risk flags; the spine's AD-53 and the story brief name `private.engagement_state_view(member_id)` for that and `engagement_state` for the watermark table. These stories use `engagement_state_view`.
+- AD-60 says N-08 wording comes "from the same copy store as N-06 and N-07", but no such store exists: the N-07 text is inline in `private.send_class_reminder` (0059:115-121). Story 31.2 resolves it by reading Epic 30's wording store if it is server-readable, else inline with a byte-for-byte test (see the AC).
+- Added assumptions (all tagged in the ACs): a met week while a comeback is open closes it (31.1); the 18:00 to 21:00 catch-up window and the no-send-before-epoch rule (31.2); a held Shield does not suppress the reminder (31.2); the badge `earned_on` is stored and immutable (31.3).
+- Product risk noted, not changed: FR-233 condition (b) as written reminds every opted-in member, including one with no streak, on the day a goal becomes only just reachable (for example a goal of 3 and no visit by Friday). The PRD's own metric (reminder opt-out rate, PRD section 3) is what judges it after release.

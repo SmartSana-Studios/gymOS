@@ -2,13 +2,15 @@
 name: GymOS
 status: final
 created: 2026-07-04
-updated: 2026-11-08
+updated: 2026-11-15
 sources:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
   - _bmad-output/planning-artifacts/epics.md
   - _bmad-output/planning-artifacts/architecture/architecture-gym_os-2026-08-11/ARCHITECTURE-SPINE.md
   - _bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md
   - _bmad-output/implementation-artifacts/deferred-work.md
+  - _bmad-output/brainstorming/brainstorm-member-engagement-streaks-calendar-2026-11-14/brainstorm-intent.md
+  - _bmad-output/brainstorming/brainstorm-member-engagement-streaks-calendar-2026-11-14/v1.8-gym-feedback.md
 design_spine: DESIGN.md
 ---
 
@@ -52,6 +54,8 @@ design_spine: DESIGN.md
 
 > **ID namespace note *(V1.7)*.** The architecture spine's decisions now run AD-1…AD-52, so the overlap with screens AD-22…AD-29 widens. The rule is unchanged: "Architecture Decision AD-nn" is always spelled out, and a bare `AD-nn` is a screen. V1.7 adds screens AD-24…AD-29 (Admin Dashboard), SA-08…SA-21 (Super Admin), and a new prefix **PS-nn** for Public Surfaces `[ASSUMPTION — prefix PS chosen to avoid clashing with MA/AD/SA]`. Existing ids are not renumbered. SA-01 keeps its index row; V1.7 amends it below.
 
+> **ID namespace note *(V1.8)*.** V1.8 adds Admin Dashboard screens **AD-30, AD-31 and AD-32**. Architecture Decisions AD-30 to AD-32 also exist (the architecture spine now runs AD-1 to AD-61), so the rule stands: "Architecture Decision AD-nn" is always spelled out, and a bare `AD-nn` is a screen. No Member App or Super Admin ids are added by this block. Existing ids are not renumbered.
+
 ### Member App
 
 | ID | Screen | Route | Entry Points |
@@ -64,15 +68,21 @@ design_spine: DESIGN.md
 | MA-06 | Goal Selection | `/onboarding/goal` | After MA-05 |
 | MA-07 | Experience Level | `/onboarding/experience` | After MA-06 |
 | MA-08 | Plan Confirmation | `/onboarding/plan` | After MA-07 |
-| MA-09 | Home | `/home` | Post-onboarding; bottom tab. *(V1.6: guest status card, Rewards card, post-sync denial notice)* |
+| MA-09 | Home | `/home` | Post-onboarding; bottom tab. *(V1.6: guest status card, Rewards card, post-sync denial notice)* *(V1.8: "This week" ring card, Shield and comeback states, at-risk hint, Leaderboard card, gym-challenge card, "Your month" card; see MA-09 V1.8)* |
 | MA-10 | Check-In (+ result states) | `/checkin` | Bottom tab; Home quick-action. *(V1.6: "Pay for your session" and "will be verified" result states)* |
 | MA-11 | History (Payments / Check-ins) | `/profile/history` | Profile → History row *(V1.5: moved off the bottom tab bar, see Navigation Structure)*. *(V1.6: session payments labelled "Session")* |
-| MA-12 | Profile | `/profile` | Bottom tab. *(V1.5: gains History and Notification Preferences sections)* |
+| MA-12 | Profile | `/profile` | Bottom tab. *(V1.5: gains History and Notification Preferences sections)* *(V1.8: Training section with Weekly goal, Badges and the Anonymous toggle; Streak reminder toggle in Notifications)* |
 | MA-13 | Plan Details | `/plan` | Home quick-action. *(V1.6: Pay-per-session variant)* |
 | MA-14 | Payment Detail | `/profile/history/payment/:id` | History → payment row. *(V1.6: session receipt label)* |
 | MA-15 | Progress | `/progress` | Bottom tab *(V1.5, FR-123)* |
 | MA-16 | Classes | `/classes` | Bottom tab; Home quick-action for upcoming bookings *(V1.5, FR-123, FR-108)* |
 | MA-17 | Pay for Session | `/pay-session` | MA-10 "Pay for your session" result [Pay now]; Home quick action [Pay for a session] *(V1.6, FR-158, Story 19.11)* |
+| MA-18 | Attendance Calendar | `/calendar` | Home "This week" card tap; Home streak and at-risk hint tap; MA-22 [See my calendar]; N-08 push opens Home, not this screen *(V1.8, FR-224, Epic 30)* |
+| MA-19 | Gym Leaderboard (+ first-open notice) | `/leaderboard` | Home Leaderboard card tap; MA-12 Anonymous toggle helper link "See the leaderboard" *(V1.8, FR-226–FR-228, Epic 30)* |
+| MA-20 | Milestone Celebration | `/celebration/:milestoneId` | Pushed automatically over Home when an unacknowledged non-silent milestone exists after Home loads (7th, 30th, 100th visit day); never from a tab, never from a push *(V1.8, FR-229, FR-231, Epic 30; Share is Should, Epic 31)* |
+| MA-21 | Badge Shelf | `/badges` | MA-12 Profile "Badges" row; MA-20 [See your badges]; badge detail sheet opens on top of it *(V1.8, FR-230, FR-231, Epic 31, Should)* |
+| MA-22 | Your Month | `/month/:yyyy-mm` | Home "Your [month] is ready" card; MA-18 when the previous month is shown, link "Your [month]" *(V1.8, FR-235, Epic 31, Could)* |
+| MA-23 | Weekly Goal (sheet) | `/goal` (modal sheet) | Home "This week" card [Goal: 3 days]; MA-12 Profile "Weekly goal" row *(V1.8, FR-219, Epic 30)* |
 | — | In-app Renewal *(shipped, Story 4.15; documented V1.6)* | `/renew` | Home quick action [Renew] (gym has Tara Money connected) |
 | — | Awaiting Registration *(shipped, FR-155; documented V1.6)* | `/awaiting-registration` | Root guard, replaces all tabs while the registration fee is unsettled |
 
@@ -90,17 +100,17 @@ design_spine: DESIGN.md
 | AD-08 | Subscriptions | `/subscriptions` | Manager |
 | AD-09 | Payments | `/payments` | Receptionist *(V1.6: Purpose column/filter, flagged-reason labels, session refund notices)* |
 | AD-10 | Manual Payment Entry | Modal on AD-09 / AD-02 | Receptionist *(V1.6: unchanged — no Session purpose; see AD-10)* |
-| AD-11 | Attendance | `/attendance` | Receptionist *(V1.6: session alert variant)* |
+| AD-11 | Attendance | `/attendance` | Receptionist *(V1.6: session alert variant)* *(V1.8: Check in a member, Void)* |
 | AD-12 | Audit Log | `/audit` | Manager *(V1.6: new action labels)* |
 | AD-13 | Settings | `/settings` | Supervisor *(V1.5: Manager-plus access — was Owner-only; gains Staff and Connect Payment Account sections)* *(V1.6: Charge guests per session, Loyalty program, Category)* |
-| AD-14 | Coach Portal — Member List | `/coach` | Coach |
-| AD-15 | Coach Portal — Member Detail | `/coach/:memberId` | Coach *(V1.5: restructured into tabs — Session Notes / Progress / Workout Plan)* |
+| AD-14 | Coach Portal — Member List | `/coach` | Coach; Owner, Supervisor, Manager read-only through the picker (AD-32) *(V1.8)* |
+| AD-15 | Coach Portal — Member Detail | `/coach/:memberId` | Coach; Owner, Supervisor, Manager read-only through the picker (AD-32) *(V1.8)* *(V1.5: restructured into tabs — Session Notes / Progress / Workout Plan)* |
 | AD-16 | Staff — List | `/settings/staff` | Supervisor *(V1.5, FR-120)* |
 | AD-17 | Staff — Add / Edit | Modal on AD-16 | Supervisor *(V1.5, FR-087–FR-089)* |
 | AD-18 | Classes — List & Attendance | `/classes` | Receptionist *(V1.5, FR-121)* *(V1.6: guest marking refusal + in-place session payment)* |
-| AD-19 | Classes — Create / Edit | Modal on AD-18 | Manager *(V1.5, FR-104)* |
+| AD-19 | Classes — Create / Edit | Modal on AD-18 | Manager; a Coach for own classes, from AD-21 *(V1.8)* *(V1.5, FR-104)* |
 | AD-20 | Coach Portal — Overview | `/coach/overview` | Coach *(V2, FR-146)* |
-| AD-21 | Coach Portal — My Classes | `/coach/classes` | Coach *(V2, FR-145)* |
+| AD-21 | Coach Portal — My Classes | `/coach/classes` | Coach; Owner, Supervisor, Manager read-only through the picker (AD-32) *(V1.8: a Coach creates, edits and cancels own classes)* *(V2, FR-145)* |
 | AD-22 | Guest Sessions (drill-down) | `/guest-sessions?tab=paid\|blocked\|free&period=today\|month` | Manager *(V1.6, FR-163, Story 19.10)* — reached only from the AD-02 Guest sessions card |
 | AD-23 | Plans | `/plans` | Manager *(shipped, undocumented until V1.6; V1.6 adds the plan-type lock, FR-173)* |
 | AD-24 | Settings — "Allow GymOS Support" section | Section on AD-13 (`/settings`) | Owner switches; Supervisor reads status *(V1.7, FR-182, FR-183, Story 23.3)* |
@@ -110,6 +120,10 @@ design_spine: DESIGN.md
 | AD-28 | Landing Page — Page Name | Modal on AD-27 | Owner claims/renames; others read-only *(V1.7, FR-198, FR-202, FR-203)* |
 | AD-29 | Landing Page — Publish | `/settings/landing-page/publish` | Supervisor, Owner; assigned support *(V1.7, FR-197, FR-199)* |
 | — | V1.7 amendments to AD-01, AD-02, AD-12, AD-13, AD-16 | see "V1.7 — Amendments to existing Admin screens" | AD-01 re-sign-in state, AD-02 support notice, AD-12 support actor and labels, AD-13 sections, AD-16 fixed row and tag |
+| AD-30 | Check in a member | Modal on AD-11 | Receptionist *(V1.8, FR-248–FR-250, Epic 27)*. Also GymOS Support, behind the second factor (FR-251) |
+| AD-31 | Correct Plan | Modal on AD-04 | Manager: Owner, Supervisor, Manager. Also GymOS Support (FR-251) *(V1.8, FR-241–FR-243, Epic 27)* |
+| AD-32 | Coach Portal — Coach Picker | `/coach?coach=<id>`, and the same query on `/coach/classes` and `/coach/:memberId` | Manager: Owner, Supervisor, Manager. Not Receptionist, Coach or GymOS Support *(V1.8, FR-247, Epic 29)* |
+| — | V1.8 amendments to AD-04, AD-11, AD-12, AD-13, AD-14, AD-15, AD-18, AD-19, AD-20, AD-21, AD-22, AD-23 | see the V1.8 paragraph at the end of each screen | AD-04 Correct plan action and Sessions wording; AD-11 Check in a member, Entry column, Void; AD-12 labels; AD-13 Session validity and Gym challenge sections; AD-14/AD-15/AD-21 picker (read-only) and coach-owned classes; AD-18/AD-19 weekly times and Cancel class; AD-22 source value; AD-23 annual wording |
 
 ### Super Admin Dashboard
 
@@ -180,7 +194,17 @@ App — Authenticated
     │    ├── → In-app Renewal (/renew)      [quick action Renew — shipped, Story 4.15]
     │    ├── → Pay for Session (MA-17)      [quick action Pay for a session — V1.6]
     │    ├── Rewards card (in-page)         [V1.6, FR-169]
-    │    └── → upcoming booked classes summary [V1.5, links into Classes tab]
+    │    ├── → upcoming booked classes summary [V1.5, links into Classes tab]
+    │    ├── "This week" card (in-page)       [V1.8, FR-219/FR-220: ring, weekly streak, Shield chips, daily chip, at-risk hint]
+    │    │    ├── → Attendance Calendar (MA-18)   [card tap]
+    │    │    │    └── → Your Month (MA-22)       [Could; previous month only]
+    │    │    └── → Weekly Goal sheet (MA-23)     [goal button]
+    │    ├── Comeback card (in-page)          [V1.8, Should, FR-223]
+    │    ├── Leaderboard card (in-page)       [V1.8, FR-226]
+    │    │    └── → Gym Leaderboard (MA-19)       [card tap; first open shows the notice]
+    │    ├── Gym challenge card (in-page)     [V1.8, Could, FR-234; read-only]
+    │    ├── "Your month" card (in-page)      [V1.8, Could, FR-235] → Your Month (MA-22)
+    │    └── → Milestone Celebration (MA-20)  [auto-pushed once per milestone; V1.8, FR-229]
     ├── Tab 2: Check-In (MA-10)     [camera activates on tab entry]
     │    └── "Pay for your session" result → Pay for Session (MA-17) [V1.6]
     ├── Tab 3: Classes (MA-16)      [V1.5]
@@ -191,7 +215,11 @@ App — Authenticated
          ├── → History (MA-11)         [V1.5: moved off the tab bar into here]
          │    ├── → Plan Details (MA-13)
          │    └── → Payment Detail (MA-14)
-         └── → Notification Preferences section [in-page, unchanged from V1.0 shipped behavior]
+         ├── → Notification Preferences section [in-page, unchanged from V1.0 shipped behavior]
+         ├── → Weekly Goal sheet (MA-23)      [V1.8, FR-219]
+         ├── → Badge Shelf (MA-21)            [V1.8, Should, FR-230]
+         │    └── → badge detail sheet → Share [Should, FR-231]
+         └── Anonymous toggle, Streak reminder toggle [in-page, V1.8, FR-227, FR-233]
 ```
 
 ### Admin Dashboard IA
@@ -214,7 +242,7 @@ Admin Dashboard
 │   │   ├── Allow GymOS Support → AD-24 (section)  [Owner switches; Supervisor reads] [V1.7]
 │   │   │   └── Review changes → AD-25  [Owner] [V1.7]
 │   │   └── Landing page  → AD-27 → AD-28 (modal) / AD-29 (publish)  [Owner/Supervisor; support] [V1.7]
-│   └── [Coach role only]
+│   └── [Coach role only; amended V1.8: also Owner, Supervisor, Manager through the picker AD-32, see V1.8 below]
 │       └── Coach Portal                                             [V2]
 │           ├── Overview      → AD-20                                [V2]
 │           ├── My Members    → AD-14 → AD-15 (tabs: Session Notes / Progress [V1.5] / Workout Plan [V1.5])
@@ -224,6 +252,32 @@ Admin Dashboard
     ├── Inline Renewal Panel    [within alert or Subscriptions row]
     └── Record Session Payment Panel [V1.6; from session alert, AD-04, AD-18 refusal]
 ```
+
+*(V1.8)* The IA tree above gains the following. Nothing is removed. Written as the changed branches only.
+
+```
+Admin Dashboard
+├── Sidebar
+│   ├── Members           → AD-03 → AD-04 (modal) → AD-31 Correct plan (modal)  [Owner/Supervisor/Manager]  [V1.8]
+│   ├── Plans             → AD-23   (annual plan wording)                                                    [V1.8]
+│   ├── Attendance        → AD-11 → AD-30 Check in a member (modal)                                         [V1.8]
+│   │                              └── Void a staff check-in (modal on a row)  [Manager and above]          [V1.8]
+│   ├── Classes           → AD-18 → AD-19 (modal: weekly times; result list "left unchanged")                [V1.8]
+│   │                              └── Cancel class (dialog)  [Manager and above]                            [V1.8]
+│   ├── Settings          → AD-13
+│   │   ├── Session validity   (section, saves on its own)  [Owner/Supervisor]                              [V1.8]
+│   │   └── Gym challenge      (section, saves on its own)  [Owner/Supervisor]  [Could]                     [V1.8]
+│   └── Coach Portal                                                                                        [V1.8: now also for Owner, Supervisor, Manager]
+│       ├── [Coach role]           Overview AD-20 · My Members AD-14 → AD-15 · My Classes AD-21 (+ Create / Edit / Cancel own classes via AD-19)
+│       └── [Owner/Supervisor/Manager]  AD-32 coach picker → Classes (AD-21, read-only) · Members (AD-14 → AD-15, read-only)
+│                                       (no Overview, no Progress tab: body and progress data never shown)
+└── Floating / Overlay
+    ├── Front-Desk Alert Panel  (V1.8: no alert is raised for a staff member's own check-in, accepted or rejected)
+    ├── Inline Renewal Panel    (V1.8: also opens inside AD-30 on an expired result)
+    └── Record Session Payment Panel (V1.8: also opens inside AD-30 on a "no paid session" result)
+```
+
+Reach rules `[ASSUMPTION]`: AD-30 is reached **only** from AD-11's page action (FR-248 says "from the Attendance page"). AD-31 is reached only from AD-04's header. AD-32 is the Coach Portal itself for the three admin roles, not a separate sidebar item. `[NOTE FOR UX]` A desk team may also want a one-tap "Check in" on an AD-03 row or the AD-04 header (the member is already found). Not drafted, to keep one entry point; add if the first gym asks.
 
 ### Super Admin Dashboard IA
 
@@ -291,6 +345,10 @@ www.gymosapps.com (main site, directory)
 - Deep link from SMS invite (new member): app opens → if unauthenticated → MA-01 → MA-02 with phone number from deep link pre-populated.
 - Deep link for returning authenticated user: open to MA-09 (Home).
 - *(V1.6)* No tab changes. MA-17 Pay for Session, `/renew`, and MA-13 are pushed full-screen routes (back arrow, no tab bar), matching the shipped `/renew` pattern. The Rewards card lives inside Home, not on its own tab.
+- *(V1.8)* **No tab changes `[ASSUMPTION — proposed by UX, to confirm]`.** MA-18 Attendance Calendar, MA-19 Gym Leaderboard, MA-21 Badge Shelf and MA-22 Your Month are pushed full-screen routes (back arrow, no tab bar), the same pattern as MA-17, `/renew` and MA-13. MA-20 Milestone Celebration is a full-screen overlay route (fade in, no tab bar). MA-23 Weekly Goal is a bottom sheet over Home or Profile (slide up, swipe down to dismiss). The tab bar badge column is unchanged: no badge or dot is added for engagement, because a dot would turn a streak into an obligation.
+- **Why no tab.** The habit loop (calendar = the past, ring = this week, at-risk cell = today, Shield = the safety net) is read on the screen members already open, Home, at the moment they decide whether to go to the gym. A sixth tab breaches the 5-tab ceiling set in V1.5. Replacing Progress or Classes would remove the two features V1.5 bet on. Folding the habit loop into Profile would hide it from the screen where it works. Putting a "Body | Habit" switch inside Progress (MA-15) was rejected because MA-15 is private body data (photos, weight) and the habit data is social (leaderboard).
+- **Back behaviour (all V1.8 routes).** Back arrow or Android back returns to the route that opened it: Home for MA-18, MA-19, MA-22 opened from Home; MA-18 for MA-22 opened from it; Profile for MA-21 and MA-23 opened from Profile. MA-20 closes to Home (never back into the check-in result overlay). Tapping the Home tab while on a pushed route pops to Home and scrolls to top. Deep link from the N-08 push opens Home (MA-09) with the "This week" card in view, the same rule as every other push ("Deep link for returning authenticated user: open to MA-09").
+- **Gym switch.** Everything in V1.8 is for the active gym only (Architecture Decision AD-4): switching gyms swaps the ring, streak, calendar, leaderboard and badges for that gym's own.
 
 ### Admin Dashboard — Sidebar
 
@@ -323,18 +381,18 @@ www.gymosapps.com (main site, directory)
 | Audit Log | — | ✓ | ✓ | ✓ | — |
 | Settings (AD-13) | — | — | ✓ | ✓ | — |
 | Staff (AD-16/17) | — | — | ✓ | ✓ | — |
-| Coach Portal | — | — | — | — | ✓ |
+| Coach Portal *(amended V1.8: see the V1.8 sidebar change below)* | — | ✓ | ✓ | ✓ | ✓ |
 
 *(V1.6)* Guest Sessions (AD-22) has **no sidebar item**. It is reached only from the AD-02 Guest sessions card, so it is Manager-plus by construction; a Receptionist who types the URL gets the global "You don't have permission to do that." state. Settings (AD-13) stays Owner/Supervisor as shipped, so no Manager ever sees the V1.6 Settings sections. Story 21.2's "Manager who can open Settings sees category read-only" is therefore moot; it is not built, because the shipped sidebar never gives a Manager Settings.
 
 *(V1.7)* **Sidebar additions: none.** AD-24 (Allow GymOS Support), AD-25 (Review queue) and AD-27–AD-29 (Landing page) are reached through Settings rows, as Staff is, so the matrix above is unchanged for the five gym roles. New rules:
 - **Landing page** (AD-27): visible to Owner and Supervisor, plus an assigned support person. Manager, Receptionist and Coach never see the row (absent from the DOM).
 - **Allow GymOS Support** (AD-24): the switch is Owner-only and is absent from the DOM for everyone else. A Supervisor, who opens Settings, sees the read-only status line only (a status line that helps a lower-permission user do their job, per the Role-based rendering exception).
-- **Support role** `[ASSUMPTION]`: a support person sees the sidebar a Supervisor sees (FR-179 is "a Supervisor's capabilities plus additions"), except the AD-24 switch and the AD-28 name claim, which are absent. In a gym where the switch is off, the support person gets "You don't have permission to do that." on the next request (FR-192). This is the same state as Immediate access revocation.
+- **Support role** `[ASSUMPTION]`: a support person sees the sidebar a Supervisor sees (FR-179 is "a Supervisor's capabilities plus additions"), except the AD-24 switch and the AD-28 name claim, which are absent. *(amended V1.8: and except the Coach Portal item, which a support person never sees)* In a gym where the switch is off, the support person gets "You don't have permission to do that." on the next request (FR-192). This is the same state as Immediate access revocation.
 - **Active gym** *(FR-194)*: a support person works in several gyms, so the sidebar gym name (item 2 above) becomes a gym switcher for that account only: a select of the assigned, active gyms. Switching reloads the app in the chosen gym; there is no cross-gym view. `[ASSUMPTION — switcher is a select in the sidebar gym-name slot]`
 - `[CONFLICT]` with AD-13's "Owner and Supervisor … the same Settings footprint as Owner" and with the sentence above that Supervisor has "the same footprint as Owner, minus the ability to create another Supervisor": from V1.7 a Supervisor can no longer switch Allow GymOS Support or claim or rename the page name (FR-183, FR-198). Everything else in Settings is unchanged for a Supervisor.
 
-Coach role: the sidebar renders only the "Coach Portal" link. All other items are absent from the DOM. Selecting it enters the Portal, which carries its own sub-navigation (V2, FR-144):
+Coach role *(amended V1.8: the "Coach Portal" link is also shown to Owner, Supervisor and Manager, see the V1.8 sidebar change below)*: the sidebar renders only the "Coach Portal" link. All other items are absent from the DOM. Selecting it enters the Portal, which carries its own sub-navigation (V2, FR-144):
 
 | Coach Portal sub-nav | Coach |
 |---|---|
@@ -342,7 +400,38 @@ Coach role: the sidebar renders only the "Coach Portal" link. All other items ar
 | My Members (AD-14) | ✓ |
 | My Classes (AD-21) | ✓ |
 
-My Classes is **not** the admin Classes page (AD-18/AD-19) — a Coach never reaches AD-18, cannot create or edit a class, and cannot mark class attendance. AD-21 shows only classes where `classes.coach_id` is that Coach.
+My Classes is **not** the admin Classes page (AD-18/AD-19) — a Coach never reaches AD-18, cannot mark class attendance, and cannot create or edit a class that is not their own *(amended V1.8: a Coach creates, edits and cancels own classes in My Classes, FR-246)*. AD-21 shows only classes where `classes.coach_id` is that Coach.
+
+**V1.8 sidebar change: one row, one rule.**
+
+`[CONFLICT]` with the line "Coach role: the sidebar renders only the 'Coach Portal' link" read as "Coach Portal is for the Coach role only", with the V1.7 matrix row `| Coach Portal | — | — | — | — | ✓ |`, and with the sentence "My Classes is **not** the admin Classes page — a Coach never reaches AD-18, cannot create or edit a class": from V1.8 (FR-246, FR-247) the Coach Portal is also opened by Owner, Supervisor and Manager through a coach picker, and a Coach creates, edits and cancels own classes inside My Classes. A Coach still never reaches AD-18, and the admin Classes page stays closed to the Coach role.
+
+| Nav item | Receptionist | Manager | Supervisor | Owner | Coach |
+|---|---|---|---|---|---|
+| Coach Portal *(V1.8: picker for the three admin roles; own portal for Coach)* | — | ✓ | ✓ | ✓ | ✓ |
+
+- **Label and position** `[ASSUMPTION]`: the item keeps the label "Coach Portal" / « Espace coach » and sits **after Classes** for Manager, Supervisor and Owner (the order is Overview, Members, Plans, Subscriptions, Payments, Attendance, Classes, Coach Portal, Audit Log, Settings). For the Coach role it stays the only item.
+- **Receptionist** never sees it (absent from the DOM). **GymOS Support** never sees it: `[ASSUMPTION]` the V1.7 line "a support person sees the sidebar a Supervisor sees" gets this exception, because the picker functions are not support capabilities (Architecture Decision AD-58, FR-251). A support person who opens `/coach` gets the global "You don't have permission to do that."
+- **What the three admin roles land on:** AD-32 (a coach is chosen first; nothing about any coach is shown before then). The Coach role lands on AD-20 Overview, as today.
+- **Portal sub-navigation, admin view:** only **Classes** and **Members**. There is no Overview (it carries recent progress activity, which FR-247 excludes) and no per-member Progress tab. See AD-32.
+- **Sidebar badge:** none.
+
+**V1.8 role visibility, all new capabilities** (rows are actions; a dash means absent from the DOM; ✓ means available; "support" is the V1.7 role, shown to the gym as "GymOS Support"):
+
+| Capability | Receptionist | Manager | Supervisor | Owner | Coach | Support |
+|---|---|---|---|---|---|---|
+| Check in a member (AD-30) | ✓ | ✓ | ✓ | ✓ | — | ✓ (second factor) |
+| Void a staff check-in, same gym-local day | — | ✓ | ✓ | ✓ | — | ✓ |
+| See the Entry column "By staff · name" | ✓ | ✓ | ✓ | ✓ | — | ✓ |
+| Correct plan (AD-31) | — | ✓ | ✓ | ✓ | — | ✓ |
+| Session validity setting (AD-13) | — | — | ✓ | ✓ | — | ✓ |
+| Gym challenge: set and cancel (AD-13, Could) | — | — | ✓ | ✓ | — | ✓ |
+| Annual plan wording (AD-23) | — | ✓ | ✓ | ✓ | — | ✓ |
+| Weekly times and Cancel class on any class (AD-18, AD-19) | — | ✓ | ✓ | ✓ | — | ✓ |
+| Create, edit, cancel **own** classes (AD-21 → AD-19) | — | — | — | — | ✓ | — |
+| Coach picker, read-only (AD-32) | — | ✓ | ✓ | ✓ | — | — |
+
+Notes: Owner and Supervisor share a column because V1.8 gives them identical capabilities (PRD 4.6). Supporting claims: support has no picker because FR-251's list does not include FR-247. A Manager does not reach Settings, so the two settings rows are absent for Manager, as for every V1.6 setting.
 
 **Logout:** Clicking Logout shows a confirmation inline ("Log out of GymOS?" [Log out] [Cancel]) before clearing session.
 
@@ -414,6 +503,38 @@ Microcopy guide. Brand voice and visual identity live in `DESIGN.md`.
 | Support switch — Owner notice before release *(V1.7, FR-183)* | "New: GymOS Support. You can let GymOS help set up your gym. It stays off until you turn it on in Settings." | "We've enabled support on your account." |
 | Step-up code *(V1.7, FR-189)* | "Enter the 6-digit code from your authenticator app to continue." | "MFA challenge required." |
 | Step-up wrong code *(V1.7)* | "That code didn't work. Wait for the next code and try again." | "Authentication failed." (plus never show the attempt count) |
+| Ring, in progress *(V1.8, FR-219)* | "2 more visits close your ring." | "You're behind this week." / "Only 2 more!" (no countdown pressure) |
+| Ring, goal met *(V1.8)* | "Goal met. Your streak becomes 6 weeks when the week ends." | "Congratulations!!!" (no hype, no exclamation, as in Rewards) |
+| Weekly streak *(V1.8, FR-220)* | "5 weeks in a row" | "5 week streak - don't lose it!" |
+| First week, no streak yet *(V1.8)* | "Close your ring to start your streak." | "Streak: 0" / "No streak" (never a bare 0) |
+| Shield saved *(V1.8, FR-222)* | "Your Shield saved week 6. Your streak is still 5 weeks." | "You missed a week." / "Shield used!" (say what it kept, not what was missed) |
+| Shield explained *(V1.8)* | "Every 4 weeks in a row earns a Shield. If you miss a week, a Shield keeps your streak going on its own." | "Streak insurance." (no money word) |
+| Comeback *(V1.8, FR-223)* | "Your best streak: 8 weeks. Visit 3 times in 10 days to get back on track." | "Your streak was broken." / "Streak lost: 0" |
+| At risk *(V1.8, FR-224)* | "Visit today to close your ring. 6 hours left." | "Last chance!" / "You'll lose your week!" (protect, never threaten) |
+| At risk, daily run *(V1.8)* | "Visit today to keep your 4-day run going." | "Don't break your streak!" |
+| Calendar empty month *(V1.8)* | "No visits yet this month. Your first one lights today." | "No data." / "You haven't been this month." |
+| Leaderboard behind *(V1.8, FR-226)* | "2 visits behind the member above" | "You're losing to Chantal" (no individual named in a comparison line) |
+| Leaderboard notice *(V1.8, FR-227)* | "Other members would see you as Mireille K.: your first name and the first letter of your last name. Never your photo or phone number." | "By continuing you agree to appear on the leaderboard." (no consent-by-default wording; the notice offers a real choice) |
+| Anonymous *(V1.8)* | "You appear as Anonymous. You still keep your rank." | "Hidden" / "Private mode" |
+| Milestone *(V1.8, FR-229)* | "30 visits at Grace Fit. You've built something." | "Level up! You unlocked 30 visits!" (no game language, no unlock; nothing is granted) |
+| Share caption *(V1.8, FR-231)* | "30 visits at Grace Fit. One day at a time." | "Join me on GymOS!" (the image advertises the gym, not the app) |
+| Share failed *(V1.8)* | "Couldn't make your image. Try again." | "Error generating bitmap." |
+| Badge locked *(V1.8, FR-230)* | "12 more visits to go" | "Locked" / "You haven't earned this" |
+| Gym challenge *(V1.8, FR-234)* | "Reward from Grace Fit: a free smoothie. A promise from your gym." | "Win a free smoothie!" (no individual prize; GymOS grants nothing) |
+| Your month *(V1.8, FR-235)* | "12 visit days in October. +3 more than in September." | "You went 3 times less than last month." (a drop is stated as a fact, never as a loss) |
+| Goal change *(V1.8)* | "Starts Monday 24 Nov. This week stays at 3." | "Goal locked." |
+| Streak reminder N-08 *(V1.8, FR-233)* | "Your week is in reach. Come in today: 2 visits left to close your ring." | "You haven't trained today!" / "Your streak is in danger!" |
+| Staff check-in, accepted *(V1.8, FR-248)* | "Ange T. is checked in at 07:02." | "Manual check-in successful." |
+| Staff check-in, expired *(V1.8, FR-249)* | "Not checked in. Jean B.'s membership expired 21 days ago." + [Renew now] | "Access denied." (the staff member is not the one being refused; say what happened and offer the next step) |
+| Staff check-in, no paid session *(V1.8, FR-249)* | "Ange T. has no paid session. Record 2,000 XAF at the desk and Ange T. is checked in straight away." | "Error: no entitlement." |
+| Void *(V1.8, FR-250)* | "Void this check-in? It stops counting for occupancy, streaks, rank and the gym challenge." | "Delete attendance record?" (nothing is deleted; the entry stays in the log, marked voided) |
+| Correct plan refused *(V1.8, FR-242)* | "The payment of 250,000 XAF on 10 Nov (Cash) is still recorded. Refund it fully first, then correct the plan." | "Action not allowed." / "Subscription has payments." (always name the payment and say the next step) |
+| Correct plan, what it is *(V1.8, FR-243)* | "It isn't a renewal: no payment is recorded, no notification is sent and no loyalty stamp is earned." | "This will modify the subscription." |
+| Session validity *(V1.8, FR-236)* | "A paid session covers one visit." / "A paid session covers every check-in until the end of the day." | "Per-entry billing mode." / "Daily pass mode." |
+| Gym challenge reward *(V1.8, FR-234)* | "The reward is your promise; GymOS doesn't give or pay it." | "Prize" / "Win" / anything that implies GymOS grants it |
+| Weekly times *(V1.8, FR-244)* | "Add a time" / "Sessions with bookings were left unchanged" | "Slot" / "Occurrence override" (the word "slot" never appears in the UI) |
+| Coach picker, read-only *(V1.8, FR-247)* | "You're viewing Emmanuel T.'s Coach Portal. Read-only." | "Impersonating coach" / "View as" (nobody is impersonated; no one acts as the coach) |
+| Body data absent *(V1.8, FR-247)* | "Body measurements, photos and progress notes aren't shown in this view." | "Access denied." / a locked panel or blurred placeholder where the tab would be (absence is stated once, plainly, not dramatised) |
 
 **Session vs. class terminology *(V1.6, user decision 2026-10-11)*.** A paid or free day-visit is a **session** in EN and a **séance** in FR (matching the shipped plan type "Paiement à la séance"). A class is always a **class** in EN and **cours** (or "séance de cours" where an occurrence is meant) in FR, so the two never clash on one screen. In EN, V1.6 copy always qualifies the word — "paid session", "free session", "today's session", "guest sessions", "session payment" — never a bare "session" that could read as a class occurrence or a login session. When a V1.6 story touches a screen that shows a class occurrence, its FR string moves off "séance" (for example AD-18 "Prochaine séance" → "Prochain cours", "Aucune séance à venir" → "Aucun cours à venir"). Coach "Notes de séance" (AD-15) is left as is: a Coach never sees session payments, so there is no clash on that screen.
 
@@ -431,6 +552,526 @@ Microcopy guide. Brand voice and visual identity live in `DESIGN.md`.
 | Place picker | country, city | pays, ville | free text |
 
 `[NOTE FOR UX]` FR for the Allow switch reads "Autoriser le support GymOS" while the fixed row and audit actor read "GymOS Support" (the stored display name). Confirm that a common-noun phrase around a proper name is acceptable, or decide whether the stored actor name should be localised at read time.
+
+**V1.8 vocabulary *(2026-11-15)*.** One term per concept, EN / FR, `[ASSUMPTION — FR terms to be reviewed with the FR copy pass]`:
+
+| Concept | EN | FR | Never |
+|---|---|---|---|
+| A day with at least one check-in at the gym | visit (in counts: "9 visit days" only where a day count is needed) | visite ("9 jours de visite") | "check-in" in engagement copy (that is the scan), "session" (a paid day-visit, V1.6), "séance" (the FR for a paid session, V1.6) |
+| The weekly target | weekly goal ("3 days a week") | objectif hebdomadaire ("3 jours par semaine") | "quota", "target" (the challenge uses target) |
+| The progress circle | ring | cercle | "wheel", "donut", "anneau" |
+| The consecutive-week count | streak ("5 weeks in a row") | série ("5 semaines d'affilée") | "flamme" as the word for it, "chain" |
+| The streak saver | Shield / Streak Shield | bouclier / bouclier de série | "freeze", "insurance", "token" |
+| Coming back after a break | comeback / "get back on track" | reprise / « reprendre votre élan » | "restart from zero", "lost streak" |
+| The monthly ranking | leaderboard | classement | "league", "ranking board", "top list" |
+| Hiding the name | Anonymous | Anonyme | "hidden", "private", "ghost" |
+| A milestone reward | badge | badge | "trophy", "prize", "reward" (rewards are V1.6 loyalty) |
+| The gym-wide monthly goal | gym challenge | défi de la salle | "competition", "contest" |
+| The month look-back | Your month | Votre mois | "report", "stats", "wrapped" |
+| A staff member entering a member's arrival | check in a member | enregistrer l'arrivée d'un membre | "manual check-in", "override", "force" |
+| Taking a mistaken staff check-in back | void | annuler (l'arrivée) | "delete", "remove", "undo" (the entry stays visible, marked "Voided" / « Annulée ») |
+| Fixing a wrongly chosen plan | correct plan | corriger la formule | "change plan", "swap", "downgrade" (a correction is not a renewal) |
+| A paid session lasting one visit | Single use | Usage unique | "Per entry", "one-time" |
+| A paid session lasting the day | Whole day | Toute la journée | "Daily pass", "unlimited" |
+| A recurring class's weekly day-and-time entries | weekly times (one "time" = a day and an hour) | horaires de la semaine (un « horaire ») | "slot", "occurrence", "schedule row" |
+| The Owner/Supervisor/Manager's coach view | coach picker (UI: "Choose a coach") | choisir un coach | "impersonate", "view as", "switch user" |
+| The one-month gym-wide goal | Gym challenge | Défi de la salle | "contest", "competition", "prize" |
+| What a single visit is (session and attendance rules) | visit (a check-in until check-out, or 3 hours) | visite | "entry" when it could mean a log row |
+| "Paid once" for an annual plan | Paid once | Payé en une fois | "one-off payment", "lump sum", "yearly subscription fee" |
+
+`[NOTE FOR UX]` FR "visite" vs the V1.6 "séance" rule: the V1.6 vocabulary reserves "séance" for a paid/free session and "cours" for a class. "Visite" keeps the engagement features clear of both. If the FR pass prefers "passage" or "entraînement", change only this table and the catalog (one place).
+
+Session vs. class terminology (V1.6 rule) still applies: a paid or free day-visit is a "session" / « séance »; a class occurrence is a "session" in EN with the class name beside it, and a « cours » in FR (as on AD-18 and AD-21). `[ASSUMPTION]` The AD-19 "left unchanged" list and the Cancel class dialog follow the AD-21 precedent: "sessions" in EN, « cours » in FR.
+
+**V1.8 string catalog, Member App *(EN and FR, every key)*.** Plural-aware keys use `one` and `other` forms; `{x}` are placeholders. All keys live in the i18n catalog under the namespace shown; N-08 keys also live in the N-06/N-07 copy store (AD-60). EN and FR counts must match.
+
+**Ring, goal and streak (`engage.ring.*`, `engage.streak.*`, `engage.goal.*`)**
+
+| Key | EN | FR |
+|---|---|---|
+| engage.ring.title | This week | Cette semaine |
+| engage.ring.unit | days | jours |
+| engage.ring.goalLabel | Goal: {goal, plural, one {1 day} other {{goal} days}} | Objectif : {goal, plural, one {1 jour} other {{goal} jours}} |
+| engage.ring.goalPending | Changes to {goal, plural, one {1 day} other {{goal} days}} on {date} | Passe à {goal, plural, one {1 jour} other {{goal} jours}} le {date} |
+| engage.ring.goalHint.default | We started you at 3 days a week. Change it any time; a new goal starts next Monday. | Nous démarrons à 3 jours par semaine. Changez-le quand vous voulez ; un nouvel objectif commence lundi prochain. |
+| engage.ring.caption.progress | {n, plural, one {1 more visit closes your ring.} other {{n} more visits close your ring.}} | {n, plural, one {Encore 1 visite pour fermer votre cercle.} other {Encore {n} visites pour fermer votre cercle.}} |
+| engage.ring.caption.fresh | A fresh week. {goal, plural, one {1 visit closes your ring.} other {{goal} visits close your ring.}} | Nouvelle semaine. {goal, plural, one {1 visite pour fermer votre cercle.} other {{goal} visites pour fermer votre cercle.}} |
+| engage.ring.caption.met | Goal met. Nice week. | Objectif atteint. Belle semaine. |
+| engage.ring.caption.metStreak | Goal met. Your streak becomes {n, plural, one {1 week} other {{n} weeks}} when the week ends. | Objectif atteint. Votre série passera à {n, plural, one {1 semaine} other {{n} semaines}} à la fin de la semaine. |
+| engage.ring.caption.extra | {n, plural, one {1 extra visit} other {{n} extra visits}} this week. | {n, plural, one {1 visite en plus} other {{n} visites en plus}} cette semaine. |
+| engage.ring.pendingSync | {n, plural, one {1 visit waiting to sync} other {{n} visits waiting to sync}} | {n, plural, one {1 visite en attente de synchronisation} other {{n} visites en attente de synchronisation}} |
+| engage.streak.weeks | {n, plural, one {1 week in a row} other {{n} weeks in a row}} | {n, plural, one {1 semaine d'affilée} other {{n} semaines d'affilée}} |
+| engage.streak.first | First week done | Première semaine réussie |
+| engage.streak.firstWeek | Close your ring to start your streak. | Fermez votre cercle pour lancer votre série. |
+| engage.streak.startsMonday | Your streak starts next Monday. This week's visits still show on your calendar. | Votre série démarre lundi prochain. Les visites de cette semaine figurent déjà dans votre calendrier. |
+| engage.streak.nextShield | {n, plural, one {1 more week to your next Shield} other {{n} more weeks to your next Shield}} | {n, plural, one {Encore 1 semaine avant votre prochain bouclier} other {Encore {n} semaines avant votre prochain bouclier}} |
+| engage.streak.shieldMax | You're holding the maximum of {max} Shields. | Vous détenez le maximum de {max} boucliers. |
+| engage.streak.daily | {n} days in a row | {n} jours d'affilée |
+| engage.streak.best | Best: {n, plural, one {1 week} other {{n} weeks}} | Meilleure série : {n, plural, one {1 semaine} other {{n} semaines}} |
+| engage.goal.title | Weekly goal | Objectif hebdomadaire |
+| engage.goal.prompt | How many days a week do you want to come? | Combien de jours par semaine voulez-vous venir ? |
+| engage.goal.option.a11y | {n, plural, one {1 day a week} other {{n} days a week}} | {n, plural, one {1 jour par semaine} other {{n} jours par semaine}} |
+| engage.goal.current | current | actuel |
+| engage.goal.effective | Starts Monday {date}. This week stays at {current}. | Commence le lundi {date}. Cette semaine reste à {current}. |
+| engage.goal.noChange | This is your current goal. | C'est votre objectif actuel. |
+| engage.goal.pending | Your goal changes to {n} on {date}. | Votre objectif passe à {n} le {date}. |
+| engage.goal.why | A change starts next Monday, so this week's result stays fair. | Le changement commence lundi prochain, pour que le résultat de cette semaine reste équitable. |
+| engage.goal.cta.save | Save goal | Enregistrer l'objectif |
+| engage.goal.saved | Goal saved. Starts {date}. | Objectif enregistré. Commence le {date}. |
+| engage.goal.error | Couldn't save your goal. Try again. | Impossible d'enregistrer votre objectif. Réessayez. |
+| engage.goal.offline | You're offline. Connect to change your goal. | Vous êtes hors ligne. Connectez-vous pour changer d'objectif. |
+
+**Shield and comeback (`engage.shield.*`, `engage.comeback.*`)**
+
+| Key | EN | FR |
+|---|---|---|
+| engage.shield.chip | {n, plural, one {1 Shield} other {{n} Shields}} | {n, plural, one {1 bouclier} other {{n} boucliers}} |
+| engage.shield.saved.week | Your Shield saved the week of {date}. Your streak is still {n, plural, one {1 week} other {{n} weeks}}. | Votre bouclier a sauvé la semaine du {date}. Votre série reste à {n, plural, one {1 semaine} other {{n} semaines}}. |
+| engage.shield.saved.day | Your Shield saved {date}. Your run goes on. | Votre bouclier a sauvé le {date}. Votre série continue. |
+| engage.shield.earned | You earned a Shield. It will keep a missed week from ending your streak. | Vous avez gagné un bouclier. Il évitera qu'une semaine manquée mette fin à votre série. |
+| engage.shield.explainer.title | Streak Shield | Bouclier de série |
+| engage.shield.explainer.body | Every 4 weeks in a row earns a Shield. If you miss a week, a Shield keeps your streak going on its own. You can hold up to {max}. Shields can't be bought or given. | Chaque tranche de 4 semaines d'affilée vous rapporte un bouclier. Si vous manquez une semaine, un bouclier maintient votre série tout seul. Vous pouvez en détenir {max} au maximum. Les boucliers ne s'achètent pas et ne se donnent pas. |
+| engage.shield.gotIt | Got it | Compris |
+| engage.comeback.title | Let's get going again | On s'y remet |
+| engage.comeback.best | Your best streak: {n, plural, one {1 week} other {{n} weeks}}. It stays on your record. | Votre meilleure série : {n, plural, one {1 semaine} other {{n} semaines}}. Elle reste à votre palmarès. |
+| engage.comeback.goal | Visit {n} times in {days} days to get back on track. | Venez {n} fois en {days} jours pour reprendre votre élan. |
+| engage.comeback.progress | {done} of {total} visits | {done} visites sur {total} |
+| engage.comeback.windowRestart | Your {days} days start again with your next visit. | Vos {days} jours repartent à votre prochaine visite. |
+| engage.comeback.restored.title | You're back. | Vous voilà de retour. |
+| engage.comeback.restored.body | Your new streak starts the first week you close your ring. | Votre nouvelle série démarre la première semaine où vous fermez votre cercle. |
+
+**At risk and calendar (`engage.atRisk.*`, `engage.calendar.*`)**
+
+| Key | EN | FR |
+|---|---|---|
+| engage.atRisk.weekly | Visit today to close your ring. | Venez aujourd'hui pour fermer votre cercle. |
+| engage.atRisk.daily | Visit today to keep your {n}-day run going. | Venez aujourd'hui pour garder votre série de {n} jours. |
+| engage.atRisk.hoursLeft | {h, plural, one {1 hour left} other {{h} hours left}} | {h, plural, one {1 heure restante} other {{h} heures restantes}} |
+| engage.atRisk.minutesLeft | {m} min left | {m} min restantes |
+| engage.atRisk.shieldReady | A Shield is ready if you can't make it. | Un bouclier est prêt si vous ne pouvez pas venir. |
+| engage.calendar.title | My visits | Mes visites |
+| engage.calendar.prev | Previous month | Mois précédent |
+| engage.calendar.next | Next month | Mois suivant |
+| engage.calendar.monthSummary | {n, plural, one {1 visit day} other {{n} visit days}} in {month} | {n, plural, one {1 jour de visite} other {{n} jours de visite}} en {month} |
+| engage.calendar.legend.visit | Visited | Visite |
+| engage.calendar.legend.today | Today | Aujourd'hui |
+| engage.calendar.legend.milestone | Milestone | Étape |
+| engage.calendar.legend.shield | Saved by a Shield | Sauvé par un bouclier |
+| engage.calendar.day.visited | {date}: visited | {date} : visite |
+| engage.calendar.day.none | {date}: no visit | {date} : pas de visite |
+| engage.calendar.day.milestone7 | {date}: your 7th visit | {date} : votre 7e visite |
+| engage.calendar.day.milestone30 | {date}: your 30th visit | {date} : votre 30e visite |
+| engage.calendar.day.milestone100 | {date}: your 100th visit | {date} : votre 100e visite |
+| engage.calendar.day.pending | {date}: waiting to sync | {date} : en attente de synchronisation |
+| engage.calendar.day.today.atRisk | Today, {date}: no visit yet. {hoursLeft} | Aujourd'hui, {date} : pas encore de visite. {hoursLeft} |
+| engage.calendar.empty.current | No visits yet this month. Your first one lights today. | Aucune visite ce mois-ci pour l'instant. La première s'allumera aujourd'hui. |
+| engage.calendar.empty.past | No visits in {month}. | Aucune visite en {month}. |
+| engage.calendar.offline | You're offline. Showing your last saved calendar. | Vous êtes hors ligne. Dernier calendrier enregistré affiché. |
+| engage.calendar.offline.none | This month isn't saved on your phone yet. Connect to see it. | Ce mois n'est pas encore enregistré sur votre téléphone. Connectez-vous pour le voir. |
+| engage.calendar.error | Couldn't load your calendar. Pull down to refresh. | Impossible de charger votre calendrier. Tirez pour actualiser. |
+
+**Leaderboard and notice (`engage.leaderboard.*`, `engage.home.*`)**
+
+| Key | EN | FR |
+|---|---|---|
+| engage.leaderboard.title | Leaderboard | Classement |
+| engage.leaderboard.tab.thisMonth | This month | Ce mois-ci |
+| engage.leaderboard.tab.lastMonth | Last month | Mois dernier |
+| engage.leaderboard.row.visits | {n, plural, one {1 visit} other {{n} visits}} | {n, plural, one {1 visite} other {{n} visites}} |
+| engage.leaderboard.row.you | You | Vous |
+| engage.leaderboard.row.anonymous | Anonymous | Anonyme |
+| engage.leaderboard.row.tied | Tied | Ex æquo |
+| engage.leaderboard.row.gap | Rows between are not shown | Les lignes intermédiaires ne sont pas affichées |
+| engage.leaderboard.behind | {n, plural, one {1 visit behind the member above} other {{n} visits behind the member above}} | {n, plural, one {1 visite de retard sur le membre au-dessus} other {{n} visites de retard sur le membre au-dessus}} |
+| engage.leaderboard.level | Level with the member above | À égalité avec le membre au-dessus |
+| engage.leaderboard.leading | You're leading this month. | Vous êtes en tête ce mois-ci. |
+| engage.leaderboard.unranked | Visit once this month to join the board. | Venez une fois ce mois-ci pour entrer au classement. |
+| engage.leaderboard.onlyYou | You're the only member on the board so far. | Vous êtes le seul membre classé pour l'instant. |
+| engage.leaderboard.notEnough | Not enough members yet | Pas encore assez de membres |
+| engage.leaderboard.notEnough.body | The leaderboard appears once {min} members have visited this month. | Le classement apparaît dès que {min} membres sont venus ce mois-ci. |
+| engage.leaderboard.empty.month | No visits at {gym} yet this month. Be the first on the board. | Aucune visite chez {gym} ce mois-ci. Soyez le premier du classement. |
+| engage.leaderboard.footnote | Each day you visit counts once. The board resets on the 1st. Just for fun: rank earns no prizes. | Chaque jour de visite compte une fois. Le classement repart à zéro le 1er. Pour le plaisir : le classement ne rapporte aucun prix. |
+| engage.leaderboard.toggle.label | Appear as Anonymous on the gym leaderboard | Apparaître comme Anonyme dans le classement de la salle |
+| engage.leaderboard.visible.self | Other members see you as {label}. | Les autres membres vous voient sous le nom {label}. |
+| engage.leaderboard.hidden.self | You appear as Anonymous. You still keep your rank. | Vous apparaissez comme Anonyme. Vous gardez votre rang. |
+| engage.leaderboard.notice.title | You're on your gym's leaderboard | Vous êtes dans le classement de votre salle |
+| engage.leaderboard.notice.body | Members of {gym} can see a monthly ranking of visits. Other members would see you as {label}: your first name and the first letter of your last name. Never your photo or phone number. | Les membres de {gym} voient un classement mensuel des visites. Les autres membres vous verraient sous le nom {label} : votre prénom et l'initiale de votre nom. Jamais votre photo ni votre numéro de téléphone. |
+| engage.leaderboard.notice.until | Until you choose, other members see you as Anonymous. | Tant que vous n'avez pas choisi, les autres membres vous voient comme Anonyme. |
+| engage.leaderboard.notice.change | You can change this any time in your Profile. | Vous pouvez le changer à tout moment dans votre profil. |
+| engage.leaderboard.notice.cta.show | Show my name | Afficher mon nom |
+| engage.leaderboard.notice.cta.hide | Appear as Anonymous | Apparaître comme Anonyme |
+| engage.leaderboard.notice.error | Couldn't save your choice. You still appear as Anonymous. | Impossible d'enregistrer votre choix. Vous apparaissez toujours comme Anonyme. |
+| engage.leaderboard.offline.notice | Connect to the internet to choose. | Connectez-vous à internet pour choisir. |
+| engage.leaderboard.offline | You're offline. Showing the last board saved on your phone. | Vous êtes hors ligne. Dernier classement enregistré affiché. |
+| engage.leaderboard.error | Couldn't load the leaderboard. Pull down to refresh. | Impossible de charger le classement. Tirez pour actualiser. |
+| engage.leaderboard.error.short | Couldn't load. Tap to retry. | Chargement impossible. Touchez pour réessayer. |
+| engage.updatedAt | Updated {time} | Mis à jour à {time} |
+| engage.home.rank | Rank {n} of {total} this month | Rang {n} sur {total} ce mois-ci |
+| engage.home.error | Couldn't load your week. Pull down to refresh. | Impossible de charger votre semaine. Tirez pour actualiser. |
+| engage.home.settleError | Couldn't update your streak just now. We'll try again. | Impossible de mettre à jour votre série pour l'instant. Nous réessaierons. |
+
+**Celebration, share, badges (`engage.celebration.*`, `engage.share.*`, `engage.badges.*`)**
+
+| Key | EN | FR |
+|---|---|---|
+| engage.celebration.unit | visits | visites |
+| engage.celebration.7.headline | 7 visits | 7 visites |
+| engage.celebration.7.sub | Seven visits at {gym}. The habit is taking shape. | Sept visites chez {gym}. L'habitude s'installe. |
+| engage.celebration.30.headline | 30 visits | 30 visites |
+| engage.celebration.30.sub | Thirty visits at {gym}. You've built something. | Trente visites chez {gym}. Vous avez construit quelque chose. |
+| engage.celebration.100.headline | 100 visits | 100 visites |
+| engage.celebration.100.sub | One hundred visits at {gym}. That's a lasting habit. | Cent visites chez {gym}. C'est une habitude solide. |
+| engage.celebration.cta.share | Share | Partager |
+| engage.celebration.cta.continue | Keep going | Continuer |
+| engage.celebration.cta.badges | See your badges | Voir vos badges |
+| engage.celebration.a11y | Milestone: {n} visits at {gym}. | Étape franchie : {n} visites chez {gym}. |
+| engage.share.caption.7 | 7 visits at {gym}. One day at a time. | 7 visites chez {gym}. Un jour après l'autre. |
+| engage.share.caption.30 | 30 visits at {gym}. One day at a time. | 30 visites chez {gym}. Un jour après l'autre. |
+| engage.share.caption.100 | 100 visits at {gym}. One day at a time. | 100 visites chez {gym}. Un jour après l'autre. |
+| engage.share.caption.badge | {badge} at {gym}. | {badge} chez {gym}. |
+| engage.share.preparing | Making your image… | Préparation de votre image… |
+| engage.share.error | Couldn't make your image. | Impossible de créer votre image. |
+| engage.share.retry | Try again | Réessayer |
+| engage.share.unavailable | Sharing isn't available on this phone. | Le partage n'est pas disponible sur ce téléphone. |
+| engage.badges.title | Badges | Badges |
+| engage.badges.summary | {n} of {total} earned | {n} sur {total} obtenus |
+| engage.badges.first | First visit | Première visite |
+| engage.badges.visits7 | 7 visits | 7 visites |
+| engage.badges.visits30 | 30 visits | 30 visites |
+| engage.badges.visits100 | 100 visits | 100 visites |
+| engage.badges.weeks4 | 4 weeks in a row | 4 semaines d'affilée |
+| engage.badges.earnedOn | Earned {date} | Obtenu le {date} |
+| engage.badges.locked.first | Check in once to earn it | Venez une fois pour l'obtenir |
+| engage.badges.locked.visits | {n, plural, one {1 more visit to go} other {{n} more visits to go}} | {n, plural, one {Encore 1 visite} other {Encore {n} visites}} |
+| engage.badges.locked.weeks | Keep a streak going for 4 weeks | Gardez une série pendant 4 semaines |
+| engage.badges.locked.weeksProgress | {n} of 4 weeks | {n} semaines sur 4 |
+| engage.badges.grantsNothing | Badges are just for you. They don't unlock anything. | Les badges sont pour vous. Ils ne débloquent rien. |
+| engage.badges.error | Couldn't load your badges. Pull down to refresh. | Impossible de charger vos badges. Tirez pour actualiser. |
+
+**Your month, challenge, Profile and reminder (`engage.month.*`, `engage.challenge.*`, `engage.profile.*`, `n08.*`)**
+
+| Key | EN | FR |
+|---|---|---|
+| engage.month.title | Your {month} | Votre mois de {month} |
+| engage.month.homeCard | Your {month} is ready. | Votre mois de {month} est prêt. |
+| engage.month.cta.see | See it | Voir |
+| engage.month.dismiss | Dismiss | Fermer |
+| engage.month.visitDays | {n, plural, one {visit day in {month}} other {visit days in {month}}} | {n, plural, one {jour de visite en {month}} other {jours de visite en {month}}} |
+| engage.month.bestWeek | {n, plural, one {visit in your best week} other {visits in your best week}}, {range} | {n, plural, one {visite pendant votre meilleure semaine} other {visites pendant votre meilleure semaine}}, {range} |
+| engage.month.change.up | {n} more than in {prevMonth} | {n} de plus qu'en {prevMonth} |
+| engage.month.change.same | Same as {prevMonth} | Comme en {prevMonth} |
+| engage.month.change.down | {prevMonth}: {n, plural, one {1 visit day} other {{n} visit days}} | {prevMonth} : {n, plural, one {1 jour de visite} other {{n} jours de visite}} |
+| engage.month.link | Your {month} | Votre mois de {month} |
+| engage.month.cta.calendar | See my calendar | Voir mon calendrier |
+| engage.month.none | No visits in {month}. | Aucune visite en {month}. |
+| engage.month.error | Couldn't load your month. Pull down to refresh. | Impossible de charger votre mois. Tirez pour actualiser. |
+| engage.month.offline.none | Connect to see your month. | Connectez-vous pour voir votre mois. |
+| engage.challenge.title | Gym challenge | Défi de la salle |
+| engage.challenge.progress | {done} / {target} visit days this month | {done} / {target} jours de visite ce mois-ci |
+| engage.challenge.reward | Reward from {gym}: {reward} | Récompense de {gym} : {reward} |
+| engage.challenge.promise | A promise from your gym. | Une promesse de votre salle. |
+| engage.challenge.ends | Ends {date} | Se termine le {date} |
+| engage.challenge.reached | Target reached. | Objectif atteint. |
+| engage.challenge.collective | Everyone's visits count. Nobody is ranked. | Les visites de tous comptent. Personne n'est classé. |
+| engage.profile.section | Training | Entraînement |
+| engage.profile.goal.row | Weekly goal | Objectif hebdomadaire |
+| engage.profile.goal.value | {n, plural, one {1 day} other {{n} days}} | {n, plural, one {1 jour} other {{n} jours}} |
+| engage.profile.goal.pending | {n, plural, one {1 day} other {{n} days}}, then {next} from {date} | {n, plural, one {1 jour} other {{n} jours}}, puis {next} dès le {date} |
+| engage.profile.badges.row | Badges | Badges |
+| engage.profile.badges.value | {n} of {total} | {n} sur {total} |
+| engage.profile.anonymous.helperOn | Other members see you as Anonymous from their next refresh. You still keep your rank. | Les autres membres vous voient comme Anonyme dès leur prochain affichage. Vous gardez votre rang. |
+| engage.profile.anonymous.helperOff | Other members see you as {label}. | Les autres membres vous voient sous le nom {label}. |
+| engage.profile.anonymous.helperUnseen | You appear as Anonymous until you open the leaderboard and choose. | Vous apparaissez comme Anonyme jusqu'à ce que vous ouvriez le classement et fassiez votre choix. |
+| engage.profile.anonymous.link | See the leaderboard | Voir le classement |
+| engage.profile.reminder.label | Streak reminder | Rappel de série |
+| engage.profile.reminder.helper | One reminder at {time}, only when a visit today keeps your week or run going. | Un rappel à {time}, seulement quand une visite aujourd'hui permet de garder votre semaine ou votre série. |
+| n08.weekly.title | Your week is in reach | Votre semaine est à portée |
+| n08.weekly.body | Come in today: {n, plural, one {1 visit} other {{n} visits}} left to close your ring. | Venez aujourd'hui : {n, plural, one {encore 1 visite} other {encore {n} visites}} pour fermer votre cercle. |
+| n08.daily.title | Your {n}-day run | Votre série de {n} jours |
+| n08.daily.body | Come in today to keep it going. | Venez aujourd'hui pour la prolonger. |
+
+Notes on the member catalog:
+
+- N-08 is not sent to a member whose status is `expired` (owner decision 2026-11-15).
+- Two N-08 bodies exist. When both FR-233 conditions hold the weekly body is used (the weekly ring is the main streak) `[ASSUMPTION]`. The push title is a catalog string, never the gym name.
+- N-08 is scheduled at 18:00 gym-local; `{time}` in the Profile helper is read from the same configuration as the job (OQ-33), so the helper never says a time the job does not use. FR format: "18 h". EN format: "6 pm".
+- `engage.challenge.reward` inserts the Owner's reward text as typed, never translated, and the card shows it in the language it was written.
+- Dates in these strings are spoken and written in full per the existing accessibility floor ("2 December", not "2/12").
+
+**V1.8 string catalog, Admin Dashboard and Coach Portal *(authoritative EN and FR for every new string)*.**
+
+Placeholders `[Name]`, `[time]`, `[date]`, `[N]` are filled at run time; dates and times follow the gym's locale and time zone (24-hour clock on class and attendance times, as AD-21). Amounts follow Monetary display. `[ASSUMPTION — all key names; all FR wording pending the FR copy pass]`.
+
+**Group A. Check in a member (AD-30) and the attendance log (AD-11)**
+
+| Key | EN | FR |
+|---|---|---|
+| `attendance.checkIn.action` | Check in a member | Enregistrer l'arrivée d'un membre |
+| `attendance.checkIn.title` | Check in a member | Enregistrer l'arrivée d'un membre |
+| `attendance.checkIn.intro` | For a member who can't use their phone at the entrance. | Pour un membre qui ne peut pas utiliser son téléphone à l'entrée. |
+| `attendance.checkIn.search.label` | Find a member by name or phone | Trouver un membre par nom ou téléphone |
+| `attendance.checkIn.search.hint` | Type at least 2 letters or 3 digits. | Saisissez au moins 2 lettres ou 3 chiffres. |
+| `attendance.checkIn.search.none` | No member matches "[term]". Check the spelling, or search by phone. | Aucun membre ne correspond à « [terme] ». Vérifiez l'orthographe ou cherchez par téléphone. |
+| `attendance.checkIn.search.more` | Showing the first 8. Type more to narrow the list. | Les 8 premiers sont affichés. Précisez votre recherche. |
+| `attendance.checkIn.row.inside` | In the gym since [time] | Dans la salle depuis [heure] |
+| `attendance.checkIn.entryTime` | Entry time: now ([time]). It can't be changed. | Heure d'arrivée : maintenant ([heure]). Elle ne peut pas être modifiée. |
+| `attendance.checkIn.confirm` | Check in [Name] | Enregistrer l'arrivée de [Nom] |
+| `attendance.checkIn.ok` | [Name] is checked in at [time]. | L'arrivée de [Nom] est enregistrée à [heure]. |
+| `attendance.checkIn.okExpiring` | Checked in at [time]. [Name]'s membership expires on [date]. | Arrivée enregistrée à [heure]. L'adhésion de [Nom] expire le [date]. |
+| `attendance.checkIn.okGrace` | Checked in at [time]. [Name]'s membership expired on [date]; the grace period ends on [date]. | Arrivée enregistrée à [heure]. L'adhésion de [Nom] a expiré le [date] ; la période de grâce se termine le [date]. |
+| `attendance.checkIn.renewNow` | Renew now | Renouveler maintenant |
+| `attendance.checkIn.rejectedExpired` | Not checked in. [Name]'s membership expired [N] days ago. | Arrivée non enregistrée. L'adhésion de [Nom] a expiré il y a [N] jours. |
+| `attendance.checkIn.rejectedExpiredToday` | Not checked in. [Name]'s membership expired today. | Arrivée non enregistrée. L'adhésion de [Nom] a expiré aujourd'hui. |
+| `attendance.checkIn.rejectedExpiredHelp` | Renew the membership to let them in. | Renouvelez l'adhésion pour l'autoriser à entrer. |
+| `attendance.checkIn.renewedDone` | Membership renewed. [Name] is checked in at [time]. | Adhésion renouvelée. L'arrivée de [Nom] est enregistrée à [heure]. |
+| `attendance.checkIn.sessionNeeded` | [Name] has no paid session. | [Nom] n'a pas de séance payée. |
+| `attendance.checkIn.sessionNeededHelp` | Record [amount] XAF at the desk and [Name] is checked in straight away. | Enregistrez [montant] XAF à l'accueil et l'arrivée de [Nom] est enregistrée aussitôt. |
+| `attendance.checkIn.recordAndCheckIn` | Record payment and check in | Enregistrer le paiement et l'arrivée |
+| `attendance.checkIn.sessionDone` | Session recorded. [Name] is checked in at [time]. | Séance enregistrée. L'arrivée de [Nom] est enregistrée à [heure]. |
+| `attendance.checkIn.alreadyIn` | [Name] is already checked in (since [time]). | [Nom] est déjà dans la salle (depuis [heure]). |
+| `attendance.checkIn.refused.deactivated` | [Name] is deactivated. Reactivate them first. | [Nom] est désactivé. Réactivez ce membre d'abord. |
+| `attendance.checkIn.refused.awaitingFee` | Settle [Name]'s registration fee first. | Réglez d'abord les frais d'inscription de [Nom]. |
+| `attendance.checkIn.refused.noPlan` | [Name] has no plan yet. Assign a plan first. | [Nom] n'a pas encore de formule. Attribuez d'abord une formule. |
+| `attendance.checkIn.refused.suspendedGym` | Check-ins can't be recorded while the gym is suspended. | Impossible d'enregistrer une arrivée tant que la salle est suspendue. |
+| `attendance.checkIn.partialSession` | The session for [Name] was recorded, but the check-in didn't complete. Try again. Nothing is charged twice. | La séance de [Nom] a été enregistrée, mais l'arrivée n'a pas abouti. Réessayez. Rien n'est facturé deux fois. |
+| `attendance.checkIn.partialRenewal` | [Name]'s renewal was recorded, but the check-in didn't complete. Try again. Nothing is charged twice. | Le renouvellement de [Nom] a été enregistré, mais l'arrivée n'a pas abouti. Réessayez. Rien n'est facturé deux fois. |
+| `attendance.checkIn.network` | Couldn't check in [Name]. Check your connection and try again. | Impossible d'enregistrer l'arrivée de [Nom]. Vérifiez votre connexion et réessayez. |
+| `attendance.checkIn.networkHint` | Not sure it went through? Search for [Name] again: a member who is in shows "In the gym since…". | Un doute ? Cherchez à nouveau [Nom] : un membre déjà présent affiche « Dans la salle depuis… ». |
+| `attendance.checkIn.offline` | You're offline — you can't check anyone in right now. | Vous êtes hors ligne : impossible d'enregistrer une arrivée pour le moment. |
+| `attendance.checkIn.another` | Check in another member | Enregistrer l'arrivée d'un autre membre |
+| `attendance.checkIn.done` | Done | Terminé |
+| `attendance.log.entry` (column) | Entry | Arrivée |
+| `attendance.log.entryScan` | QR scan | Scan du QR |
+| `attendance.log.byStaff` (pill) | By staff | Par le personnel |
+| `attendance.log.byStaffName` | By staff · [Name] | Par le personnel · [Nom] |
+| `attendance.log.voided` (pill) | Voided | Annulée |
+| `attendance.log.voidedDetail` | Voided by [Name] on [date] at [time]. Reason: [reason] | Annulée par [Nom] le [date] à [heure]. Motif : [motif] |
+| `attendance.void.action` | Void | Annuler |
+| `attendance.void.actionAria` | Void the check-in of [Name] at [time] | Annuler l'arrivée de [Nom] à [heure] |
+
+**Group B. Void a staff check-in (modal on an AD-11 row)**
+
+| Key | EN | FR |
+|---|---|---|
+| `attendance.void.title` | Void this check-in? | Annuler cette arrivée ? |
+| `attendance.void.body` | [Name]'s check-in at [time] was entered by staff. Voiding it removes the visit: it stops counting for occupancy, streaks, rank and the gym challenge. | L'arrivée de [Nom] à [heure] a été saisie par le personnel. L'annuler supprime la visite : elle ne compte plus pour la fréquentation, les séries, le classement et le défi de la salle. |
+| `attendance.void.sessionBack` | The paid session this check-in used is given back to [Name]. | La séance payée utilisée par cette arrivée est restituée à [Nom]. |
+| `attendance.void.paymentStays` | The payment stays on record. Refund it in Payments if you need to. | Le paiement reste enregistré. Remboursez-le dans Paiements si nécessaire. |
+| `attendance.void.stampRemoved` | The loyalty stamp it earned is removed. | Le tampon de fidélité gagné est retiré. |
+| `attendance.void.reason.label` | Reason for voiding | Motif de l'annulation |
+| `attendance.void.reason.placeholder` | For example: wrong member selected | Par exemple : mauvais membre sélectionné |
+| `attendance.void.reason.error` | Enter a reason (at least 5 characters). | Saisissez un motif (au moins 5 caractères). |
+| `attendance.void.keep` | Keep check-in | Conserver l'arrivée |
+| `attendance.void.confirm` | Void check-in | Annuler l'arrivée |
+| `attendance.void.success` | Check-in voided. [Name] is no longer counted as in the gym. | Arrivée annulée. [Nom] n'est plus comptabilisé dans la salle. |
+| `attendance.void.refused.laterVisit` | Can't void this check-in: [Name]'s later visit today relies on the same paid session. | Impossible d'annuler cette arrivée : la visite suivante de [Nom] aujourd'hui s'appuie sur la même séance payée. |
+| `attendance.void.refused.laterVisitStaff` (second sentence, when the later visit was staff-entered) | Void the later check-in first. | Annulez d'abord l'arrivée suivante. |
+| `attendance.void.refused.notToday` | A check-in can only be voided on the day it was entered. | Une arrivée ne peut être annulée que le jour de son enregistrement. |
+| `attendance.void.refused.already` | This check-in was already voided. | Cette arrivée a déjà été annulée. |
+| `attendance.void.refused.notStaff` | Only check-ins entered by staff can be voided. | Seules les arrivées saisies par le personnel peuvent être annulées. |
+| `attendance.void.network` | Couldn't void the check-in. Check your connection and try again. | Impossible d'annuler l'arrivée. Vérifiez votre connexion et réessayez. |
+
+**Group C. Correct plan (AD-31) and the AD-04 additions**
+
+| Key | EN | FR |
+|---|---|---|
+| `members.correctPlan.action` | Correct plan | Corriger la formule |
+| `members.correctPlan.title` | Correct plan | Corriger la formule |
+| `members.correctPlan.intro` | Use this when the wrong plan was chosen. It isn't a renewal: no payment is recorded, no notification is sent and no loyalty stamp is earned. | À utiliser lorsque la mauvaise formule a été choisie. Ce n'est pas un renouvellement : aucun paiement n'est enregistré, aucune notification n'est envoyée et aucun tampon de fidélité n'est gagné. |
+| `members.correctPlan.current` | Current plan | Formule actuelle |
+| `members.correctPlan.currentDetail` | Started [date] · Expires [date] | Débutée le [date] · Expire le [date] |
+| `members.correctPlan.checking` | Checking payments… | Vérification des paiements… |
+| `members.correctPlan.newPlan.label` | New plan | Nouvelle formule |
+| `members.correctPlan.newPlan.placeholder` | Choose a plan | Choisissez une formule |
+| `members.correctPlan.noOtherPlan` | There is no other plan to choose. Add a plan in Plans first. | Il n'y a pas d'autre formule à choisir. Ajoutez d'abord une formule dans Formules. |
+| `members.correctPlan.reason.label` | Reason | Motif |
+| `members.correctPlan.reason.placeholder` | For example: wrong plan chosen at sign-up | Par exemple : mauvaise formule choisie à l'inscription |
+| `members.correctPlan.reason.error` | Enter a reason (at least 5 characters). | Saisissez un motif (au moins 5 caractères). |
+| `members.correctPlan.rule` | The new expiry is counted from the start date ([date]), not from today. | La nouvelle date d'expiration est calculée à partir de la date de début ([date]), pas d'aujourd'hui. |
+| `members.correctPlan.appNote` | [Name]'s app shows the new plan the next time it opens. | L'application de [Nom] affichera la nouvelle formule à sa prochaine ouverture. |
+| `members.correctPlan.feeNote` | The registration fee is not affected. | Les frais d'inscription ne sont pas modifiés. |
+| `members.correctPlan.confirm` | Correct plan | Corriger la formule |
+| `members.correctPlan.success` | Plan corrected. [Name] is now on [Plan]; expires [date] · [status]. | Formule corrigée. [Nom] est maintenant sur [Formule] ; expire le [date] · [statut]. |
+| `members.correctPlan.successExpired` | Plan corrected. [Name] is now on [Plan]. The new expiry, [date], is already past: the membership is expired. | Formule corrigée. [Nom] est maintenant sur [Formule]. La nouvelle date d'expiration, le [date], est déjà passée : l'adhésion est expirée. |
+| `members.correctPlan.successPps` | Plan corrected. [Name] is now on [Plan]. | Formule corrigée. [Nom] est maintenant sur [Formule]. |
+| `members.correctPlan.blocked.lead` | Can't correct the plan yet. | Impossible de corriger la formule pour le moment. |
+| `members.correctPlan.blocked.verified` | The payment of [amount] XAF on [date] ([method]) is still recorded. Refund it fully first, then correct the plan. | Le paiement de [montant] XAF du [date] ([mode]) est toujours enregistré. Remboursez-le intégralement d'abord, puis corrigez la formule. |
+| `members.correctPlan.blocked.pending` | The payment of [amount] XAF on [date] ([method]) is awaiting verification. Refund it fully first, or wait until it settles, then correct the plan. | Le paiement de [montant] XAF du [date] ([mode]) attend sa vérification. Remboursez-le intégralement d'abord, ou attendez son règlement, puis corrigez la formule. |
+| `members.correctPlan.blocked.inFlight` | The mobile money payment of [amount] XAF started on [date] is still in progress. Wait for it to settle. If it goes through, refund it fully, then correct the plan. | Le paiement mobile money de [montant] XAF commencé le [date] est en cours. Attendez son règlement. S'il aboutit, remboursez-le intégralement, puis corrigez la formule. |
+| `members.correctPlan.blocked.partlyRefunded` | The payment of [amount] XAF on [date] ([method]) is only partly refunded ([refunded] XAF of [amount] XAF). Refund the rest first, then correct the plan. | Le paiement de [montant] XAF du [date] ([mode]) n'est remboursé qu'en partie ([remboursé] XAF sur [montant] XAF). Remboursez le reste d'abord, puis corrigez la formule. |
+| `members.correctPlan.blocked.more` | + [N] more payments on this plan are still recorded. | + [N] autres paiements de cette formule sont encore enregistrés. |
+| `members.correctPlan.blocked.open` | Open payments | Ouvrir les paiements |
+| `members.correctPlan.refused.sessionHeld` | Can't move [Name] to or from Pay-per-session while an unused paid session is held. Refund it first, or wait until it is used or lapses ([date]). | Impossible de faire passer [Nom] vers ou depuis Paiement à la séance tant qu'une séance payée non utilisée est détenue. Remboursez-la d'abord, ou attendez qu'elle soit utilisée ou expire (le [date]). |
+| `members.correctPlan.refused.samePlan` | [Name] is already on this plan. | [Nom] a déjà cette formule. |
+| `members.correctPlan.refused.noSubscription` | [Name] has no current plan to correct. | [Nom] n'a pas de formule en cours à corriger. |
+| `members.correctPlan.refused.planGone` | That plan is no longer available. Choose another. | Cette formule n'est plus disponible. Choisissez-en une autre. |
+| `members.correctPlan.refused.changed` | This member's plan changed while you were working. Close this window and open the member again. | La formule de ce membre a changé pendant votre saisie. Fermez cette fenêtre et rouvrez le membre. |
+| `members.correctPlan.network` | Couldn't correct the plan. Check your connection and try again. | Impossible de corriger la formule. Vérifiez votre connexion et réessayez. |
+| `members.subscriptionStarted` (AD-04 field) | Subscription started | Abonnement débuté le |
+| `members.sessions.coveredVisit` | Covered visit | Visite couverte |
+| `members.sessions.coveredClass` | Covered class | Cours couvert |
+| `members.sessions.usedVisit` | Used · visit on [date], [time] | Utilisée · visite du [date], [heure] |
+| `members.sessions.usedClass` | Used · class [name], [date] | Utilisée · cours [nom], [date] |
+
+**Group D. Settings: Session validity and Gym challenge (AD-13)**
+
+| Key | EN | FR |
+|---|---|---|
+| `settings.sessionValidity.title` | Session validity | Validité de la séance |
+| `settings.sessionValidity.wholeDay` | Whole day | Toute la journée |
+| `settings.sessionValidity.wholeDayDesc` | A paid session covers every check-in until the end of the day. | Une séance payée couvre toutes les arrivées jusqu'à la fin de la journée. |
+| `settings.sessionValidity.singleUse` | Single use | Usage unique |
+| `settings.sessionValidity.singleUseDesc` | A paid session covers one visit. A visit ends at check-out, or [H] hours after check-in, whichever comes first. | Une séance payée couvre une seule visite. Une visite se termine au départ, ou [H] heures après l'arrivée, selon ce qui arrive en premier. |
+| `settings.sessionValidity.classNote` | A class attended during an open visit uses that visit's session. Otherwise it uses its own session. | Un cours suivi pendant une visite ouverte utilise la séance de cette visite. Sinon, il utilise sa propre séance. |
+| `settings.sessionValidity.chargingOff` | Takes effect when "Charge guests per session" is on. | Prend effet lorsque « Faire payer les invités à la séance » est activé. |
+| `settings.sessionValidity.applies` | The change applies to check-ins from now on. A visit already open finishes under the old rule, and sessions already used keep their coverage. | Le changement s'applique aux arrivées à partir de maintenant. Une visite déjà ouverte se termine selon l'ancienne règle, et les séances déjà utilisées gardent leur couverture. |
+| `settings.sessionValidity.loyaltyNote` | Single use earns loyalty stamps faster: one per paid session. Check your loyalty setting. | L'usage unique fait gagner les tampons de fidélité plus vite : un par séance payée. Vérifiez votre programme de fidélité. |
+| `settings.sessionValidity.save` | Save session validity | Enregistrer la validité de la séance |
+| `settings.sessionValidity.saved` | Session validity saved. | Validité de la séance enregistrée. |
+| `settings.sessionValidity.error` | Couldn't save session validity. Try again. | Impossible d'enregistrer la validité de la séance. Réessayez. |
+| `settings.chargeGuests.helperSingleUse` | Pay-per-session members need a paid session to check in or attend a class. One session covers one visit. | Les membres en Paiement à la séance doivent avoir une séance payée pour s'enregistrer ou assister à un cours. Une séance couvre une visite. |
+| `settings.saveHint.v18` (clause added to the hint) | …, Session validity and Gym challenge, | …, Validité de la séance et Défi de la salle, |
+| `settings.challenge.title` | Gym challenge | Défi de la salle |
+| `settings.challenge.intro` | A monthly goal for all your members together: visit days in the month. The reward is your promise; GymOS doesn't give or pay it. | Un objectif mensuel pour tous vos membres ensemble : le nombre de jours de visite dans le mois. La récompense est votre promesse ; GymOS ne la donne ni ne la paie. |
+| `settings.challenge.none` | No challenge for [Month]. | Aucun défi pour [mois]. |
+| `settings.challenge.month` | Month | Mois |
+| `settings.challenge.target.label` | Target (visit days, all members together) | Objectif (jours de visite, tous les membres) |
+| `settings.challenge.target.error` | Enter a whole number of visit days, 1 or more. | Saisissez un nombre entier de jours de visite, 1 ou plus. |
+| `settings.challenge.reward.label` | Reward | Récompense |
+| `settings.challenge.reward.help` | Write what you promise, for example "a free smoothie for everyone". | Écrivez votre promesse, par exemple « un smoothie offert à tous ». |
+| `settings.challenge.reward.error` | Write the reward (up to 120 characters). | Écrivez la récompense (120 caractères maximum). |
+| `settings.challenge.fixedNote` | Set it before the month starts. Once set, the target and reward can't change. | À définir avant le début du mois. Une fois défini, l'objectif et la récompense ne peuvent plus changer. |
+| `settings.challenge.set` | Set challenge for [Month] | Définir le défi de [mois] |
+| `settings.challenge.setDialog.title` | Set the [Month] challenge? | Définir le défi de [mois] ? |
+| `settings.challenge.setDialog.body` | Target: [N] visit days. Reward: [text]. These can't be changed afterwards. You can cancel the challenge, but then no other challenge can be set for [Month]. | Objectif : [N] jours de visite. Récompense : [texte]. Ces éléments ne pourront plus être modifiés. Vous pouvez annuler le défi, mais aucun autre défi ne pourra alors être défini pour [mois]. |
+| `settings.challenge.setDialog.back` | Back | Retour |
+| `settings.challenge.setDialog.confirm` | Set challenge | Définir le défi |
+| `settings.challenge.scheduled` | The [Month] challenge is set: [N] visit days. Reward: [text]. It starts on [date]. | Le défi de [mois] est défini : [N] jours de visite. Récompense : [texte]. Il commence le [date]. |
+| `settings.challenge.running` | [Month] challenge: [done] / [N] visit days. Reward: [text]. | Défi de [mois] : [done] / [N] jours de visite. Récompense : [texte]. |
+| `settings.challenge.reached` | Target reached. | Objectif atteint. |
+| `settings.challenge.cancelled` | The [Month] challenge was cancelled. It can't be set again for [Month]. | Le défi de [mois] a été annulé. Il ne peut pas être redéfini pour [mois]. |
+| `settings.challenge.cancel` | Cancel challenge | Annuler le défi |
+| `settings.challenge.cancelDialog.title` | Cancel the [Month] challenge? | Annuler le défi de [mois] ? |
+| `settings.challenge.cancelDialog.body` | Members stop seeing it straight away. A cancelled challenge can't be set again for [Month]. | Les membres ne le voient plus immédiatement. Un défi annulé ne peut pas être redéfini pour [mois]. |
+| `settings.challenge.cancelDialog.keep` | Keep challenge | Conserver le défi |
+| `settings.challenge.setToast` | Challenge set for [Month]. | Défi défini pour [mois]. |
+| `settings.challenge.cancelToast` | Challenge cancelled. | Défi annulé. |
+| `settings.challenge.error.save` | Couldn't save the challenge. Try again. | Impossible d'enregistrer le défi. Réessayez. |
+| `settings.challenge.error.started` | [Month] has already started, so a challenge can't be set for it. | [Mois] a déjà commencé : un défi ne peut plus être défini pour ce mois. |
+| `settings.challenge.error.exists` | A challenge already exists for [Month]. | Un défi existe déjà pour [mois]. |
+
+**Group E. Plans (AD-23)**
+
+| Key | EN | FR |
+|---|---|---|
+| `plans.annual.paidOnce` | Paid once | Payé en une fois |
+| `plans.annual.summary` | [price] XAF · [D] days · Paid once | [prix] XAF · [D] jours · Payé en une fois |
+| `plans.annual.discount` | Includes [x]% annual discount | Dont [x] % de remise annuelle |
+| `plans.annual.modalHelp` | Members pay the full price once. The plan then runs for [D] days. Renewing is a new payment. | Les membres paient le prix complet en une fois. La formule dure ensuite [D] jours. Le renouvellement est un nouveau paiement. |
+| `plans.annual.noInstalments` | To let members pay monthly, create a separate monthly plan. Paying an annual plan in instalments isn't available. | Pour un paiement mensuel, créez une formule mensuelle distincte. Le paiement d'une formule annuelle en plusieurs fois n'est pas disponible. |
+
+**Group F. Classes: weekly times, cancel, coach-created (AD-18, AD-19, AD-21)**
+
+| Key | EN | FR |
+|---|---|---|
+| `classes.times.label` | Weekly times | Horaires de la semaine |
+| `classes.times.counter` | [n] of 14 | [n] sur 14 |
+| `classes.times.day` | Day | Jour |
+| `classes.times.time` | Time | Heure |
+| `classes.times.add` | + Add a time | + Ajouter un horaire |
+| `classes.times.remove` | Remove | Supprimer |
+| `classes.times.removeAria` | Remove [day] [time] | Supprimer [jour] [heure] |
+| `classes.times.limit` | A class can have up to 14 weekly times. | Un cours peut avoir jusqu'à 14 horaires par semaine. |
+| `classes.times.timezone` | Times are in the gym's time zone ([zone]). | Les heures sont dans le fuseau horaire de la salle ([fuseau]). |
+| `classes.times.error.none` | Add at least one day and time. | Ajoutez au moins un jour et une heure. |
+| `classes.times.error.day` | Choose a day. | Choisissez un jour. |
+| `classes.times.error.time` | Enter a time, for example 18:30. | Saisissez une heure, par exemple 18:30. |
+| `classes.times.error.duplicate` | This day and time is already in the list. | Ce jour et cette heure figurent déjà dans la liste. |
+| `classes.times.editNotice` | Changes apply to upcoming sessions that nobody has booked. Sessions with bookings stay as they are, and you'll see them after you save. | Les changements s'appliquent aux prochains cours sans réservation. Les cours réservés restent inchangés, et vous les verrez après l'enregistrement. |
+| `classes.times.saved.title` | Class saved | Cours enregistré |
+| `classes.times.saved.summary` | Weekly times: [summary] | Horaires : [résumé] |
+| `classes.times.left.title` | [N] sessions with bookings were left unchanged | [N] cours réservés n'ont pas été modifiés |
+| `classes.times.left.title1` | 1 session with bookings was left unchanged | 1 cours réservé n'a pas été modifié |
+| `classes.times.left.help` | They keep their old time and their bookings. | Ils gardent leur ancien horaire et leurs réservations. |
+| `classes.times.left.row` | [day] [date] · [time] · [n] / [capacity] booked | [jour] [date] · [heure] · [n] / [capacité] réservations |
+| `classes.times.left.none` | Nothing was left unchanged. Upcoming sessions follow the new times. | Rien n'a été laissé tel quel. Les prochains cours suivent les nouveaux horaires. |
+| `classes.times.oldTimeTag` | Old time | Ancien horaire |
+| `classes.cancel.action` | Cancel class | Annuler le cours |
+| `classes.cancel.title` | Cancel [Class]? | Annuler [Cours] ? |
+| `classes.cancel.body` | All upcoming sessions are cancelled, and [N] bookings are cancelled. Past sessions and attendance stay on record. | Tous les prochains cours sont annulés, ainsi que [N] réservations. Les cours passés et les présences restent enregistrés. |
+| `classes.cancel.bodyNoBookings` | All upcoming sessions are cancelled. Nobody has booked yet. | Tous les prochains cours sont annulés. Personne n'a encore réservé. |
+| `classes.cancel.keep` | Keep class | Conserver le cours |
+| `classes.cancel.toast` | [Class] cancelled. | [Cours] annulé. |
+| `classes.cancel.badge` | Cancelled | Annulé |
+| `classes.cancel.error` | Couldn't cancel the class. Try again. | Impossible d'annuler le cours. Réessayez. |
+| `classes.cancel.already` | This class was already cancelled. | Ce cours a déjà été annulé. |
+| `classes.coach.fixed` | Coach | Coach |
+| `classes.coach.fixedHelp` | Classes you create are taught by you. | Les cours que vous créez sont animés par vous. |
+| `classes.coach.ownOnly` | You can only change your own classes. | Vous ne pouvez modifier que vos propres cours. |
+| `classes.coach.create` | + Create class | + Créer un cours |
+| `classes.coach.empty` | You don't have any classes yet. Create one, or ask your manager to assign you to a class. | Vous n'avez pas encore de cours. Créez-en un, ou demandez à votre responsable de vous en attribuer un. |
+
+**Group G. Coach picker (AD-32)**
+
+| Key | EN | FR |
+|---|---|---|
+| `coach.picker.label` | Choose a coach | Choisir un coach |
+| `coach.picker.banner` | You're viewing [Name]'s Coach Portal. Read-only. | Vous consultez l'espace coach de [Nom]. Lecture seule. |
+| `coach.picker.choose` | Choose a coach to see their classes and members. | Choisissez un coach pour voir ses cours et ses membres. |
+| `coach.picker.noCoaches` | Your gym has no coaches yet. Add a coach in Staff. | Votre salle n'a pas encore de coach. Ajoutez-en un dans Personnel. |
+| `coach.picker.noCoachesManager` | Your gym has no coaches yet. Ask an Owner or Supervisor to add one. | Votre salle n'a pas encore de coach. Demandez à un propriétaire ou à un superviseur d'en ajouter un. |
+| `coach.picker.unavailable` | That coach isn't available. Choose another. | Ce coach n'est pas disponible. Choisissez-en un autre. |
+| `coach.picker.inactive` | [Name] is no longer a coach at this gym. | [Nom] n'est plus coach dans cette salle. |
+| `coach.picker.tab.classes` | Classes | Cours |
+| `coach.picker.tab.members` | Members | Membres |
+| `coach.picker.noClasses` | [Name] has no classes yet. | [Nom] n'a pas encore de cours. |
+| `coach.picker.noMembers` | No members are assigned to [Name]. | Aucun membre n'est attribué à [Nom]. |
+| `coach.picker.noBodyData` | Body measurements, photos and progress notes aren't shown in this view. | Les mesures corporelles, les photos et les notes de progression ne sont pas affichées dans cette vue. |
+| `coach.picker.partUnavailable` | This part isn't available in this view. Body measurements, photos, progress notes and progress activity are never shown here. | Cette partie n'est pas disponible dans cette vue. Les mesures corporelles, les photos, les notes de progression et l'activité de progression n'y sont jamais affichées. |
+| `coach.picker.notAssigned` | [Member] isn't assigned to [Coach]. | [Membre] n'est pas attribué à [Coach]. |
+| `coach.picker.expiredBar` | This member's membership has expired. | L'adhésion de ce membre a expiré. |
+| `coach.picker.planAuthor` | Workout plan written by [Name] | Programme d'entraînement rédigé par [Nom] |
+| `coach.picker.openInClasses` | Open in Classes | Ouvrir dans Cours |
+| `coach.portal.nav` (sidebar label, all roles) | Coach Portal | Espace coach |
+
+**Group H. Audit Log labels (AD-12)** (same short past-tense style as V1.6 and V1.7)
+
+| Key | EN | FR |
+|---|---|---|
+| `audit.actionTypes.staffCheckIn` | Member checked in by staff | Arrivée d'un membre enregistrée par le personnel |
+| `audit.actionTypes.staffCheckInRejected` | Staff check-in not accepted | Arrivée par le personnel refusée |
+| `audit.actionTypes.staffCheckInVoided` | Staff check-in voided | Arrivée par le personnel annulée |
+| `audit.actionTypes.planCorrected` | Plan corrected | Formule corrigée |
+| `audit.actionTypes.sessionValidityChanged` | Session validity changed | Validité de la séance modifiée |
+| `audit.actionTypes.challengeSet` | Gym challenge set | Défi de la salle défini |
+| `audit.actionTypes.challengeCancelled` | Gym challenge cancelled | Défi de la salle annulé |
+| `audit.actionTypes.classTimesChanged` | Class weekly times changed | Horaires du cours modifiés |
+| `audit.actionTypes.classCancelled` | Class cancelled | Cours annulé |
+| `audit.actionTypes.classCreatedByCoach` | Class created | Cours créé |
+
+**Group I. Remaining strings** (labels, announcements, small errors; shared actions such as [Retry], [Refresh], [Cancel], [Close] reuse the existing global keys)
+
+| Key | EN | FR |
+|---|---|---|
+| `attendance.checkIn.search.error` | Couldn't search members. Try again. | Impossible de rechercher les membres. Réessayez. |
+| `attendance.checkIn.search.clear` | Clear search | Effacer la recherche |
+| `attendance.checkIn.search.count` (polite announcement) | [N] members found | [N] membres trouvés |
+| `attendance.checkIn.openMember` | Open [Name] | Ouvrir [Nom] |
+| `attendance.log.entryAria` | Checked in by staff, [Name] | Arrivée enregistrée par le personnel, [Nom] |
+| `members.correctPlan.newPlan.error` | Choose a plan | Choisissez une formule |
+| `members.correctPlan.loadError` | Couldn't check this member's payments. Try again. | Impossible de vérifier les paiements de ce membre. Réessayez. |
+| `plans.annual.modalHelpNoDuration` | Members pay the full price once. The plan then runs for the duration below. Renewing is a new payment. | Les membres paient le prix complet en une fois. La formule dure ensuite la durée indiquée ci-dessous. Le renouvellement est un nouveau paiement. |
+| `classes.times.sorted` (polite announcement) | Weekly times sorted | Horaires triés |
+| `classes.times.summary.more` | +[N] more | +[N] autres |
+| `guestSessions.source.desk` (AD-22 Source value) | Desk check-in | Arrivée à l'accueil |
+| `coach.picker.backToMembers` | Back to members | Retour aux membres |
+| `coach.picker.openStaff` | Open Staff | Ouvrir Personnel |
+
+**V1.8 text-slot rules and the reserved mascot slot *(Member App)*.**
+
+- **Slots, not screen text (FR-232).** Every string above is a catalog key; a screen never contains literal wording. Goal, ring, celebration, comeback and reminder wording can change without redesigning a screen. In V1.8 there is no in-app editor for these strings: they change by catalog edit and release `[ASSUMPTION]`.
+- **No mascot in V1.8.** The owner's mascot is parked. Where it will speak, the screens already reserve one optional line each: the celebration (`engage.celebration.mascot.7`, `.30`, `.100`), the comeback card (`engage.comeback.mascot`), the streak-reminder push (`n08.mascot`) and the Shield saved notice (`engage.shield.mascot`). **These keys exist and are empty in V1.8** (owner decision 2026-11-15); a screen renders nothing (zero height, no gap) when its mascot key is empty. When the mascot is added the character speaks these lines and the layout does not change. Keep every V1.8 string speaker-neutral: no first-person "I" and no "we" except where the gym is meant (the Leaderboard notice's "Members of {gym}").
+- **Tone rule.** Every line states what the member built or what is in reach. A line never states what the member lost, missed or will lose, and never uses exclamation marks, countdown language or "last chance".
 
 **French translations** must be exact equivalents in tone and reading level — not literal word-for-word. Both language versions are reviewed together before ship. EN and FR string counts must match on every PR.
 
@@ -873,6 +1514,107 @@ Layout with both switches on (guest member):
 - **Recent activity:** a session payment row reads "Session payment: 2,000 XAF" / "Paiement de séance : 2 000 XAF", never the renewal wording, with a ticket-glyph Icon Chip (`{colors.accent}`). A check-in covered by a free session is a normal check-in row. Free sessions never appear as payments (FR-158).
 - **Gym switch:** Home, the status card, and the Rewards card show the active gym only (Architecture Decision AD-4).
 
+**V1.8 — Weekly ring, streaks, calendar entry, leaderboard and challenge *(FR-219–FR-224, FR-226, FR-233–FR-235; Epics 30 and 31)*.** Everything below sits on Home, and every member at every gym sees it whatever their plan, Pay-per-session guests included (FR-225). Nothing here changes check-in, and nothing changes the status card, the quick actions, the Rewards card or the V1.6 states above. The engagement features are separate from loyalty: no stamp, free session or free day is ever linked to a streak, Shield, badge or rank (FR-170, FR-228).
+
+**Mock:** none. The design is this text (owner rule: no mock designs).
+
+**Layout, top to bottom.** Existing items are marked (existing); new items are numbered N1 to N6.
+
+1. Branded header (existing). Offline sync banner and post-sync denial notice (existing, V1.6).
+2. Welcome text (existing). Status card, `raised` (existing, still this screen's one).
+3. Quick actions (existing).
+4. **N1. "This week" section** *(Must)*. Section heading row: "This week" (left) and a text button "Goal: 3 days" with a pencil glyph (right, 44pt target, opens MA-23). Under it one `flat` Card, tappable as a whole (opens MA-18), containing, left to right: the **Goal Ring** (`{components.goalRing}`, 120pt) and a right column with, top to bottom, the **weekly streak chip** (or its first-week or comeback substitute), the **Shield chips** (Should), the **daily streak chip** (Could, only on a 3+ day run), and the ring **caption**. Below those, inside the same card, a **footer row** that holds, at most one at a time: the Shield or comeback notice, or the **at-risk hint** (glyph `schedule`, text, hours left).
+5. **N2. Comeback card** *(Should)*. A second `flat` Card directly under the "This week" card, present only while the comeback state is live (see states). Absent otherwise.
+6. **N3. Leaderboard card** *(Must)*. Heading "Leaderboard" with a chevron; one `flat` Card; tap opens MA-19.
+7. **N4. Gym challenge card** *(Could)*. Heading "Gym challenge"; one `flat` Card; read-only; absent when the gym has no challenge this month.
+8. **N5. "Your month" card** *(Could)*. One dismissible `flat` Card, shown only from the 1st of a month for the month just ended (see MA-22).
+9. Rewards card (existing, V1.6). Upcoming Classes (existing). Recent Activity (existing).
+
+`[ASSUMPTION]` Placement rationale: the ring comes straight after the quick actions, so the first screenful (status, actions, ring) answers "where do I stand and what do I do now"; the leaderboard and challenge are secondary and sit below the ring; Rewards (V1.6) keeps its position relative to Upcoming Classes, one block lower than before. `[NOTE FOR UX]` Home is now long. If Rewards or Upcoming Classes are pushed out of sight on a 640 pt screen, consider collapsing N3 and N4 into one two-row card; not done in V1.8 to keep each card's tap target obvious.
+
+**Expired members** *(owner decision 2026-11-15)* see the same engagement area, but the **at-risk hint is hidden** while the member's status is `expired` (check-in would be denied, so "visit today" would point to a refusal). The ring and streak chip stay visible. **N-08 is not sent to an expired member** for the same reason (FR-233 is applied with this exclusion).
+
+#### N1 · "This week" card
+
+**Components**
+
+- **Goal Ring** (`{components.goalRing}`). The ring is split into as many equal arc segments as the member's goal for the week (1 to 7), with a small gap between them. Each visit day fills one segment in order, in `{colors.accent}` (gym colour). When the goal is met every segment shows `{colors.success}` and a check glyph replaces the numeral's right half (see below). Unfilled segments use the `border` colour. The centre shows `statNumeral` "[visits] / [goal]" (for example "2 / 3") with the caption word "days" in `small` beneath.
+  - Visits beyond the goal do not add segments. The centre stays "3 / 3" and the caption reads the extra-visit line (`engage.ring.caption.extra`). `[ASSUMPTION]`
+  - A new week with no visits yet shows "0 / 3". This is a goal progress figure, not a streak, so it is allowed.
+- **Weekly streak chip** (`{components.streakChip}`), the main streak: flame glyph `local_fire_department` in `{colors.accent}` inside an Icon Chip, then "5 weeks in a row" (`smallBold`). Shown only once at least one week has been settled as met. Never shown as "0 weeks".
+  - With exactly 1 settled week it reads "First week done" instead of "1 week in a row".
+  - Under the chip, when the member holds fewer than the Shield cap, a `small` muted line shows weeks to the next Shield (`engage.streak.nextShield`), and at the cap the cap line. `[ASSUMPTION]` (shown to make the Shield visible as something being built).
+- **Shield chips** *(Should, `{components.shieldChip}`)*. One Icon Chip with glyph `shield` in `{colors.accent}` and the count "1 Shield" or "2 Shields" (`smallBold`). Not shown at 0 held: no "0 Shields". Tapping a Shield chip opens a small explainer bottom sheet (`engage.shield.explainer.*`, [Got it]). The chip tap target is 44pt even though the chip looks smaller; the Shield chip is the only tappable element inside the card besides the goal button and the card itself.
+- **Daily streak chip** *(Could, `{components.streakChip}` compact variant)*. "4 days in a row", glyph `bolt`, smaller than the weekly chip, shown only while a current run is 3 or more consecutive visit days. It disappears silently when the run ends; there is no "streak lost" message (FR-221).
+- **Ring caption** (`small`). Content depends on state (table below).
+- **At-risk hint** (footer row, `{components.atRiskPulse}`). Glyph `schedule` in `{colors.warning}`, then one line (`engage.atRisk.weekly` or `engage.atRisk.daily`), then the hours left (`engage.atRisk.hoursLeft`, switching to minutes under one hour). When the member holds a Shield an optional second `small` line says a Shield is ready (`engage.atRisk.shieldReady`) `[ASSUMPTION]`. `[NOTE FOR UX]` That reassurance may soften the push to come in; kept because the owner wants protection, not pressure. Remove it if pilot data shows it hurts visits.
+- The whole card is one tap target for MA-18; its accessible label is built in the Accessibility Floor rows below.
+
+**States of the "This week" card**
+
+| State | Ring | Streak area | Caption (key) | Footer |
+|---|---|---|---|---|
+| Loading | Circle skeleton 120pt + 2 text-line skeletons, ~168pt tall card, loads independently of the status card | skeleton | skeleton | none |
+| Release week `[ASSUMPTION]` (the engagement epoch: weeks before it are never settled, FR-225) | Fills normally | Hidden | `engage.streak.startsMonday` | none |
+| First week (member has no settled week yet) | Fills normally | Hidden (no chip). One `small` line: `engage.streak.firstWeek` | `engage.ring.caption.progress` or `.fresh` | at-risk hint if it applies |
+| No goal chosen yet (default 3) | 3 segments | as the other states | as the other states, plus a one-time `small` hint under the goal button on first view: `engage.ring.goalHint.default`, dismissed by tapping anywhere on it or by opening MA-23; dismissal stored on the device `[ASSUMPTION]` | none |
+| Goal change pending | Current week's goal | as the other states | the goal button reads `engage.ring.goalPending` ("Changes to 4 days on Mon 24 Nov") | none |
+| In progress | n of goal filled | Weekly streak chip (+ Shield chips, + daily chip if live) | `engage.ring.caption.progress` ("2 more visits close your ring") | at-risk hint only if FR-233 (a) or (b) holds and the member has not visited today |
+| Fresh week, 0 visits | all empty, "0 / 3" | Weekly streak chip kept | `engage.ring.caption.fresh` | none |
+| Goal met | All segments `{colors.success}`, check glyph, "3 / 3" | Weekly streak chip shows the **settled** count; caption says what it becomes | `engage.ring.caption.metStreak` ("Your streak becomes 6 weeks when the week ends"); with no streak yet `engage.ring.caption.met` | none; the at-risk hint is never shown once the goal is met |
+| At risk | Unchanged | Unchanged | Unchanged | At-risk hint, pulsing glyph (see `atRiskPulse`); hours left updates every minute while Home is visible |
+| Shield saved a week (Should) | Current week, normal | Chip shows the preserved length (the saved week keeps the streak but adds nothing to the count, owner decision 2026-11-15) | Normal | One-time notice row `engage.shield.saved.week`, dismiss [Got it], persisted on the device until dismissed |
+| Shield earned (Should) | Normal | Shield chip count +1 | Normal | One-time notice row `engage.shield.earned`, dismissible |
+| Shield saved a day (Could) | Normal | Daily chip continues | Normal | One-time notice row `engage.shield.saved.day`, dismissible |
+| Offline | Last settled state plus any visits queued on this device: the queued visit fills its segment with a dashed outline until synced | Last known | Normal, plus `engage.ring.pendingSync` | Shows the at-risk hint from cached flags only if the cache is from today; otherwise hides it. Banner shown by the existing offline banner |
+| Error (load failed, no cache) | Replaced by the error card `engage.home.error` in the card slot, same pattern as MA-09's status-area error | none | pull to refresh | none |
+| Settle failed (`open_engagement()` call failed after a week closed) | Last known state | Last known | Last known | A `small` line `engage.home.settleError`; retried on next focus; never blocks the card |
+| Expired status | Normal | Normal | Normal | At-risk hint hidden *(owner decision 2026-11-15)* |
+
+At most one notice row (Shield saved, Shield earned, comeback restored) shows at a time, newest first, and each is dismissed on its own. The at-risk hint is a different row and takes the slot only when no notice is pending. `[ASSUMPTION]`
+
+**Interactions**
+
+- Tap card: push MA-18. Tap goal button: MA-23 sheet. Tap Shield chip: explainer sheet.
+- Pull to refresh (Home's existing gesture): reloads the card with the rest of Home.
+- Home focus after a week has closed: the app calls the settling function once (first open after a week closes, AD-53); the card shows its loading skeleton for that moment, at most 2 seconds, then the settled state.
+- On Home mount, if an unacknowledged non-silent milestone exists, MA-20 is pushed over Home after about 600 ms, so the green check-in result overlay (unchanged) has already gone and Home has painted. See MA-20.
+
+#### N2 · Comeback card *(Should, FR-223)*
+
+Shown when a streak has ended and no Shield saved it. It never shows a bare 0 and never uses a warning or red tint; it is a `flat` Card with an Icon Chip glyph `flag` in `{colors.accent}`.
+
+| Phase | Content |
+|---|---|
+| Active, no comeback visit yet | Title `engage.comeback.title`; line `engage.comeback.best` (best streak stays visible, statNumeral on the number); line `engage.comeback.goal` ("Visit 3 times in 10 days to get back on track"); a Loyalty-Progress-style stamp row of 3 empty segments (`{components.loyaltyProgress}` with 3 segments; the "n / N" numeral is **not** shown while n is 0) |
+| Visits 1 or 2 | Same, with the numeral "1 / 3" or "2 / 3" and `engage.comeback.progress` as the accessible label |
+| Window lapsed `[ASSUMPTION]` (10 days passed) | Same as Active, plus `engage.comeback.windowRestart`; no failure wording; the count restarts from the member's next visit |
+| Restored (3rd visit reached) | One-time `engage.comeback.restored.title` and `.body` replacing the progress block for the rest of that session, dismissible; the card then disappears on next load. The "This week" streak chip shows the best streak in the form "Best: 8 weeks" until the first new week is met, then the new streak count `[ASSUMPTION]` |
+
+`[ASSUMPTION]` What "restored status" looks like (FR-223 leaves it to UX): a warm one-time confirmation and the best streak staying visible on the chip, with no new number invented. `[NOTE FOR UX]` Should the best streak be visible on the chip permanently (not only in comeback), e.g. "5 weeks · best 8"? Not done in V1.8 for simplicity.
+
+#### N3 · Leaderboard card *(FR-226)*
+
+- Section heading "Leaderboard" / chevron (existing List Item pattern). `flat` Card with Icon Chip glyph `leaderboard` in `{colors.accent}`.
+- Content, member has at least one visit this month: `statNumeral` rank line "Rank 9 of 43 this month" (`engage.home.rank`; the total is `ranked_total` from the board function, owner decision 2026-11-15), and a `small` line "2 visits behind the member above" (`engage.leaderboard.behind`), or `engage.leaderboard.level` when level, or `engage.leaderboard.leading` when first. No names on Home: the card shows the member's own standing only.
+- Content, no visit yet this month: `engage.leaderboard.unranked` (zero-visit members are not ranked, FR-226).
+- The rank and the total are the server's (`rank` and `ranked_total` from the board function); the card never computes them. When fewer than 3 members are ranked, the card shows `engage.leaderboard.notEnough` in place of a rank, so Home never shows a rank the board does not `[ASSUMPTION]`.
+- Loading: one rounded rectangle ~72pt. Offline: last cached rank with `engage.updatedAt`. Error: hides the numbers and shows `engage.leaderboard.error.short`, tap retries.
+- Privacy: this card is shown to every member, and a member who has not yet seen the first-open notice still sees their own rank here. It reveals nothing to others. The notice appears only when MA-19 is opened.
+
+#### N4 · Gym challenge card *(Could, FR-234)*
+
+- Shown only when the gym has a live (not cancelled) challenge for the current month; absent otherwise. A challenge for a future month is not shown. `[ASSUMPTION]`
+- Content: heading "Gym challenge"; Icon Chip glyph `groups` in `{colors.accent}`; the progress line "412 / 1,000 visit days this month" (`engage.challenge.progress`, numerals as `statNumeral`); a continuous 8pt bar (the Loyalty Progress rule for more than 12 segments: one pill bar filled to n/N); the reward line "Reward from [Gym name]: a free smoothie" (`engage.challenge.reward`, the reward text exactly as the Owner typed it, **not translated**); `small` muted "A promise from your gym." (`engage.challenge.promise`); and "Ends [date]" (`engage.challenge.ends`).
+- Reached state: the bar is full in `{colors.success}`, a check glyph, and `engage.challenge.reached`; the card stays until month end.
+- It is for everyone together: `engage.challenge.collective` says nobody is ranked. No member names, no personal contribution figure, no tap action.
+- Loading ~96pt rectangle. Error or offline: card hidden for offline with no cache; with cache shows the last figure and `engage.updatedAt`.
+- Nothing in this card links to money: no payment, session, Shield or stamp (FR-234).
+
+#### N5 · "Your month" card *(Could, FR-235)*
+
+One dismissible `flat` Card from the 1st of a month, for the month just ended, only if that month had at least one visit `[ASSUMPTION]`. Text `engage.month.homeCard`, [See it] opens MA-22, an "x" dismisses it for good (stored on the device). It disappears by itself after the 7th of the month `[ASSUMPTION]`. No push, no tab badge, no dot (FR-235: can be ignored).
+
 ---
 
 ### MA-10 · Check-In
@@ -1108,6 +1850,28 @@ Layout with both switches on (guest member):
 
 **V1.6:** no change. The Rewards card lives on Home (see MA-09), and there is no reward notification toggle, because no reward push ships in V1.6 (FR-169).
 
+**V1.8 — Training, Anonymous and Streak reminder *(FR-219, FR-227, FR-230, FR-233; Epics 30 and 31)*.**
+
+**Layout changes, top to bottom.** The avatar block, the account `flat` Card (Edit profile, History, Language) and Log out are unchanged.
+
+1. **New `flat` Card, "Training", between the account Card and the Notifications Card.** Rows, each with a leading Icon Chip:
+   - **Weekly goal** (glyph `flag`, `primary` tint like the account rows): value "3 days" in `small`, chevron; tap opens MA-23. If a change is pending, the value reads "3 days, then 4 from Mon 24 Nov" (`engage.profile.goal.pending`).
+   - **Badges** *(Should)* (glyph `military_tech`, `primary` tint): value "2 of 5" (`engage.profile.badges.value`), chevron; tap pushes MA-21. Absent when badges are not shipped.
+   - **Appear as Anonymous on the gym leaderboard** (glyph `visibility_off`, `primary` tint): a toggle, saved immediately on change like every notification toggle (optimistic flip, revert with the existing inline error toast on failure). A `small` helper line under the label states the **current effect** (`engage.profile.anonymous.helperOn` / `.helperOff`), and a text link "See the leaderboard" (`engage.profile.anonymous.link`) opens MA-19.
+2. **Notifications Card, new row at the bottom:** **Streak reminder** *(Should)* (bell glyph Icon Chip like the others): toggle, default **on** (opt-out, FR-233; `member_preferences.streak_reminder_opted_out`), independent, saved immediately. Helper line `engage.profile.reminder.helper`. Absent when N-08 is not shipped.
+
+**Behaviour**
+
+- The Anonymous toggle shows the **stored choice** (hidden = on). It is a separate matter from the first-open notice (FR-227): until the member has opened the leaderboard and chosen on the notice, every other member sees "Anonymous" whatever the toggle says. While the notice is unseen, the helper line reads `engage.profile.anonymous.helperUnseen` ("You appear as Anonymous until you open the leaderboard and choose.").
+- Turning the toggle **on** (hide) always saves at once. Turning it **off** (show my name) while the notice has not been seen does **not** save at once: it opens the notice (MA-19 notice state) so the member sees how they will appear before they are named `[ASSUMPTION]`. Choosing there saves.
+- The change "applies from the next load" (FR-227): the helper line says other members see it from their next refresh, never that it is instant for everyone.
+- The Anonymous toggle never affects the member's own count, rank, ring, streak, badges or the challenge total (FR-227: still counted and ranked).
+- The Streak reminder toggle's accessibility label states its state, like the other notification toggles.
+- Offline: the toggles flip optimistically and then revert with the inline error if the save fails, exactly as the existing notification toggles do. `[ASSUMPTION]` The weekly goal row opens MA-23, which needs a connection to save (see MA-23).
+- Language switch: re-renders all new rows; the helper lines and values are catalog strings.
+
+`[NOTE FOR UX]` The privacy toggle sits in "Training" rather than in a separate "Privacy" card. With only one privacy setting in V1.8, a card of its own would look heavier than the choice; if more privacy choices arrive, move it.
+
 ---
 
 ### MA-13 · Plan Details
@@ -1318,6 +2082,270 @@ Layout with both switches on (guest member):
 - A wrong-account or mismatch outcome never creates a session. The member sees the Failed phase, and staff see a discrepancy on AD-09.
 - Haptic on success: notification success. On failure: notification error.
 - Requires connectivity; if offline, the confirm button is disabled with the shipped offline banner.
+
+---
+
+### MA-18 · Attendance Calendar *(V1.8, FR-224, FR-229, FR-222; Story in Epic 30)*
+
+**Purpose:** Let the member see every day they came and be proud of it, move through earlier months, and see today's cell tell them, calmly, when a visit today keeps a week or a run going.
+
+**Entry:** Home "This week" card tap; MA-22 [See my calendar]. **Route:** `/calendar`. **Exit:** back arrow to Home (or MA-22).
+
+**Mock:** none (text design).
+
+**Layout, top to bottom**
+
+1. Header bar: back arrow, title "My visits" (`engage.calendar.title`). No tab bar.
+2. Month bar: previous-month chevron (44pt), month and year ("November 2026") in `smallBold` `[ASSUMPTION]` (the `subtitle` style is too large for a control bar), next-month chevron (44pt, disabled and 40% opacity on the current month: no future months).
+3. One summary line under the month bar: "9 visit days in November" (`engage.calendar.monthSummary`), the numeral as `statNumeral`.
+4. The month grid inside a `flat` Card: weekday header row (Mon to Sun, first letter, `small`; the week starts Monday to match the goal week, FR-219 `[ASSUMPTION]`), then 4 to 6 rows of `{components.calendarDayCell}` cells (44pt, see states).
+5. If today is at risk, an **at-risk line** under the grid (glyph, text, hours left; same strings as Home's hint) so the information is also in readable text, not only in the cell.
+6. **Legend row** (`small`, wraps): lit cell "Visited", ring outline "Today", marker "Milestone", shield marker "Saved by a Shield" (the last only when Shields are shipped).
+7. **Day detail line** (under the legend, `small`): updates when a cell is tapped; initially shows today's line. `[ASSUMPTION]` It names the date and, for a lit day, "Visited"; for a milestone day, "Your 30th visit"; for a Shield-saved day or week, `engage.shield.saved.*` in short form. It never shows a check-in time, to keep the screen to what FR-224 asks for.
+8. When viewing the previous month and the "Your month" feature is shipped and the summary exists: a text link "Your [month]" (`engage.month.link`) to MA-22.
+
+**Cell states (`{components.calendarDayCell}`)**
+
+| State | Visual | Not colour alone |
+|---|---|---|
+| Empty past day | `border` outline, no fill, day numeral in muted text | Numeral only, same as every day |
+| Visit day (lit) | Fill `{colors.accent}`, check glyph, numeral in the primary Button's on-accent text colour | Filled shape plus a check glyph |
+| Today, not yet visited, nothing at risk | 2pt `{colors.accent}` outline, numeral bold | Thicker outline and the legend entry "Today" |
+| Today, visited | Lit (as above) plus the 2pt outline | Fill, check and outline |
+| **Today, at risk** | 2pt `{colors.warning}` outline pulsing (see `atRiskPulse`), glyph `schedule` top-right, and the hours left in 10pt text inside the cell ("6 h"; under one hour "45 m") | Outline thickness, glyph, hours text, plus the at-risk line under the grid |
+| Milestone visit day | Lit, plus a small star-badge corner (glyph `star`, 14pt) carrying nothing but the shape; the tap detail line says "Your 30th visit" | Star glyph and detail text |
+| Day saved by a Shield (daily streak) | `{colors.neutral}` outline with glyph `shield` (not lit: the member did not visit) | Glyph and legend |
+| Week saved by a Shield | A small `shield` glyph at the corner of that week's Sunday cell, plus a hairline under that week's row `[ASSUMPTION]` | Glyph and legend |
+| Future day | 40% opacity numeral, no outline, not tappable | Opacity and the lack of an outline |
+| Day outside the month | Blank, not focusable | n/a |
+| Before the member's first visit or before the release `[ASSUMPTION]` | Same as an empty past day. History before release is shown as stored (FR-225) | n/a |
+| Offline queued visit today | Lit with a dashed outline until synced | Dashed shape, plus the detail line "Waiting to sync" |
+
+**Interactions**
+
+- Tap a cell: moves a 2pt focus ring there and updates the detail line; no navigation. Haptic: none.
+- Swipe left and right on the grid moves a month (a convenience; the chevrons are the primary control, so no gesture is required). `[ASSUMPTION]`
+- Previous-month chevron is disabled at the member's earliest month with any visit (or the current month if none) so the member is never walked through empty history. `[ASSUMPTION]`
+- Hours left recompute each minute while the screen is visible, computed from the server-supplied end-of-gym-local-day instant (`day_ends_at`, returned by the server's engagement state; owner decision 2026-11-15), not the phone clock, so a travelling member sees the gym's day.
+- Pull to refresh reloads the month.
+
+**States**
+
+| State | Treatment |
+|---|---|
+| Loading | Month bar and legend render immediately; the grid shows 35 rounded-square skeletons, in a `flat` Card |
+| Month with no visits (current) | Grid renders empty; summary line `engage.calendar.empty.current` ("No visits yet this month. Your first one lights today.") in a calm tone |
+| Month with no visits (past) | `engage.calendar.empty.past` ("No visits in [month]."), grid renders |
+| Offline | Cached months render with the banner `engage.calendar.offline`; a month never loaded shows `engage.calendar.offline.none` and a retry |
+| Error | Error card in the grid slot `engage.calendar.error`, pull to refresh (same pattern as MA-09) |
+| Late sync correction | A visit that arrives late through offline sync lights its own past day on the next load, and counts it; there is no message (NFR-028) |
+
+**Back behaviour:** back returns to Home (or MA-22); the month the member was viewing is not remembered on re-entry; the screen always opens on the current month.
+
+**Accessibility:** see the Accessibility Floor rows (calendar). **Offline:** see Responsive and offline notes.
+
+---
+
+### MA-19 · Gym Leaderboard *(V1.8, FR-226–FR-228; Epic 30)*
+
+**Purpose:** Show where the member stands among their own gym's members this month, with a little company, without ever naming anyone who has not agreed to be named.
+
+**Entry:** Home Leaderboard card tap. **Route:** `/leaderboard`. **Exit:** back arrow to Home.
+
+**Mock:** none (text design).
+
+**Layout, top to bottom**
+
+1. Header bar: back arrow, title "Leaderboard" (`engage.leaderboard.title`), subtitle the gym name in `small`.
+2. Segmented control: "This month" | "Last month" (`engage.leaderboard.tab.*`). `[ASSUMPTION]` AD-54 accepts the current or previous gym-local month, so exactly these two tabs. Default This month.
+3. **The list**, inside one `flat` Card of `{components.leaderboardRow}` rows (56pt minimum):
+   - Rows 1 to 10 (the top 10).
+   - If the member is **not** in the top 10: a thin separator row with three dots (not tappable, accessible label "Rows between are not shown"), then three rows: the neighbour above, the member's own row (highlighted), the neighbour below. If the member is in the top 10, no separator is drawn, and only the one neighbour **below** the member beyond rank 10 is appended when the member is at rank 10 (so "one neighbour each side" holds); at ranks 1 to 9 the neighbours are already in the list.
+   - The member's own row is always shown as "You" (never as "Anonymous" to themselves), with a visible tag "You" and a 2pt `{colors.accent}` border (shape and word, not colour alone). If other members see them as Anonymous, a `small` line inside the row says `engage.leaderboard.hidden.self`.
+4. **Under the member's own row**, one line: "2 visits behind the member above" (`engage.leaderboard.behind`), or `engage.leaderboard.level` when tied with the member above, or `engage.leaderboard.leading` when first.
+5. **Footnote** (`small`, muted): `engage.leaderboard.footnote` ("Each day you visit counts once. The board resets on the 1st. Just for fun: rank earns no prizes.").
+6. **Visibility row** (bottom, a `flat` Card): the **Anonymous toggle**, the same stored setting as MA-12 (`engage.leaderboard.toggle.label`), with the helper line stating how other members see the member now (`engage.leaderboard.visible.self` with the member's own label, or `engage.leaderboard.hidden.self`). Same optimistic save and the same rule as MA-12 for turning it off while the notice is unseen (opens the notice).
+
+**Row anatomy (`{components.leaderboardRow}`):** rank numeral (`smallBold`, 32pt wide, tabular); Icon Chip 36pt with glyph `person` (neutral tint) for a named member or `visibility_off` for an Anonymous one, **never a photo**; label in `smallBold` ("Chantal N." or "Anonymous"); trailing visits "11 visits" in `small`. Ties show the same rank number and the `small` word "Tied" (`engage.leaderboard.row.tied`) and keep the server's order (earliest to the count first). There is no crown, medal, gold or any special treatment of rank 1 to 3 (FR-228: no champion).
+
+**The first-open notice (state of this screen, a modal bottom sheet)**
+
+Shown **before the list** the first time the member opens MA-19 (the server holds `leaderboard_notice_seen_at`; it is null until the member taps one of its two buttons). While it is open the list behind it is **not rendered** (a blurred or skeleton list would still be a view of other members before consent; the sheet is full-height and opaque `[ASSUMPTION]`).
+
+Content, top to bottom: Icon Chip glyph `groups`; title `engage.leaderboard.notice.title`; body `engage.leaderboard.notice.body`, which contains **a preview of the member's own label**, the first name and the first letter of the last name as the server would show it, for example "Mireille K." (the member's own name shown on the member's own device); a line saying never the photo or phone number; the line `engage.leaderboard.notice.until` ("Until you choose, other members see you as Anonymous"); the line `engage.leaderboard.notice.change` ("You can change this any time in your Profile"); two buttons of equal weight stacked: **[Show my name]** (`...cta.show`, primary Button) and **[Appear as Anonymous]** (`...cta.hide`, secondary Button).
+
+- Neither button is pre-selected; both are 52pt tall.
+- Both buttons call the server (`mark_leaderboard_notice_seen`; the hide button also sets hidden). Until the call returns, both show a spinner and are disabled. On success the sheet closes and the list loads with the choice in force.
+- **No swipe-down dismiss, no tap-outside dismiss.** The only way out without choosing is the back arrow or Android back, which leaves MA-19 for Home. The notice is then not marked seen and the member **still appears as Anonymous**, so leaving never names anyone (FR-227: no existing member is named to the gym before seeing it).
+- Failure: inline above the buttons `engage.leaderboard.notice.error` ("Couldn't save your choice. You still appear as Anonymous."), buttons re-enabled.
+- Offline: both buttons disabled, inline `engage.leaderboard.offline.notice` ("Connect to the internet to choose."). The member can still leave.
+- The same sheet is reused (not a different screen) when MA-12 or MA-19's own toggle is turned off while the notice is unseen, with the title and body unchanged.
+- The notice is stored per member row, which is **per gym** (owner decision 2026-11-15): `leaderboard_notice_seen_at` sits on the member's row at that gym, so a member who belongs to two gyms sees the notice once at each, because each gym names them to a different set of people.
+
+**States**
+
+| State | Treatment |
+|---|---|
+| Notice not yet seen | The sheet above, over an empty screen (header and segmented control only) |
+| Loading | 6 rows of 56pt skeleton, then the member's row slot; target under 2 s (NFR-029) |
+| Normal | List per Layout |
+| Member is in the top 10 | List shows ranks 1 to 10, own row highlighted inside it, neighbour line under the own row |
+| Member not in the top 10 | Top 10, separator, neighbour above, own row, neighbour below |
+| Member unranked (no visit this month; 3 or more ranked) | The top 10 (if any) and, in place of the own row, `engage.leaderboard.unranked`; no neighbours, no behind line |
+| Fewer than 3 members ranked (0, 1 or 2) *(owner decision 2026-11-15)* | No list, no names, no own row and no neighbours: the block `engage.leaderboard.notEnough` ("Not enough members yet") with its body line replaces the list, so nobody can be identified by elimination. Under it, one supporting line: `engage.leaderboard.empty.month` when nobody is ranked, `engage.leaderboard.onlyYou` when the member is the only one ranked, `engage.leaderboard.unranked` when the member has no visit yet. The visibility row still shows. The rule uses the board function's `ranked_total` and applies to both tabs |
+| Member hidden (Anonymous) | Own row labelled "You" with the `hidden.self` line; the toggle is on; the member's rank and count are exactly as if visible |
+| Last month tab | Same layout; the visibility row stays; no "behind" line on the previous month `[ASSUMPTION]` (it is history) |
+| Gym member count small | Covered by the row above: fewer than 3 ranked shows no names. From 3 ranked members the board shows as normal |
+| Offline | Last cached board, shown with `engage.updatedAt` and a banner; the Anonymous toggle and notice buttons are disabled. A cached copy holds only what the server already sent; a hide made after the cache was taken applies from the next load, and the screen says so `[ASSUMPTION]` |
+| Error | Error card in the list slot `engage.leaderboard.error`, pull to refresh; the visibility row still renders |
+
+**Interactions:** pull to refresh; rows are not tappable (there is no profile to open: no photo, no phone, no member id reaches the device, NFR-027); tapping the toggle follows MA-12. **Back:** back arrow to Home; switching tabs does not push a route.
+
+**Privacy rules shown to the member:** none beyond the notice, but the screen never offers a "who is this" action and never shows another member's photo, phone or identifier.
+
+---
+
+### MA-20 · Milestone Celebration *(V1.8, FR-229; Share FR-231; Epics 30 and 31)*
+
+**Purpose:** Mark the member's 7th, 30th and 100th visit day at the gym, once, so they feel proud, and let them share it if they choose.
+
+**Entry:** Pushed automatically over Home when the app has an unacknowledged, non-silent milestone for the active gym. It is never a tab and never a push notification target. **Route:** `/celebration/:milestoneId`. **Exit:** [Keep going] or Android back, to Home.
+
+**When it appears.** Check-in itself is unchanged: the green result overlay keeps its 2.5 s and fade. After it, Home mounts and settles engagement (AD-53), and if a milestone is waiting, the celebration is pushed about 600 ms later. A visit made **offline** produces its milestone after the visit syncs, so the celebration appears on the next Home focus after sync, possibly hours later, with the same screen and copy (FR-229). If several are waiting (for example after a long offline gap), only the highest is shown and the lower ones are acknowledged silently, because the badge shelf keeps all of them `[ASSUMPTION]`. A milestone earned before the V1.8 release is silent (FR-225): no celebration, badge only.
+
+**Mock:** none (text design).
+
+**Layout, top to bottom** (full screen, background `background` `#0A0F17`, no tab bar, no back arrow; content centred, 480pt max width)
+
+1. **Reserved mascot slot** `[ASSUMPTION]`: an empty, zero-height region above the milestone card, bound to the optional catalog keys `engage.celebration.mascot.*`. In V1.8 it renders nothing (zero height) when its keys are empty, so adding a character later changes no layout. See Voice and Tone, text-slot rules and the reserved mascot slot.
+2. **Milestone card**, a `{components.celebrationOverlay}` card (`rounded.hero` 24, surface `#141F30`): gym logo (48pt, from the branding cache; omitted if not cached) and gym name (`smallBold`); the milestone numeral ("30") in the celebration numeral size (see DESIGN.md Typography, `celebrationNumeral`); the word "visits" (`engage.celebration.unit`); the headline (`engage.celebration.30.headline`); one sentence (`engage.celebration.30.sub`); a read-only **mini month calendar** of the member's current month with lit days (`{components.calendarDayCell}` small variant, 28pt, lit days only, no numerals, no at-risk) where the card has room: `[ASSUMPTION]` shown when the screen height is at least 640pt, hidden below that, and always hidden at +2 text sizes so the card never clips.
+3. Buttons, stacked, full width, 52pt: **[Share]** *(Should, primary)*, **[Keep going]** (secondary; primary when Share is absent). A text link **[See your badges]** below, *(Should, only when badges are shipped)*.
+
+**Composition equals the shared image.** The card in item 2 is the same composition used for the image the member shares (see Share), so what the member sees is what they send. The share image is the card rendered at 1080 by 1920 px (the portrait ratio of a WhatsApp status) on the same dark background `[ASSUMPTION]`.
+
+**Interactions**
+
+- On appear: haptic **Success notification** (the same haptic as a completed payment, MA-17; no new haptic type). The numeral counts up from 0 to the milestone over 700 ms and the card scales from 96% to 100% with a fade over 400 ms. No confetti, no looping animation, no sound (owner decision 2026-11-15: the celebration stays restrained). The existing V1.6 rule "Don't add confetti, badges, or celebratory animation to a reward" is about loyalty rewards and stays (amended V1.8 in DESIGN.md Do's and Don'ts); a milestone celebration is a different surface and the owner asked for one, kept to a single count-up and fade.
+- **Reduced motion (the system setting):** no count-up and no scale; the card appears at its final state with a 150 ms cross-fade; the Success haptic still fires. The Share and Keep going buttons behave identically.
+- [Keep going]: acknowledges the milestone on the server (the single acknowledge function, AD-53) and returns to Home. If the acknowledge call fails (offline), the screen still closes and the acknowledgement is retried silently; the celebration is not shown twice (it is also stored on the device as shown).
+- Android back = [Keep going]. Swipe down does nothing.
+- [See your badges]: acknowledges and pushes MA-21 (replacing this route, so Back from the shelf returns to Home).
+
+**Share flow *(Should, FR-231; AD-60: no server side)***
+
+1. Member taps [Share]. The button shows a spinner and is disabled (button loading rule); the label stays so the width does not change.
+2. The app renders the milestone image on the device from the member's own data: gym name and logo, the milestone numeral and headline, the mini month calendar where it fits, and the share caption text (`engage.share.caption.*`). It contains no other member's data, no phone number, no payment figure, and no member name (owner decision 2026-11-15: the image carries the gym's name and logo only, and no GymOS watermark).
+3. The image is handed to the phone's own share sheet, so the member picks WhatsApp status, a chat or any target. GymOS receives nothing and stores nothing about what was shared.
+4. Result handling:
+   - Share sheet closed with no target chosen: nothing happens, no message, the screen stays.
+   - Shared: nothing happens, no confirmation toast (the OS shows its own).
+   - **Image could not be made** (render failure, out of memory): inline message above the buttons `engage.share.error` with [Try again], and the screen otherwise works.
+   - **Sharing not available** on the device: inline `engage.share.unavailable`; the Share button is hidden on the next view.
+   - **Logo not cached or not loadable:** the image is made with the gym name only; no error `[ASSUMPTION]`.
+   - Offline: sharing works; building the image needs no network.
+5. The same flow, with the badge's own composition, is used from MA-21's badge detail sheet.
+
+**States:** appear (above); reduced motion (above); Share error (above); loading is not a state of this screen (it is only pushed when its data is already on the device); the celebration is never shown to an expired or suspended member's blocked app (root guards win). A member who somehow opens the route for an already-acknowledged milestone sees it replaced with Home `[ASSUMPTION]`.
+
+**Accessibility:** announced as one `alert` once, the sentence `engage.celebration.a11y`; the numeral and the mini calendar are decorative (`accessibilityRole: 'none'`); focus starts on the headline. Buttons 52pt.
+
+---
+
+### MA-21 · Badge Shelf *(V1.8, FR-230, FR-231; Epic 31, Should)*
+
+**Purpose:** A calm place where the member can see what they have earned and what is next, at any time.
+
+**Entry:** MA-12 "Badges" row; MA-20 [See your badges]. **Route:** `/badges`. **Exit:** back arrow.
+
+**Mock:** none (text design).
+
+**Layout, top to bottom**
+
+1. Header bar: back arrow, title "Badges" (`engage.badges.title`).
+2. Summary line: "2 of 5 earned" (`engage.badges.summary`).
+3. A two-column grid of `{components.badgeTile}` (three columns at 600pt and wider is not used: tablet keeps the 480pt column, two columns). Order: First visit, 7 visits, 30 visits, 100 visits, 4 weeks in a row. The 4-weeks tile is shown only when Shields are shipped (it ties to the Shield week); otherwise it is absent.
+4. Footnote `engage.badges.grantsNothing` ("Badges are just for you. They don't unlock anything.").
+
+**Tile states**
+
+| State | Visual | Text |
+|---|---|---|
+| Earned | Icon Chip 48pt in `{colors.accent}` with the badge glyph (First visit `flag`, 7 `looks_one`, 30 `local_fire_department`, 100 `military_tech`, 4 weeks `shield`; glyph choices `[ASSUMPTION]`), tile on `flat` surface, check glyph corner | Badge name, "Earned 14 Oct" (`engage.badges.earnedOn`) |
+| Earned silently at release | As earned | Same text; the date is the date the milestone visit actually happened, from stored history |
+| Locked, in reach | `border` outline, glyph in `{colors.neutral}`, no check | Name and progress, "12 more visits to go" (`engage.badges.locked.visits`), or for First visit `engage.badges.locked.first`, or for 4 weeks "2 of 4 weeks" (`engage.badges.locked.weeksProgress`) |
+| Locked, a 4-week streak not started | Same | `engage.badges.locked.weeks` |
+
+A locked tile never says "locked" as the only text and never shows a lock; the progress line is the message. A tile never shows "0 of N" as a failure.
+
+**Interactions**
+
+- Tap an earned tile: a **badge detail bottom sheet** (slide up): large Icon Chip, badge name, date earned, and the **[Share]** button *(Should, FR-231)*, which uses the same flow as MA-20 with a badge composition (badge, gym name and logo, date, and the month calendar where it fits). Tap a locked tile: the same sheet without Share, showing the progress line.
+- Pull to refresh.
+
+**States:** loading 5 tile skeletons; error `engage.badges.error` card; offline shows cached tiles and works for Share (the image is built on the device). A new member with no visit sees five locked tiles with progress lines; the screen is never empty.
+
+**Back behaviour:** back to Profile (or to Home when opened from MA-20).
+
+---
+
+### MA-22 · Your Month *(V1.8, FR-235; Epic 31, Could)*
+
+**Purpose:** Let the member look back on the month that just ended. No push, can be ignored.
+
+**Entry:** Home "Your [month] is ready" card; MA-18 when viewing the previous month. **Route:** `/month/:yyyy-mm`. **Exit:** back arrow.
+
+**Mock:** none (text design).
+
+**Layout, top to bottom**
+
+1. Header bar: back arrow, title "Your October" (`engage.month.title`).
+2. A `flat` Card, one metric per row, each row an Icon Chip + `statNumeral` + `small` caption:
+   - **Visit days**: "12" with "visit days in October" (glyph `event_available`).
+   - **Best week**: "4" with "visits in your best week, 14 to 20 Oct" (`engage.month.bestWeek`; glyph `emoji_events`).
+   - **Compared with last month** (omitted when the member has no earlier month on record): "+3" with "more than in September" (`engage.month.change.up`); same count: "Same as September" (`.same`); fewer: only the earlier month's figure, "September: 15 visit days" (`.down`) `[ASSUMPTION]` so the screen states a fact and never frames a drop as a loss.
+3. A read-only mini calendar of that month with lit days (28pt cells), inside a `flat` Card.
+4. Buttons: **[See my calendar]** (opens MA-18 on that month) and nothing else; no Share in V1.8 `[ASSUMPTION]` (FR-231 names the celebration and badges only).
+
+**States**
+
+| State | Treatment |
+|---|---|
+| Month had no visits | The screen is not offered at all (no Home card, no link) `[ASSUMPTION]`; a deep link to it shows `engage.month.none` and a [See my calendar] button |
+| First month ever, no earlier month | The comparison row is omitted |
+| Loading | 3 metric-row skeletons ~64pt each and a grid skeleton |
+| Error | `engage.month.error` card with pull to refresh |
+| Offline | The screen opens if it was loaded before; otherwise `engage.month.offline.none` with retry |
+| Not yet the 1st / month not ended | Not reachable |
+
+The summary is computed from attendance (FR-235), so a late offline-synced visit corrects it on the next load without a message.
+
+---
+
+### MA-23 · Weekly Goal (sheet) *(V1.8, FR-219; Epic 30)*
+
+**Purpose:** Let the member choose how many days a week they want to come, with the next-week rule explained at the moment of choice.
+
+**Entry:** Home goal button; MA-12 Weekly goal row. **Route:** `/goal` (modal bottom sheet, slide up; swipe down or Android back to dismiss without saving). **Exit:** [Save goal] or dismiss.
+
+**Mock:** none (text design).
+
+**Layout, top to bottom (sheet, up to 60% of the screen height)**
+
+1. Grabber and title "Weekly goal" (`engage.goal.title`).
+2. Prompt "How many days a week do you want to come?" (`engage.goal.prompt`).
+3. **Goal options:** seven pill buttons in one row, "1" to "7", each 44pt wide at 360pt screens or wider; on narrower screens, two rows (1 to 4, 5 to 7) (`{components.goalOption}`). The current goal has a check glyph and the label "current" in the accessible name; the chosen one is filled `{colors.accent}` with a check glyph; unchosen ones have a `border` outline. Single choice, no default pre-selection other than the member's current goal.
+4. The **effect line** under the options: when the choice differs from the current goal, "Starts Monday 24 Nov. This week stays at 3." (`engage.goal.effective`); when the same, `engage.goal.noChange`; when a change is already pending, `engage.goal.pending` and the choice replaces the pending one `[ASSUMPTION]`.
+5. A `small` line `engage.goal.why` ("A change starts next Monday, so this week's result stays fair.").
+6. **[Save goal]** primary Button (disabled until the choice differs from the current or pending goal).
+
+**Behaviour**
+
+- Saves through the member-owned goal function; the new goal is stored with an effective week and never alters the week in progress (FR-219, NFR-028).
+- Success: haptic **Light impact** `[ASSUMPTION]`, the sheet closes, a toast `engage.goal.saved` ("Goal saved. Starts Mon 24 Nov"); Home shows `engage.ring.goalPending` until Monday.
+- Error: inline above the button `engage.goal.error`; the sheet stays.
+- Offline: the options work but [Save goal] is disabled with `engage.goal.offline` `[ASSUMPTION]` (a goal change is not queued, because the next-Monday date depends on the server's gym-local week).
+- A member who has never chosen sees "3" selected and the hint `engage.ring.goalHint.default`; choosing 3 and saving records an explicit goal at 3 `[ASSUMPTION]`.
+- **First goal** *(owner decision 2026-11-15)*: a member who has not set a goal uses the default 3 immediately, and the first goal they set applies from the next Monday, like any later change. There is no first-goal exception, even for a member who joins mid-week.
 
 ---
 
@@ -1561,6 +2589,22 @@ Free sessions        1 · lapses 01 Dec
   Labels (EN / FR): "Sessions" / "Séances"; "Unused" / "Non utilisées"; "Used" / "Utilisées"; "Lapses [date]" / "Expire le [date]"; "Covered day" / "Jour couvert"; "Paid" / "Payée"; "Free" / "Gratuite". **Empty:** "No sessions yet." / "Aucune séance pour le moment."
 - **Rewards section:** rendered when the gym's loyalty program is on, or the member holds an unexpired free session (Story 20.5). It shows **both** counters to staff, "Guest progress" / "Progression invité" and "Subscriber progress" / "Progression abonné" ("3 / 5" format), plus free sessions with expiry and unused paid sessions with lapse date (the latter shared with the Sessions section, not repeated). Values come only from `effective_loyalty`. There is **no edit control for any role**, Super Admin included (FR-170), and no "adjust" affordance even disabled. A muted line reads "Balances change only through the program's rules." / "Les soldes ne changent que selon les règles du programme."
 - **Coach:** sees nothing new (Story 19.9). Neither section renders in AD-15.
+
+**V1.8 — Correct plan, subscription start, Sessions wording *(FR-241–FR-243, FR-236, FR-237; Epics 27, 28)*:**
+
+```
+[Ange T.]  [Expiring soon]     [Record session payment]  [Edit] [Correct plan] [Deactivate] [Send Invite]
+Phone … Plan: Annual (250,000 XAF · 365 days · Paid once)
+Subscription started 02 Nov 2026 · Expires 02 Nov 2027
+```
+
+- **[Correct plan]** *(Manager and above; absent for Receptionist and Coach).* Opens AD-31. Shown when the member has a current subscription. It is a plain secondary button in the header row, left of [Deactivate], so the three destructive or corrective actions sit together. `[ASSUMPTION — a visible button, not an overflow menu, because the desk uses it the same day a wrong plan is spotted]`
+- **Subscription started** *(new read-only field, all roles that open the modal)*: "Subscription started" / « Abonnement débuté le », next to Expiry Date. `[ASSUMPTION]` It is the date Correct plan counts the new expiry from (FR-243), so staff can see it before they open the action. For a Pay-per-session member it is omitted.
+- **Annual plan wording** in the Plan field uses the plan summary line (AD-23): "Annual (250,000 XAF · 365 days · Paid once)".
+- **After a correction** the modal shows the new plan with no extra marker; the reason and both plans are in AD-12. `[ASSUMPTION — no "corrected" tag on the member, to keep the modal quiet]`
+- **Sessions section, Single-use gyms** *(FR-237, Architecture Decision AD-55)*: a used session shows what it covered. Whole-day sessions keep today's "Covered day" wording. A session used under Single use reads "Used · visit on Thu 09 Oct, 09:02" / « Utilisée · visite du jeu. 09 oct., 09:02 », and one used for a class reads "Used · class HIIT, Thu 09 Oct" / « Utilisée · cours HIIT, jeu. 09 oct. ». Labels `members.sessions.coveredVisit` ("Covered visit") and `members.sessions.coveredClass` ("Covered class") sit beside the existing "Covered day". Rows already recorded keep the label they were recorded under; flipping the setting rewrites no row (FR-239).
+- A session given back by a void (AD-11) returns to **Unused** with its original lapse date and no marker `[ASSUMPTION]`.
+- **Coach:** sees none of this (AD-15 is unchanged for the Coach role).
 
 ---
 
@@ -1844,6 +2888,77 @@ Daily Log
 
 **V1.6 *(FR-160)*:** the alert panel gains the session-required variant (Cross-Cutting Components). A blocked guest scan is **not** an attendance event, so it never appears in Currently Checked-In or the Daily Log. Blocked attempts are listed only on AD-22.
 
+**V1.8 — Check in a member, entry marker, void *(FR-248–FR-250, Epic 27; user decision 2026-11-15)*.**
+
+**Layout (changes only):**
+```
+Attendance                                          [Check in a member]      ← Receptionist and above
+
+[Front-Desk Alert Panel — unchanged; no alert for a staff member's own entry]
+
+Currently Checked In   (N members)                                 [Refresh]
+┌────────────────────────────────────────────────────────────────────────────┐
+│ Name       Check-in time   Entry                    Status   Actions        │
+│ Ange T.    07:02           By staff · Brice N.      Active   [Check Out][Void]│
+│ Jean B.    06:40           QR scan                  Active   [Check Out]     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Daily Log
+┌────────────────────────────────────────────────────────────────────────────┐
+│ Member     Check-in   Check-out   Duration   Entry                           │
+│ Ange T.    07:02      —           Open       By staff · Brice N.   [Void]    │
+│ Paul E.    06:50      06:51       1m         By staff · Aicha M.   Voided    │   ← muted row
+│ Amara K.   08:14      10:02       1h 48m     QR scan                          │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Components (V1.8):**
+- **[Check in a member]**: primary page action, right-aligned in the page header, Receptionist and above (every role that sees AD-11), and GymOS Support. Opens AD-30. Absent from the DOM for Coach (who has no AD-11).
+- **Entry column** (new, in both tables): plain text, never colour-coded. A scan reads "QR scan" / « Scan du QR ». A staff entry shows the neutral pill **"By staff"** / « Par le personnel » followed by "· [Name]" of the staff member who entered it, e.g. "By staff · Brice N." The pill is the same neutral treatment as the AD-16 "Created by GymOS Support" pill: icon plus text, no colour signal. A support entry reads "By staff · GymOS Support" (Support Identity Rule: never a name, initials or count). Members whose visit predates V1.8 show "QR scan" (all earlier check-ins were scans). `[ASSUMPTION — historic rows read "QR scan"]`
+- **Narrow widths:** the staff name part of the cell follows the existing "Actor" column rule and is hidden under 1024 px; the **"By staff" pill always stays**, so a staff entry is never mistaken for a scan.
+- **[Void]** (row action, Manager and above; GymOS Support): shown on a row only when **all** hold: the entry is a staff entry, it was made on the current gym-local day, and it is not already voided. Otherwise it is absent from the DOM (a Receptionist never sees it; nobody sees it on a scan or on yesterday's row). It sits next to [Check Out] in Currently Checked In, and alone in the Daily Log row of a closed visit. Its accessible name includes the member and time ("Void the check-in of Ange T. at 07:02").
+- **Voided rows** *(Daily Log)*: stay in the log, **muted** (the AD-04 "voided" muted-row treatment), with the neutral pill "Voided" / « Annulée » in the Check-out cell and a tooltip and row detail "Voided by [Name] on [date] at [time]. Reason: [reason]". They are **excluded** from Currently Checked In and from the "N members" count, and from every count the product makes (occupancy, streaks, rank, the challenge). They are shown by default, with no toggle, so the log stays honest; a voided row is never deletable. `[ASSUMPTION]`
+- **Front-desk alerts:** unchanged. A staff entry or void raises none.
+
+**Void modal** *(Manager and above; Escape disabled, as other consequential confirmations; focus opens on [Keep check-in])*:
+```
+Void this check-in?                                              [✕]
+
+Ange T.'s check-in at 07:02 was entered by staff. Voiding it removes the
+visit: it stops counting for occupancy, streaks, rank and the gym challenge.
+
+The paid session this check-in used is given back to Ange T.      ← only if a session was used
+The payment stays on record. Refund it in Payments if you need to. ← only with the line above
+The loyalty stamp it earned is removed.                            ← only if a stamp was earned
+
+Reason for voiding *
+[For example: wrong member selected                          ]
+                                                          0 / 300
+
+                                  [Keep check-in]  [Void check-in]
+```
+- **Reason:** required; 5 to 300 characters; blank blocks [Void check-in]. `[ASSUMPTION — same limits as Correct plan]`
+- **Conditional lines** are shown only when they apply (the server reports whether the entry consumed a session and earned a stamp). `[ASSUMPTION]` They state the effect so a Manager is not surprised that a void gives a session back but does not refund money (FR-250's void; Architecture Decision AD-56).
+- **Success:** the modal closes; the row is muted and marked "Voided"; if the visit was open it leaves Currently Checked In; toast "Check-in voided. [Name] is no longer counted as in the gym."
+- **Refusals** (inline above the buttons, `role="alert"`, modal stays open; EN copy in the catalog, Group B):
+  | Refusal | Message | Action |
+  |---|---|---|
+  | A later same-day visit relies on this entry's paid session | "Can't void this check-in: [Name]'s later visit today relies on the same paid session." + "Void the later check-in first." only when the later visit was a staff entry | [Close] |
+  | Not the same gym-local day (stale tab left open past midnight) | "A check-in can only be voided on the day it was entered." | [Close] |
+  | Already voided (two people at once) | "This check-in was already voided." | [Close], list refreshes |
+  | Not a staff entry (stale) | "Only check-ins entered by staff can be voided." | [Close] |
+  | Network | "Couldn't void the check-in. Check your connection and try again." | [Void check-in] stays |
+  A **scan** can never be voided (FR-250: a correction of a staff mistake, not anti-cheat). `[NOTE FOR UX]` When the later visit is a scan and the earlier one is a staff entry, the void can never happen the same day; the message above is the end of the road. If the first gym meets this, the answer is a Manager checking the member out and leaving both visits.
+- **The member is not told.** A void shows no notification in the app; the visit disappears from the member's History. `[NOTE FOR UX]` Confirm that silence is right for a member who saw the check-in confirmation.
+
+**Support attribution:** the Entry cell, the void text and the audit rows show "GymOS Support" for support actions (Support Identity Rule; add AD-11's Entry cell and the void dialog to the per-surface test list). A support person's staff check-in and Void raise the existing step-up prompt (SA-21), like other support actions (FR-189; owner decision 2026-11-15).
+
+**Empty states** (unchanged copy): Currently Checked In "No one is checked in right now."; Daily Log "No check-ins recorded for this period." A day whose only entries are voided shows the voided rows muted (the log is not empty), and Currently Checked In reads "No one is checked in right now."
+
+**Error state:** if the Entry column cannot be resolved (a staff member's name fails to load), the cell reads "By staff" with no name and the row stays usable; it never blocks the page. The page-level load error and [Refresh] are unchanged (AD-03 pattern).
+
+**Responsive:** see Responsive & Platform Behaviour (Admin Dashboard). **Realtime:** a check-in or void entered on another desk appears in Currently Checked In through the existing realtime channel; a void removes the row without a reload.
+
 ---
 
 ### AD-18 · Classes — List & Attendance *(V1.5)*
@@ -1889,11 +3004,27 @@ Classes                                            [+ Create class]  ← Manager
 - Re-marking a member already marked attended is a no-op.
 - FR strings for class occurrences on this page follow the session/class terminology rule (Voice and Tone): "Prochaine séance" → "Prochain cours", "Aucune séance à venir" → "Aucun cours à venir".
 
+**V1.8 — weekly times in the list, Cancel class, left-unchanged tag *(FR-244, FR-245, FR-246; Epic 29)*.**
+
+- **Schedule column:** a recurring class's times are summarised as the days with the same hour grouped, in week order starting Monday: "Mon 07:00 · Wed 18:30 · Sat 09:00", or "Tue, Thu 18:00 · Sat 09:00". Four or more groups truncate to three plus "+N more" with a tooltip carrying the full list. A one-off class keeps its date. The Schedule column reads the same for a class migrated from the old model ("Tue, Thu 18:00"): the migration is invisible (FR-245). Times are 24-hour, in the gym's time zone. `[ASSUMPTION — Monday-first order and grouping rule]`
+- **Row actions (Manager and above):** [Edit] (existing) and **[Cancel class]** / [Annuler le cours]. [Cancel class] opens the dialog below. Both are absent from the DOM for Receptionist. A cancelled class shows the neutral badge **"Cancelled"** / « Annulé », sorts below the live classes, and offers neither action. `[ASSUMPTION — cancelled classes stay listed so past attendance remains reachable; no filter]`
+- **Cancel class dialog** *(Manager and above; also used by a Coach for own classes from AD-21; Escape disabled)*:
+  ```
+  Cancel Pilates?                                                   [✕]
+  All upcoming sessions are cancelled, and 8 bookings are cancelled.
+  Past sessions and attendance stay on record.
+                                         [Keep class]  [Cancel class]
+  ```
+  Zero bookings: "All upcoming sessions are cancelled. Nobody has booked yet." The buttons are named by action ([Keep class], [Cancel class]); the generic [Cancel] is not used, so it cannot be read as "cancel this dialog". The booking count comes from the server. Success toast "[Class] cancelled." Refusals: "This class was already cancelled."; "You can only change your own classes." (a Coach, stale); "Couldn't cancel the class. Try again."
+  Booked members are not notified when a class is cancelled in V1.8: the class shows as cancelled in their app (owner decision 2026-11-15). `[NOTE FOR UX]` For the story: FR-246 and Architecture Decision AD-57 add one `cancel_class` function and no notification; the member app's class list (MA-16) must show a cancelled class as cancelled, which this pass does not draft; whether a single session can be cancelled without cancelling the class is not drafted.
+- **Session rows kept on the old time:** after a weekly-times edit (AD-19), a future session that has bookings and no longer matches the new times shows the muted tag **"Old time"** / « Ancien horaire » in the expanded row, so the list the editor saw once can be found again. `[ASSUMPTION — the server can tell, by comparing a session to the class's times]`
+- Receptionist: no change except that they see the new Schedule column wording.
+
 ---
 
 ### AD-19 · Classes — Create / Edit *(V1.5, modal on AD-18)*
 
-**Purpose:** Manager or Owner defines a class's schedule and capacity.
+**Purpose:** Manager or Owner defines a class's schedule and capacity. *(amended V1.8: a Coach also, for own classes, from AD-21)*
 
 **Layout:**
 ```
@@ -1906,8 +3037,8 @@ Capacity *           [  15  ] members
 
 Schedule *
   ○ One-off    ● Recurring
-  Days          [Tue] [Thu]
-  Time          [ 6:00 PM ]
+  Days          [Tue] [Thu]        (amended V1.8: replaced by Weekly times, see below)
+  Time          [ 6:00 PM ]        (amended V1.8: replaced by Weekly times, see below)
   Starting      [ 12 Aug 2026 ]
 
                                     [Cancel]  [Create class]
@@ -1916,8 +3047,69 @@ Schedule *
 **Component behaviors:**
 - Coach dropdown: lists this gym's Coach-role staff only (tenant-scoped)
 - Capacity: positive integer, minimum 1
-- Schedule: one-off requires a single date+time; recurring requires ≥1 day-of-week + a time + a start date
+- Schedule: one-off requires a single date+time; recurring requires ≥1 day-of-week + a time + a start date *(amended V1.8: recurring requires at least one weekly time, a day and an hour, instead of the day set and one time)*
 - Save: validates all required fields inline before submit; on success, closes modal and the new/edited class appears in AD-18's list immediately
+
+**V1.8 — the weekly-times editor *(FR-244, FR-245; Epic 29)*.** `[CONFLICT]` with AD-19's Schedule block ("Days [Tue] [Thu], Time [6:00 PM]") and its rule "recurring requires ≥1 day-of-week + a time + a start date": a recurring class now holds a list of **weekly times** (a day and an hour each), so one class can run at a different hour on each day.
+
+**Layout (recurring, replaces the Days/Time lines):**
+```
+Create Class                                                    [x]
+
+Name *              [ Pilates                          ]
+Description         [                                  ]
+Coach *             [Select coach ▾]          ← Manager and above; Coach-role: fixed text, see below
+Capacity *          [  15  ] members
+
+Schedule *
+  ○ One-off    ● Recurring
+  Starting      [ 17 Nov 2026 ]
+
+  Weekly times *                                              3 of 14
+  ┌────────────────────────────────────────────────────────────────┐
+  │ Day [Monday     ▾]  Time [ 07:00 ]                    [Remove] │
+  │ Day [Wednesday  ▾]  Time [ 18:30 ]                    [Remove] │
+  │ Day [Saturday   ▾]  Time [ 09:00 ]                    [Remove] │
+  └────────────────────────────────────────────────────────────────┘
+  [+ Add a time]
+  Times are in the gym's time zone (Africa/Douala).
+
+                                          [Cancel]  [Create class]
+```
+
+**Behaviours:**
+- **One row per time.** Each row has a Day select (Monday to Sunday, in that order; storage convention is not shown) and a Time field (24-hour, to the minute), and a [Remove] button. The same weekday may appear more than once at different times. Rows are shown in week order, Monday first; the order re-sorts when a row loses focus or on save. `[ASSUMPTION — display order]`
+- **[+ Add a time]** appends a row **pre-filled with the next weekday after the last row and the same time as the last row**, and moves focus to its Day select, so "Tue and Thu at 18:00" is one row plus one tap and a weekday change. `[ASSUMPTION — pre-fill]`
+- **Limit:** up to 14 times per class `[ASSUMPTION — FR-244]`. The counter "[n] of 14" is always visible. At 14, [+ Add a time] stays visible and is `aria-disabled`, with the line "A class can have up to 14 weekly times." This is a rule shown, not a role-hidden control, so it is disabled rather than absent.
+- **Last row:** [Remove] on the only remaining row is allowed; the form then shows the "Add at least one day and time." error on save. A recurring class cannot be saved with no time.
+- **Length** *(FR-244 "and the class's length where the class has one")*: the shipped class has no length field, so none is shown. `[NOTE FOR UX]` If a class length is added later, it becomes a third field on each row.
+- **Switching One-off ↔ Recurring** keeps what was entered for the other mode until save, so toggling by accident loses nothing.
+- **One-off** is unchanged: one date and time.
+- **Migration is invisible** (FR-245): opening an existing recurring class shows its old days as one row per day, all at its old hour. No banner, no "migrated" label, no change to its sessions or bookings.
+
+**Validation** (inline per row, `aria-describedby`, error summary on submit; full table in Form Validation Rules): at least one row; every row needs a day and a valid time; the same weekday and time twice is refused on the later row.
+
+**Editing a class that has upcoming sessions** *(FR-245)*:
+- A notice sits above "Weekly times": "Changes apply to upcoming sessions that nobody has booked. Sessions with bookings stay as they are, and you'll see them after you save." (`info` icon, not a warning: it is a rule, not a problem).
+- On **Save**, the modal does not just close. It shows a **result view** in the same modal:
+  ```
+  Class saved                                                     [x]
+  Weekly times: Mon 07:00 · Wed 18:30 · Sat 09:00
+
+  2 sessions with bookings were left unchanged
+  They keep their old time and their bookings.
+    Wed 18 Nov · 18:00 · 8 / 15 booked
+    Fri 20 Nov · 18:00 · 12 / 15 booked
+
+                                                            [Done]
+  ```
+  - The list is **the future sessions that have bookings and were therefore left as they were**, with date, hour and "[n] / [capacity] booked". It is read-only here; the editor decides outside the modal (talk to the coach and the members; the sessions are still on AD-18 with the "Old time" tag).
+  - When nothing was left unchanged, the result view is skipped for a create, and for an edit shows one line "Nothing was left unchanged. Upcoming sessions follow the new times." with [Done]. `[ASSUMPTION]` A **create** never has bookings, so it closes on save as today and the new class appears in AD-18's list.
+  - Focus moves to the result heading; [Done] closes the modal and returns focus to the class's [Edit] button.
+  `[NOTE FOR UX]` The sources say the sessions "are listed to the editor, who decides what to do with it" but no action exists to move or cancel one session (FR-245, Architecture Decision AD-57 returns them). The list is informational. Decide whether a per-session [Cancel this session] or [Move] is wanted; both would touch bookings.
+- **Concurrency:** if a booking lands on a session while the editor is saving, the server leaves that session as it is and lists it. The editor never sees an error for it.
+
+**Coach mode (opened from AD-21, a Coach on their own class):** identical fields, with **Coach** shown as plain text of the signed-in coach (`classes.coach.fixed` with the helper "Classes you create are taught by you."), not a select. A Coach cannot choose another coach and cannot open a class that is not theirs (the server refuses with "You can only change your own classes."). Title "Create Class" / "Edit Class" as for the other roles. A Manager, Supervisor or Owner editing the same class sees the full Coach select.
 
 ---
 
@@ -1977,6 +3169,21 @@ Audit Log
 | Category changed | "Gym category changed" | "Catégorie de la salle modifiée" |
 
 Labels follow the shipped `audit.actionTypes` style (short, past tense, sentence case). The exact event-code-to-label mapping is settled in each story.
+
+**V1.8 — New action labels *(FR-080 amended by FR-234, FR-236, FR-241, FR-244, FR-246, FR-250)*.** Same short past-tense style. Keys and FR are in the catalog (Group H).
+
+| Event | EN | FR | Details cell |
+|---|---|---|---|
+| Staff check-in | "Member checked in by staff" | « Arrivée d'un membre enregistrée par le personnel » | Time; outcome; "Checked in with a warning" for Expiring Soon and Grace Period |
+| Staff check-in not accepted | "Staff check-in not accepted" | « Arrivée par le personnel refusée » | Reason code in plain words (expired, no paid session, deactivated, …) |
+| Staff check-in voided | "Staff check-in voided" | « Arrivée par le personnel annulée » | Original entry time, reason |
+| Plan corrected | "Plan corrected" | « Formule corrigée » | "Annual → Monthly · 250,000 → 25,000 XAF · expires 02 Nov 2027 → 02 Dec 2026 · Reason: …" |
+| Session validity changed | "Session validity changed" | « Validité de la séance modifiée » | "Whole day → Single use" |
+| Gym challenge set / cancelled | "Gym challenge set" / "Gym challenge cancelled" | « Défi de la salle défini » / « Défi de la salle annulé » | "[Month] · target [N] · reward [text]" / "[Month]" |
+| Class weekly times changed | "Class weekly times changed" | « Horaires du cours modifiés » `[ASSUMPTION — audited, FR-080's spirit]` | Class name; old → new summary; "[N] sessions with bookings left unchanged" |
+| Class cancelled / created by a coach | "Class cancelled" / "Class created" | « Cours annulé » / « Cours créé » `[ASSUMPTION]` | Class name; "[N] bookings cancelled" |
+
+Actor for all of the above: the staff member's display name and role, or "GymOS Support" with role "Support" (Support Identity Rule). A rejected staff attempt by a Receptionist is visible in the log to Manager and above (the page's existing access).
 
 ---
 
@@ -2120,6 +3327,72 @@ are not affected.
 
 **V1.6 — Category *(FR-171, Story 21.2)*.** Owner and Supervisor only. It sits in the Branding (gym profile) block. Label "Category" / "Catégorie". A select of five options showing labels in the user's language: Gym / Salle de sport, Pilates Studio / Studio Pilates, Yoga Studio / Studio Yoga, Fitness Center / Centre de fitness, Other / Autre (user decision 2026-10-11, Story 21.1 pairs canonical). Helper text: "Describes your business. It doesn't change how GymOS works." / "Décrit votre activité. Cela ne change pas le fonctionnement de GymOS." "Other" has no free-text field. Saved by its own [Save category] through `set_gym_category`. It is **not** part of the Save Settings payload. A refusal shows the typed error inline: "Couldn't save the category. Try again." / "Impossible d'enregistrer la catégorie. Réessayez." A no-op save (same value) is disabled.
 
+**V1.8 — Session validity and Gym challenge *(FR-236, FR-239, FR-234; Epics 28, 31)*.** Both sections follow the V1.6 and V1.7 pattern: Owner and Supervisor only (GymOS Support as a Supervisor); absent from the DOM for everyone else; each saves on its own and is **excluded from [Save Settings]** (Architecture Decision AD-32, AD-61). For GymOS Support, saving Session validity and setting or cancelling a Gym challenge raise the existing step-up prompt (SA-21), like other support actions (FR-189; owner decision 2026-11-15).
+
+`[CONFLICT]` with the V1.6/V1.7 hint line "Save applies changes across every section below… except Registration fee, Charge guests per session, Loyalty program, Category, Allow GymOS Support and Landing page, which save on their own." V1.8 adds two more. The hint gains: "…, Session validity and Gym challenge" / « …, Validité de la séance et Défi de la salle ».
+
+**Placement:** Session validity sits **directly under "Charge guests per session"** (the two read as one subject) and above "Loyalty program". Gym challenge sits **after "Loyalty program"**, as the last member-facing section. `[ASSUMPTION — order]`
+
+**Layout:**
+```
+── Charge guests per session ──────────────────────────────────────── V1.6
+Charge guests per session   [ On ● ]
+Pay-per-session members need a paid session to check in or attend a class.
+One session covers one visit.                          ← reads the setting below
+
+── Session validity ───────────────────────────────────────────────── V1.8
+( ) Whole day    A paid session covers every check-in until the end of the day.
+(•) Single use   A paid session covers one visit. A visit ends at check-out,
+                 or 3 hours after check-in, whichever comes first.
+                 A class attended during an open visit uses that visit's
+                 session. Otherwise it uses its own session.
+ⓘ Single use earns loyalty stamps faster: one per paid session. Check your
+  loyalty setting.                                     ← only if loyalty is on
+ⓘ Takes effect when "Charge guests per session" is on. ← only while charging is off
+The change applies to check-ins from now on. A visit already open finishes
+under the old rule, and sessions already used keep their coverage.
+                                              [Save session validity]
+
+── Gym challenge ───────────────────────────────────────────── V1.8 · Could
+A monthly goal for all your members together: visit days in the month.
+The reward is your promise; GymOS doesn't give or pay it.
+
+December 2026  (next month)
+  Target (visit days, all members together) *   [ 1,000 ]
+  Reward *   [ A free smoothie for everyone                    ]   0 / 120
+  Set it before the month starts. Once set, the target and reward can't change.
+                                           [Set challenge for December]
+```
+
+**Session validity (AD-13, new section):**
+- A radio group "Session validity" / « Validité de la séance » with two options and their descriptions (catalog Group D). The default and the value for every existing gym is **Whole day**, so nothing changes until an Owner or Supervisor chooses (FR-236).
+- The "3 hours" in the Single-use description is read from the platform value (Architecture Decision AD-55: `single_use_visit_limit_minutes`, 180), never typed into the string. `[ASSUMPTION — the text is built from the platform value]`
+- **Always editable.** While "Charge guests per session" is off, the section still saves, and an info line states "Takes effect when "Charge guests per session" is on." `[ASSUMPTION — editable so an Owner can prepare; the V1.6 Loyalty section disables inputs when off, but there the inputs would be meaningless, and here the choice is one switch]`
+- **No confirmation dialog** (the Loyalty precedent: inline notes instead). The consequences are written on the screen: "The change applies to check-ins from now on. A visit already open finishes under the old rule, and sessions already used keep their coverage." `[NOTE FOR UX]` The V1.6 charging switch has a both-ways dialog because it is a kill switch with a member-visible effect. Switching to Single use also changes what members pay. If the product owner prefers a dialog, copy the AD-13 charge-guests dialog pattern with the Group D body text.
+- **Loyalty note** shown only when the loyalty program is on and the chosen option is Single use (FR-239).
+- **[Save session validity]**: enabled only when the choice differs from the saved value. Toast "Session validity saved." Audit row "Session validity changed" with "Whole day → Single use".
+- **Errors:** inline, "Couldn't save session validity. Try again." The radio stays where the user left it.
+- **Dependent wording, V1.8:** the **Charge guests per session** helper changes with the setting: Whole day keeps "One session covers the whole day."; Single use reads "One session covers one visit." The turn-on dialog's scope line is unchanged. AD-22's Used column and AD-04's Sessions use the matching wording (see AD-22 and AD-04).
+- **Old member apps:** `[NOTE FOR UX]` V1.6 warned the Owner that old app builds show a refused guest the "expired" screen. Whether a similar warning is needed for Single use (an old build may not understand the visit rule) depends on mobile; not drafted.
+
+**Gym challenge (AD-13, new section, Could: ships only if ready, its absence never holds the release):**
+- **What the section shows** depends on the state of the two months it concerns. At most two lines exist at once, "This month" and "Next month":
+  | State | Shown | Actions |
+  |---|---|---|
+  | No challenge for next month | The form: Month (read-only, the next gym-local month), Target, Reward, the fixed-note, [Set challenge for [Month]] | Set |
+  | Challenge set for next month | "The [Month] challenge is set: [N] visit days. Reward: [text]. It starts on [date]." (read-only) | [Cancel challenge] |
+  | Challenge running this month | "[Month] challenge: [done] / [N] visit days. Reward: [text]." The progress is a count only, never a list of members | [Cancel challenge] |
+  | Target reached this month | The running line plus "Target reached." | [Cancel challenge] stays |
+  | Cancelled (this or next month) | "The [Month] challenge was cancelled. It can't be set again for [Month]." (muted) | none; the form for the **following** month, if any, is not offered until that month is next |
+  | Challenge ended (past month) | Not shown; no history list `[ASSUMPTION]` | — |
+- **Only the next month can be set** `[ASSUMPTION]`: FR-234 says a challenge is created for a month that has not yet started. Offering only the next month keeps one clear rule and one field set: "Month" is text, not a picker. A gym that wants this month's challenge cannot have one (the helper says why).
+- **Target:** whole number of visit days, 1 or more (upper bound `[ASSUMPTION]` 100,000), counted across all the gym's members in the month. **Reward:** free text, 1 to 120 characters; helper "Write what you promise…". The reward line says what it is: the gym's promise. No field, wording or default implies money, a session, a Shield or a loyalty stamp (FR-234).
+- **[Set challenge for [Month]]** opens a confirmation (Escape disabled): "Set the December challenge?" with the exact target and reward and the two consequences, [Back] and [Set challenge]. Because the target and reward cannot be edited afterwards, the dialog is the last chance to correct a typo.
+- **[Cancel challenge]** opens "Cancel the December challenge?" with [Keep challenge] and [Cancel challenge]. Members stop seeing it straight away; the month cannot be given another challenge.
+- **Errors:** "Couldn't save the challenge. Try again."; a stale "…has already started, so a challenge can't be set for it."; "A challenge already exists for [Month]." (two people at once).
+- **Audit:** "Gym challenge set" with month, target and reward; "Gym challenge cancelled" with the month.
+- `[NOTE FOR UX]` Whether the Owner wants a history of past challenges. Not in FR-234; left out for simplicity.
+
 ---
 
 ### AD-16 · Staff — List *(V1.5)*
@@ -2184,7 +3457,7 @@ Role *                [Select role ▾]              ← options are role-ceilin
 
 ### AD-14 · Coach Portal — Member List
 
-**Purpose:** Coach's view of their assigned members only. Coach role only.
+**Purpose:** Coach's view of their assigned members only. Coach role only *(amended V1.8: read-only for Owner, Supervisor and Manager through AD-32)*.
 
 **Layout:**
 ```
@@ -2207,6 +3480,8 @@ Coach Portal
 - No payment, deactivation, or settings actions — absent from the DOM for Coach role
 
 **Empty state:** "No members have been assigned to you yet. Ask your Manager, Owner, or Supervisor to assign members." *(V1.5, Story 9.4: copy amended to include all three roles that can now perform assignment — was "Ask your manager" only, predating the Supervisor role)*
+
+**V1.8:** picker mode for Owner, Supervisor and Manager (read-only, no body or progress data): see the V1.8 picker-mode paragraph at the end of AD-15 and AD-32.
 
 ---
 
@@ -2251,7 +3526,7 @@ Fatima B.  ·  04 Jul 2026, 09:22        [Edit — own notes only]
 
 **Progress tab** *(V1.5, FR-122, Story 10.4)*:
 ```
-[Same weight trend chart + measurements as MA-15, read-only]
+[Same weight trend chart + measurements as MA-15, read-only; amended V1.8: absent in picker mode, AD-32]
 
 Shared Photos
 [thumb] [thumb]                          ← only photos this member has shared with THIS coach
@@ -2281,6 +3556,13 @@ Coach Notes                                           [+ Add note]
 - A plan belongs to exactly one member — there's no "assign to another member" action anywhere on this screen (FR-110)
 - **Coach reassignment / plan handoff** (Story 13.4): if this plan was authored by a previous coach, this coach sees it (read-only) with a banner — "This plan was written by [Previous Coach Name]. Take ownership to make changes." [Take ownership] — until they explicitly take ownership, Edit/reorder controls are disabled, mirroring the V1.0 session-note handoff pattern
 - **Empty state:** "No workout plan yet." + [+ New plan]
+
+**V1.8 — picker mode *(FR-247)*.** Both screens render for Owner, Supervisor and Manager when a coach is chosen in AD-32, with the same columns and layout but **read-only** and **without body or progress data**. AD-32 is the specification of that mode; this paragraph only records the differences so a developer reading AD-14 or AD-15 finds them:
+
+- **AD-14:** the list is the chosen coach's currently assigned members; the empty state is "No members are assigned to [Name]." In picker mode the existing empty-state copy ("Ask your Manager, Owner, or Supervisor to assign members.") is not used.
+- **AD-15:** tabs are **Session Notes** and **Workout Plan** only. The **Progress tab is absent** (not locked, not blurred, not empty). No [+ Add note], Edit, [+ New plan], reorder controls or [Take ownership] banner. The expired bar reads "This member's membership has expired." The line "Body measurements, photos and progress notes aren't shown in this view." sits under the tabs.
+- `[CONFLICT]` with AD-15's Progress tab ("Same weight trend chart + measurements as MA-15") and with AD-04's "Coach Notes tab: Manager/Owner see all coaches' notes": the picker shows no progress data at all, and shows the chosen coach's own notes (see AD-32).
+- For the **Coach role** nothing changes: their own AD-14 and AD-15, including the Progress tab for their assigned members, stay exactly as specified.
 
 ---
 
@@ -2319,11 +3601,13 @@ Coach Portal
 
 **Loading:** 4 skeleton widget cards. Each widget reads a different source; any one failing renders its own error state while the other three still render.
 
+**V1.8:** unchanged for the Coach role. In picker mode (AD-32) there is **no Overview**: it contains "Recent Progress Activity", which FR-247 excludes, and "Needs Follow-Up", which is a coaching instrument rather than a roster. A direct address shows the "This part isn't available in this view…" message (AD-32).
+
 ---
 
 ### AD-21 · Coach Portal — My Classes
 
-**Purpose:** The classes this Coach is assigned to teach, and who is booked into each session. Read-only. Coach role only. *(V2, FR-145.)*
+**Purpose:** The classes this Coach is assigned to teach, and who is booked into each session. Read-only *(amended V1.8: the roster and attendance stay read-only; a Coach creates, edits and cancels own classes, FR-246, see V1.8 below)*. Coach role only *(amended V1.8: Owner, Supervisor and Manager see it read-only through AD-32)*. *(V2, FR-145.)*
 
 **Layout:**
 ```
@@ -2349,14 +3633,33 @@ Coach Portal
 - **The class list, sessions and booked counts are served by a `SECURITY DEFINER` function, `list_my_classes()`, returning aggregates only — no member identity.** A Coach has no RLS read on `class_bookings`, so counts cannot come from plain reads. Times are shown in the gym's timezone, 24-hour *(amended 2026-09-10, Story 17.4)*
 - Per session: the booked-member roster — name and attendance status only
 - **The roster is served by a `SECURITY DEFINER` RPC returning exactly `(member_id, member_name, attended_at)`.** It cannot be built from plain RLS reads: a Coach's `members` access is limited to their *assigned* members, and most people booked into a class are not their coaching clients, so a direct read would render blank names. The RPC also avoids exposing member phone numbers, which a row-level widening would have handed over
-- **No write controls anywhere on this screen** — no create, edit, reschedule, or mark-attendance action, absent from the DOM rather than disabled. Class creation/editing is Manager/Supervisor/Owner (AD-19); class attendance is Receptionist-and-above. `attended_at` is displayed as read-only status
+- **No write controls anywhere on this screen** *(amended V1.8: now applies to class attendance and to classes that are not the Coach's own; a Coach creates, edits and cancels own classes, see V1.8 below)* — no create, edit, reschedule, or mark-attendance action, absent from the DOM rather than disabled. Class creation/editing is Manager/Supervisor/Owner (AD-19); class attendance is Receptionist-and-above. `attended_at` is displayed as read-only status
 - A Coach reaches a roster only for a session belonging to one of their own classes; another coach's session, another gym's session, and a deactivated Coach all return empty
 
-**Empty state:** "You are not assigned to any classes yet. Your manager schedules classes and assigns a coach."
+**Empty state:** "You are not assigned to any classes yet. Your manager schedules classes and assigns a coach." *(amended V1.8: replaced by the empty state in V1.8 below)*
 
 **Loading:** 3 skeleton class rows.
 
 **V1.6 *(FR-174)*:** no change. The roster stays read-only with no mark control, so a Coach can never mark a charging-gym guest attended.
+
+**V1.8 — a Coach creates, edits and cancels own classes *(FR-246; Epic 29)*.** `[CONFLICT]` with AD-21's Purpose "Read-only", its Components line "**No write controls anywhere on this screen** — no create, edit, reschedule…", and the sidebar sentence "a Coach… cannot create or edit a class". Those lines now apply only to **class attendance** and to every class that is not the Coach's own. A Coach still cannot mark attendance, cannot assign another coach, and cannot reach AD-18 (the admin Classes page stays closed to the Coach role).
+
+**Layout (changes only):**
+```
+Coach Portal
+[ Overview ] [ My Members ] [ My Classes ]                       [+ Create class]
+┌────────────────────────────────────────────────────────────────────────────┐
+│ HIIT Circuit   Mon 18:00 · Wed 18:00 · Fri 18:00   Capacity 15   [Edit] [Cancel class] │
+│  ▾ Fri 12 Sep · 18:00                                         11/15 booked │
+│      Amara K.          ✓ attended   (read-only)                            │
+```
+
+- **[+ Create class]** (page action, Coach role only): opens AD-19 in Coach mode. On save the class appears in this list, and (as for any class) in AD-18 for Receptionist and above, and in the member app's class list.
+- **[Edit] and [Cancel class]** per class row: shown only for classes whose coach is the signed-in Coach (every row on this page, since the list is the Coach's own). The **roster and attendance stay read-only**: no mark-attendance control, no checkbox, no booking add or remove.
+- **Edit** opens AD-19 in Coach mode with the weekly-times editor and the left-unchanged result view; **Cancel class** opens the Cancel class dialog (AD-18).
+- **Empty state** *(replaces the Components empty line)*: "You don't have any classes yet. Create one, or ask your manager to assign you to a class." with [+ Create class] (`classes.coach.empty`). `[CONFLICT]` with "You are not assigned to any classes yet. Your manager schedules classes and assigns a coach."
+- **Picker mode:** the same list for another coach, **read-only**: no [+ Create class], [Edit] or [Cancel class] (AD-32).
+- **Loading and errors:** unchanged. A failed create or edit shows the AD-19 inline errors; a Coach whose own-class check fails server-side (a stale tab after reassignment) sees "You can only change your own classes."
 
 ---
 
@@ -2400,6 +3703,11 @@ Paid — grouped by: [ Recorded by ▾ | None ]
 
 **Loading:** 6 skeleton rows. **Error:** page-level error with [Refresh], as for AD-03.
 
+**V1.8 *(FR-237, FR-239, FR-249; Epics 27, 28)*:**
+- **Blocked attempts → Source** gains the value **"Desk check-in"** / « Arrivée à l'accueil » (a rejected staff check-in for a Pay-per-session member with no usable session, AD-30 R5), beside "Check-in" and "Class: [name]". `[ASSUMPTION — label]`
+- **Paid → Used column:** reads "covered day" (Whole day), "visit [date], [time]" (Single use) or "class [name], [date]" (class), by how the session was used. Counts stay "consumed sessions" under either setting (FR-239).
+- No other change.
+
 ---
 
 ### AD-23 · Plans *(shipped; documented V1.6 with the FR-173 plan-type lock)*
@@ -2422,6 +3730,15 @@ Plans                                                     [+ Add Plan]
 - **Pay-per-session price label:** "Price per session (XAF) *" / "Prix par séance (XAF) *". In the list, the row reads "XAF 2,000 / session" / "XAF 2 000 / séance" instead of the shipped "/ monthly", since the price is now a real per-visit charge. When editing the price of a Pay-per-session plan that has subscriptions, a helper reads "Changing the price doesn't affect sessions already paid." / "Modifier le prix ne change pas les séances déjà payées."
 - **Price 0:** for Pay-per-session, a helper reads "At 0 XAF, members on this plan never need a paid session." / "À 0 XAF, les membres de cette formule n'ont jamais besoin de séance payée." (FR-156 exemption).
 - Type and price changes are saved through `update_plan_pricing`. Every change is audited ("Plan type or price changed", AD-12).
+
+**V1.8 — annual plan wording *(FR-240; Epic 27)*.** The first gym found the annual flow unclear. An annual plan is a plan with an **annual billing interval**: the member pays the whole price **once**, and the subscription runs for the plan's duration. A monthly plan and an annual plan are two separate plans. **Paying an annual plan in instalments is not supported in V1.8.** The dashboard now says so in plain words wherever an annual plan is described.
+
+- **List row, annual interval:** "XAF 250,000 · 365 days · Paid once" / « 250 000 XAF · 365 jours · Payé en une fois », in place of the shipped "/ monthly" suffix, with the duration shown as the second figure. When the plan carries an annual discount, a muted second line "Includes 15% annual discount" / « Dont 15 % de remise annuelle ». The monthly row keeps "XAF 25,000 / monthly · 30 days" as shipped; the Pay-per-session row keeps "XAF 2,000 / session".
+- **The summary line** "[price] XAF · [duration] days · Paid once" is **one reusable line** used in: the AD-23 list, the PlanModal helper, every plan select in the dashboard (AD-05, the Inline Renewal Panel, and the AD-31 Correct plan select) and the plan name area of the AD-04 modal. A developer builds it once.
+- **PlanModal, when Billing Interval is Annual:** under the Billing Interval field, helper text "Members pay the full price once. The plan then runs for [D] days. Renewing is a new payment." (with [D] from the Duration field; before it is filled, "…for the duration below."), then "To let members pay monthly, create a separate monthly plan. Paying an annual plan in instalments isn't available."
+- **Annual discount field** (existing): its helper stays; the discount is part of the price shown on the card ("Includes [x]% annual discount").
+- `[ASSUMPTION]` A plan's duration is not changed when the interval is switched. `[NOTE FOR UX]` Whether choosing Annual should pre-fill Duration with 365; a pre-fill could overwrite a deliberate number, so it is not drafted.
+- `[NOTE FOR UX]` The same wording ("Paid once") may belong in PS-01's plan details and the MA-13 member plan screen. FR-240 says "on the dashboard"; the public page and the app are not changed by this block.
 
 ---
 
@@ -2790,7 +4107,7 @@ payments, private plans.
 
 **AD-13 · Settings — sections and hint *(Architecture Decision AD-32 pattern)*.**
 - New rows in order: after "Payment Account": **GymOS Support** (AD-24); after "Staff": **Landing page** `status badge + [Open →]` (AD-27).
-- `[CONFLICT]` with the V1.6 hint line "Save applies changes across every section below… except Registration fee, Charge guests per session, Loyalty program and Category, which save on their own." That list is closed and V1.7 adds two more sections that also save on their own. The hint gains: "…, Allow GymOS Support and Landing page" / « …, Autoriser le support GymOS et Page publique ». The Landing page has its own page; its row on AD-13 has no inputs.
+- `[CONFLICT]` with the V1.6 hint line "Save applies changes across every section below… except Registration fee, Charge guests per session, Loyalty program and Category, which save on their own." That list is closed and V1.7 adds two more sections that also save on their own. The hint gains: "…, Allow GymOS Support and Landing page" / « …, Autoriser le support GymOS et Page publique ». The Landing page has its own page; its row on AD-13 has no inputs. *(amended V1.8: the hint also gains "…, Session validity and Gym challenge" / « …, Validité de la séance et Défi de la salle », see AD-13 V1.8)*
 - Staff row's "[N] staff members" count **excludes** support (FR-188), so the Owner never sees a number that includes GymOS.
 
 **AD-16 · Staff — fixed row, tag and empty state *(FR-182, FR-181, FR-188)*.**
@@ -2798,6 +4115,197 @@ payments, private plans.
 - **Tag on staff rows** created or edited by support: a small pill "Created by GymOS Support" / « Créé par GymOS Support » (or "Edited by GymOS Support" / « Modifié par GymOS Support »), `neutral`, with a `{colors.info}` "To review" / « À vérifier » badge while the AD-25 flag is open. Never colour alone: text plus icon.
 - `[CONFLICT]` with AD-16 Components "Row click → inline expand… with Edit and Deactivate" and with the Empty state "No staff yet…": the fixed row has no click behavior, and the empty state now renders **under** the fixed row. The table is never empty. The "N staff" header count and the V1.5 staff cap exclude the fixed row (FR-188).
 - Staff Add/Edit (AD-17): Role dropdown never offers "Support" (FR-178); the Role-ceiling rules are unchanged.
+
+---
+
+### AD-30 · Check in a member *(V1.8, FR-248–FR-250, Epic 27, modal on AD-11)*
+
+**Purpose:** The desk checks a member in when they cannot use their phone at the entrance: no smartphone, a dead battery, an app problem. Every member still has a required phone number (FR-020); this is not a way around it and not a new member path. It creates the same attendance record as a scan, marked as entered by staff. Receptionist and above (Receptionist, Manager, Supervisor, Owner), and GymOS Support behind the second factor (FR-251). Absent from the DOM for Coach.
+
+**Entry:** the page action [Check in a member] / [Enregistrer l'arrivée d'un membre] on AD-11, in the page header on the right. It is the only entry point.
+
+**Layout, step 1 (find and choose):**
+```
+Check in a member                                               [✕]
+For a member who can't use their phone at the entrance.
+
+Find a member by name or phone
+[🔍 Ange                                          ]
+Type at least 2 letters or 3 digits.
+
+┌─────────────────────────────────────────────────────────────────┐
+│ ( ) [Av] Ange T.   +237 6 70 11 22 33   Drop-in    [Active]      │
+│ (•) [Av] Ange M.   +237 6 55 44 33 22   Monthly    [Expiring soon]│
+│                                         In the gym since 06:40   │
+└─────────────────────────────────────────────────────────────────┘
+Entry time: now (07:02). It can't be changed.
+
+                                       [Cancel]  [Check in Ange M.]
+```
+
+**Components (step 1):**
+- **Search field:** auto-focused on open; matches name (contains, accent-insensitive) and phone (digits, any country-code form) within this gym only; 300 ms debounce, as AD-03. Needs 2 letters or 3 digits before it queries (helper under the field). `[ASSUMPTION — thresholds]`
+- **Results:** at most 8 rows, sorted by name; if more match, the line "Showing the first 8. Type more to narrow the list." Each row is one radio option (a `radiogroup`) with avatar (initials fallback), name, full phone number (as AD-03 shows it to the same roles, so two members with the same name can be told apart), plan name and the **member status badge** (Active, Expiring Soon, Grace Period, Expired, Deactivated; same colours as AD-03). A member already inside shows the muted tag "In the gym since [time]" under the row. The row stays selectable; the server decides (state "Already checked in"). `[ASSUMPTION — a Pay-per-session member's row shows the plan name only, never a session count; the session is checked on confirm]`
+- **Entry time line:** plain text, "Entry time: now ([time]). It can't be changed." There is **no time field and no date field**: the time is the time of entry; it cannot be set to the past or the future (FR-248). The displayed time updates each minute and is for information only; the server stamps the actual time.
+- **[Check in [Name]]:** the primary button, disabled until a row is chosen, labelled with the action and the chosen name (Accessibility Floor: confirm buttons are named by action). One tap checks in; there is no second confirmation dialog because the button already names the person and a wrong entry can be voided the same day (Manager and above) `[ASSUMPTION — no extra confirm step; the name on the button and the phone on the row are the guard]`.
+- **[Cancel] / [✕]:** closes the modal; nothing is recorded.
+
+**Result states (step 2).** The modal body is replaced by one result panel, with the member's avatar and name above it. Every result is the server's answer; the client does not predict it. A result panel has an icon, a label, a colour token and a text, never colour alone. The staff member is the only audience, so copy says what happened and the next step.
+
+| # | Result | Colour, icon, live region | EN text (key) | Actions | Recorded |
+|---|---|---|---|---|---|
+| R1 | Checked in, Active | `success`, check circle, `role="status"` | "[Name] is checked in at [time]." (`attendance.checkIn.ok`) | [Check in another member] [Done] | Attendance row, source staff, entered by this user; audit "Member checked in by staff" |
+| R2 | Checked in, Expiring Soon | `warning`, check circle with warning line, `role="status"` | "Checked in at [time]. [Name]'s membership expires on [date]." (`…okExpiring`) | [Renew now] (opens the Inline Renewal Panel inside the modal) [Check in another member] [Done] | As R1 |
+| R3 | Checked in, Grace Period | `warning`, same | "Checked in at [time]. [Name]'s membership expired on [date]; the grace period ends on [date]." (`…okGrace`) | As R2 | As R1 |
+| R4 | Not checked in, Expired | `danger`, block icon, `role="alert"` | "Not checked in. [Name]'s membership expired [N] days ago." (`…rejectedExpired`; "today" variant) + "Renew the membership to let them in." | [Renew now] [Check in another member] [Done] | **No attendance.** Audit "Staff check-in not accepted" with the outcome. No front-desk alert |
+| R5 | No paid session | `info`, ticket icon, `role="alert"` | "[Name] has no paid session." + "Record [amount] XAF at the desk and [Name] is checked in straight away." (`…sessionNeeded`, `…sessionNeededHelp`) | [Record payment and check in] [Check in another member] [Done] | No attendance until the payment is recorded; a blocked-attempt row (`source` staff) and an audit row |
+| R6 | Completed after renewal or payment | `success`, as R1, `role="status"` | "Membership renewed. [Name] is checked in at [time]." or "Session recorded. [Name] is checked in at [time]." | [Check in another member] [Done] | Payment (via the shared panel) then attendance, as R1 |
+| R7 | Already checked in | `warning`, clock icon, `role="status"` | "[Name] is already checked in (since [time])." (`…alreadyIn`) | [Check in another member] [Done] | Nothing; no cost; no audit row `[ASSUMPTION — a no-op is not audited]` |
+| R8 | Refused: Deactivated / Awaiting registration fee / No plan | `neutral`, info icon, `role="alert"` | "[Name] is deactivated. Reactivate them first." / "Settle [Name]'s registration fee first." / "[Name] has no plan yet. Assign a plan first." | [Check in another member] [Done]; a text link "Open [Name]" to AD-04 where the staff role can act | No attendance; audit as R4 `[ASSUMPTION — the same refusals a scan would give; neutral, not red, because red means expired]` |
+| R9 | Refused: gym suspended | `danger`, `role="alert"` | "Check-ins can't be recorded while the gym is suspended." | [Done] | None (existing suspended pattern governs the rest of the app) |
+| R10 | Partly done | `warning`, `role="alert"` | "The session for [Name] was recorded, but the check-in didn't complete. Try again. Nothing is charged twice." (or the renewal variant) | [Check in [Name]] (retries only the check-in) [Done] | The payment stands; no attendance yet |
+| R11 | Network failure | `danger`, `role="alert"`, inline above the buttons, modal stays on step 1 | "Couldn't check in [Name]. Check your connection and try again." + "Not sure it went through? Search for [Name] again: a member who is in shows "In the gym since…"." | [Check in [Name]] stays enabled | Unknown on the client; the server's one-open-check-in rule makes a retry safe |
+| R12 | Offline | neutral text under the field, `role="status"` | "You're offline — you can't check anyone in right now." | The confirm button is disabled and the reason is visible beside it | None |
+
+**Rules behind the results** (they are the same as a scan, FR-249):
+- **Expired is rejected; expiring and grace are accepted with a warning.** A staff check-in uses the same status calculation as a scan; the dashboard never computes it.
+- **Pay-per-session at a gym with "Charge guests per session" on** needs a usable session under the gym's Session validity (AD-13). When there is none (R5), the staff member records the desk payment in place and the check-in then completes (R6). At a gym with charging off, or a Pay-per-session plan priced 0, a Pay-per-session member is checked in with no payment step (R1).
+- **In place, not elsewhere:** [Record payment and check in] opens the **Record Session Payment Panel** inline under the result panel as an expanding section inside the modal at every width (the way it sits inside the AD-04 modal, not as the tablet drawer, because a drawer would stack on a modal), with the same fixed amount and the same refusals ("A mobile money payment for [Name] is already in progress…" and the rest of its table). On success the modal does not close and does not show the payment toast; it shows R6 straight away, because the check-in follows the payment automatically. [Renew now] does the same with the **Inline Renewal Panel**; on success the check-in completes automatically and R6 shows. A renewal made from an Expired result completes the check-in automatically, without a further tap, like the desk payment (owner decision 2026-11-15).
+- **No separate front-desk alert.** A staff check-in, accepted or rejected, never raises a Front-Desk Alert Panel entry (FR-249): the staff member sees the outcome here. The existing alerts for member scans are unchanged.
+- **Occupancy and the member's app.** An accepted staff check-in counts toward occupancy, appears in the member's History, and counts for streaks, calendar and leaderboard like any visit (FR-248). Nothing is shown about that in this modal.
+- **Check-out** is unchanged and stays on AD-11 ([Check Out] per row).
+- **One at a time, many in a row.** After R1 to R3, R6 or R7 the modal stays open on [Check in another member], which returns to step 1 with an empty search and focus in the field, so a morning queue of three is three searches in one open modal. [Done] closes it.
+
+**Audit:** every staff check-in and every rejected staff attempt is one AD-12 row: Actor = the staff member (or "GymOS Support"), Action "Member checked in by staff" or "Staff check-in not accepted", Target = the member, Details = time and outcome (and the reason code for a rejection).
+
+**Support Identity Rule:** a support person's staff check-in shows the staff name as **"GymOS Support"**, role "Support", in the Entry column, the void text and the audit row. Never a name, initials or count. A support person's staff check-in raises the existing step-up prompt (SA-21) first, like other support actions (FR-189; owner decision 2026-11-15).
+
+**Loading:** the search shows 3 skeleton rows after the debounce; the confirm shows a spinner in the button and disables it (a second tap cannot create a second request).
+
+**Error:** field-level search failure: "Couldn't search members. Try again." with [Retry] (reuse the AD-03 pattern). Check-in failures are R11.
+
+`[NOTE FOR UX]` Whether a result can offer [Check out] when the member is already inside (R7) for the case "they are leaving and the scan was never done". AD-11's Currently Checked-In table already has [Check Out], so R7 points there in words only ("See the list under the modal"); not drafted as a button to keep the modal single-purpose.
+
+---
+
+### AD-31 · Correct Plan *(V1.8, FR-241–FR-243, Epic 27, modal on AD-04)*
+
+**Purpose:** Fix a plan chosen by mistake on a member's **current subscription**. It is a correction, not a renewal and not an upgrade. Owner, Supervisor and Manager (the roles that assign plans), and GymOS Support as a Supervisor (FR-251). Absent from the DOM for Receptionist and Coach.
+
+**Entry:** [Correct plan] / [Corriger la formule] in the AD-04 View-mode header, between [Edit] and [Deactivate] (Manager and above). It is shown when the member has a current subscription, and absent from the DOM otherwise (the initial-assignment action stays the way to give a member a first plan). `[ASSUMPTION — shown for any member with a current subscription, including a deactivated one]`
+
+**Layout, form state:**
+```
+Correct plan                                                     [✕]
+Ange T.
+
+Use this when the wrong plan was chosen. It isn't a renewal: no payment
+is recorded, no notification is sent and no loyalty stamp is earned.
+
+Current plan   Annual · 250,000 XAF · 365 days · Paid once
+               Started 02 Nov 2026 · Expires 02 Nov 2027
+
+New plan *     [Choose a plan                                     ▾]
+Reason *       [For example: wrong plan chosen at sign-up          ]
+                                                              0 / 300
+
+The new expiry is counted from the start date (02 Nov 2026), not from today.
+ⓘ Ange T.'s app shows the new plan the next time it opens.
+  The registration fee is not affected.
+
+                                         [Cancel]  [Correct plan]
+```
+
+**Components:**
+- **Opening check.** On open the modal asks the server whether any payment on the current subscription still stands, and shows a skeleton plus "Checking payments…" meanwhile. If something stands, the **refusal state** (below) replaces the form straight away, so nobody types a reason for an action that cannot happen. `[ASSUMPTION — the server exposes a read-only eligibility check. Without it, the refusal appears only on submit and the layout below is otherwise unchanged. The server check on submit is authoritative in both cases (Architecture Decision AD-59).]`
+- **Current plan block:** read-only: plan name, price, duration, "Paid once" on an annual plan (the Plans summary line, AD-23), the subscription's **start date** and expiry.
+- **New plan:** a select of this gym's active plans **except the current one**, each as the plan summary line ("Monthly · 25,000 XAF · 30 days", "Annual · 250,000 XAF · 365 days · Paid once", "Drop-in · 2,000 XAF per session"). If there is no other plan: "There is no other plan to choose. Add a plan in Plans first." with a link to AD-23, and no form fields.
+- **Reason:** required; a multi-line field, 5 to 300 characters; counter. Blank blocks the button.
+- **Rule line:** "The new expiry is counted from the start date ([date]), not from today." always visible, so a start date in the past is not a surprise. There is no read-only preview of the new expiry in V1.8 (owner decision 2026-11-15): the rule is stated here, and the success state shows the result, including when the new status is expired.
+- **Notes:** "[Name]'s app shows the new plan the next time it opens." and "The registration fee is not affected." (FR-243, FR-242 assumption).
+- **[Correct plan]:** primary, disabled until a plan and a valid reason are present; labelled with the action. Not a destructive confirmation, so no second dialog and Escape closes the modal (an unsaved reason is lost; no draft is kept).
+
+**Refusal states** (the modal's body is replaced by a `neutral`-bordered message with an info icon, no red, because the staff member did nothing wrong; `role="alert"`; the only actions are the named link and [Close]). Each names what blocks it and says what to do (FR-242):
+
+| # | Refusal | EN text (key) | Actions |
+|---|---|---|---|
+| F1 | A verified payment stands | "Can't correct the plan yet. The payment of 250,000 XAF on 10 Nov (Cash) is still recorded. Refund it fully first, then correct the plan." (`blocked.lead` + `blocked.verified`) | [Open payments] (AD-09 filtered to this member), [Close] |
+| F2 | A payment awaits verification | "…The payment of 250,000 XAF on 10 Nov (Cash) is awaiting verification. Refund it fully first, or wait until it settles, then correct the plan." (`blocked.pending`) | As F1 |
+| F3 | A Tara Money payment is in flight | "…The mobile money payment of 250,000 XAF started on 10 Nov is still in progress. Wait for it to settle. If it goes through, refund it fully, then correct the plan." (`blocked.inFlight`) | As F1 |
+| F4 | A payment is only partly refunded | "…The payment of 250,000 XAF on 10 Nov (Cash) is only partly refunded (100,000 XAF of 250,000 XAF). Refund the rest first, then correct the plan." (`blocked.partlyRefunded`) | As F1 |
+| F5 | More than one payment stands | The message names the **most recent** standing payment, then one extra line "+ [N] more payments on this plan are still recorded." (`blocked.more`) `[ASSUMPTION — name the most recent, count the rest]` | As F1 |
+| F6 | Unused paid session, to or from Pay-per-session | "Can't move [Name] to or from Pay-per-session while an unused paid session is held. Refund it first, or wait until it is used or lapses ([date])." (`refused.sessionHeld`; date = the soonest lapse) | [Open payments], [Close] |
+| F7 | Already on that plan (stale) | "[Name] is already on this plan." | Back to the form with the field marked |
+| F8 | No current subscription (stale) | "[Name] has no current plan to correct." | [Close] |
+| F9 | Chosen plan deleted meanwhile | "That plan is no longer available. Choose another." | Back to the form, the select refreshed |
+| F10 | The subscription changed meanwhile (a renewal or another correction) | "This member's plan changed while you were working. Close this window and open the member again." | [Close] |
+| F11 | Network | "Couldn't correct the plan. Check your connection and try again." inline above the buttons; the modal stays on the form | [Correct plan] stays enabled |
+| F12 | Permission lost (role changed, support access ended) | The global "You don't have permission to do that." | [Close] |
+
+F1 to F6 are the refusals the sources require. F7 to F10 are the stale-state refusals every write needs; copy is `[ASSUMPTION]`. A subscription with **no payment record** (an imported member, a payment-less renewal override) goes straight to the form; its "Started" date is the recorded start date. A voided or fully refunded payment does not block, and is not mentioned.
+
+**Success state:** the modal closes; AD-04 refreshes in place (Plan, Expiry, status badge, Subscription started unchanged); toast `members.correctPlan.success` showing the new expiry and status: "Plan corrected. Ange T. is now on Monthly; expires 02 Dec 2026 · Active." (Pay-per-session target: "Plan corrected. Ange T. is now on Drop-in."; if the new status is expired, `members.correctPlan.successExpired`: "Plan corrected. Ange T. is now on Monthly. The new expiry, 02 Oct 2026, is already past: the membership is expired."); focus returns to the [Correct plan] button. The member's current subscription keeps its start date; attendance, sessions, stamps, streaks and badges are untouched (FR-243).
+
+**Audit line** (AD-12): Actor = the staff member (or "GymOS Support"), Action "Plan corrected" / « Formule corrigée », Target = the member, Details = "Annual → Monthly · 250,000 → 25,000 XAF · expires 02 Nov 2027 → 02 Dec 2026 · Reason: Wrong plan chosen at sign-up". Both plans, both prices, both expiries and the reason are in the one row (FR-241).
+
+**Support:** a support person has the action as a Supervisor does, behind the second factor. GymOS Support's V1.8 staff actions (staff check-in in AD-30, Void in AD-11, Correct plan, Session validity and Gym challenge in AD-13) raise the existing step-up prompt (SA-21) like other support actions (FR-189; owner decision 2026-11-15). For this screen the prompt's bound-action line reads "You're about to: Correct plan for [Name]" and the confirm label is [Correct plan].
+
+**Loading:** skeleton block plus "Checking payments…". **Error (load):** "Couldn't check this member's payments. Try again." with [Retry] (reuse the AD-03 pattern); the form is not shown.
+
+---
+
+### AD-32 · Coach Portal — Coach Picker *(V1.8, FR-247, Epic 29, read-only)*
+
+**Purpose:** The Owner, Supervisor or Manager opens the Coach Portal, chooses one coach of their gym, and sees what that coach sees: the coach's classes and class lists, and the coach's assigned members with profile, session notes and authored workout plans. **Read-only. Body and progress data are never shown through this view** (FR-247, FR-095, NFR-011, NFR-016; OQ-34). Receptionist, Coach and GymOS Support have no picker. The picker is limited to the staff member's own gym.
+
+**Layout:**
+```
+Coach Portal
+Coach  [Emmanuel T.            ▾]        ⓘ You're viewing Emmanuel T.'s Coach Portal. Read-only.
+[ Classes ] [ Members ]
+
+(Classes tab: AD-21 layout, read-only)
+┌────────────────────────────────────────────────────────────────┐
+│ HIIT Circuit   Mon 18:00 · Wed 18:00 · Fri 18:00  Capacity 15   │
+│  ▾ Fri 12 Sep · 18:00                             11/15 booked  │
+│      Amara K.          ✓ attended                               │
+│      Jean B.           —                                        │
+│                                         [Open in Classes →]     │
+├────────────────────────────────────────────────────────────────┤
+│ Stretching     Tue 12:30                          Capacity 10   │
+└────────────────────────────────────────────────────────────────┘
+
+(Members tab: AD-14 layout, read-only; a row opens AD-15 in picker mode)
+```
+
+**Components:**
+- **Coach select:** a single control, label "Coach" / "Choose a coach", listing **this gym's active Coach-role staff** by name (the same source as the AD-19 coach dropdown). `[ASSUMPTION — active coaches only; becomes a type-ahead combobox from 10 coaches]`. The choice is carried in the URL (`?coach=<id>`) so back, refresh and a shared link keep it. `[ASSUMPTION — query parameter]` Changing the coach reloads the current tab for the new coach and keeps the tab. With exactly one coach in the gym the select is pre-set to them `[ASSUMPTION]`.
+- **Read-only banner:** always visible under the select while a coach is chosen: "You're viewing [Name]'s Coach Portal. Read-only." A `neutral` border with an eye icon, not `info` (nothing is waiting for the viewer to act, and `info` means a recoverable action). It is not dismissible.
+- **Portal sub-navigation in picker mode:** **Classes** and **Members** only, in that order. Default tab: Classes `[ASSUMPTION]`. There is no Overview (it contains recent progress activity, which FR-247 excludes) and no Progress tab on a member. See "No body data" below.
+- **Classes tab = AD-21 in read-only mode:** the chosen coach's classes, their sessions from 00:00 today onward, booked counts, and per session the roster (name and attendance status only), served by the same server-side functions as the coach's own view but with the coach as a parameter (Architecture Decision AD-58). **No** [+ Create class], [Edit] or [Cancel class] (absent from the DOM; this view never writes). Each class row has a text link [Open in Classes →] to AD-18 for Manager, Supervisor and Owner, where editing already lives. A Manager is not blocked from editing in AD-18; this view simply does not.
+- **Members tab = AD-14 in read-only mode:** the coach's currently assigned members, same columns (Name, Plan, Status badge, Expiry, Last note snippet), search and sort. A row opens AD-15 in picker mode (same route with `?coach=`).
+- **AD-15 in picker mode:**
+  - Header: avatar, name, status badge, plan, expiry, goal, experience, phone (the profile the coach sees today). `[ASSUMPTION — goal and experience level are profile, not body data]`
+  - The amber "This membership has expired. Contact your receptionist." bar is re-worded for this viewer: "This member's membership has expired." (it is not addressed to a coach).
+  - Tabs: **Session Notes** and **Workout Plan** only.
+  - **Session Notes (read-only):** the chosen coach's notes about this member, newest first, each with author and time. No [+ Add note], no Edit, no hover affordance. The picker shows the chosen coach's own session notes only (owner decision 2026-11-15). The Owner and Manager can already read every coach's notes in AD-04, so nothing is withheld from them.
+  - **Workout Plan (read-only):** the ordered exercise list with sets, reps and notes, and the line "Workout plan written by [Name]" when the plan's author is not the chosen coach. No [Edit], no [+ New plan], no drag handle or Move up/down, no [Take ownership] banner, and **no completion or progress marks** of any kind (plan completion data is excluded, FR-247).
+  - Under the tabs, one persistent line (`neutral` icon): "Body measurements, photos and progress notes aren't shown in this view."
+- **No body data: the explicit states.**
+  1. The persistent line above on every member page in picker mode.
+  2. A direct address of an excluded part (a bookmarked `/coach/overview?coach=…`, or a member's Progress tab address): the page shows one message in place of the content, `role="status"`: "This part isn't available in this view. Body measurements, photos, progress notes and progress activity are never shown here." with links [Classes] and [Members].
+  3. The picker never shows a count, a chart, a thumbnail, a "last logged" date or a "no data yet" placeholder for any body or progress item, so a viewer cannot infer whether a member logs data.
+- **Not assigned (any more):** a member address whose member is not currently assigned to the chosen coach shows "[Member] isn't assigned to [Coach]." with [Back to members]; it never shows the profile. A coach who is not in this gym, or is not a coach, shows "That coach isn't available. Choose another." and clears the select. A coach who was deactivated: "[Name] is no longer a coach at this gym." (reached only by a stale link). All are the server returning nothing; the UI never reveals more.
+- **No coaches:** "Your gym has no coaches yet. Add a coach in Staff." with a link to AD-16 for Owner and Supervisor; for Manager, who cannot reach Staff: "Your gym has no coaches yet. Ask an Owner or Supervisor to add one."
+- **Nothing chosen:** "Choose a coach to see their classes and members." with the select focused. No coach's data loads before a choice.
+
+**Empty states:** Classes tab "[Name] has no classes yet." Members tab "No members are assigned to [Name]." Search with no match: the AD-14 copy.
+
+**Role visibility:** Owner, Supervisor, Manager see the picker. Receptionist and GymOS Support: the route returns the global "You don't have permission to do that." and the sidebar item is absent. Coach: sees their own portal with no picker, no banner and no `?coach=` (a typed parameter is ignored; their own id is resolved server-side).
+
+**Audit:** none. Viewing is not a write and the same people can already read this data in AD-04 and AD-18. `[NOTE FOR UX]` Whether opening another person's coach view should be logged (read access to session notes). Not required by FR-247; flagged because notes are personal.
+
+**Loading:** the select renders first; below it 3 skeleton class rows or 6 skeleton member rows. Each tab fails on its own with a page-level error and [Refresh], as AD-03.
 
 ---
 
@@ -3292,7 +4800,7 @@ This code works for this action only, for 5 minutes.
 - **Wrong code:** inline "That code didn't work. Wait for the next code and try again." Attempts are counted by the server and repeated failures lock the account (see SA-01); the count is never shown. On lock the prompt closes and the lock message of SA-01 shows.
 - **Expired session while open:** the prompt closes into the session-expired state of SA-01; the pending action is not performed.
 - **Which Super Admin actions require it:** `[ASSUMPTION — remove account, reset second factor, take down, force rename, remove authenticator]`. `[NOTE FOR UX]` the sources fix the support actions (payment-connection change, refund, staff creation, FR-189) but do not list the Super Admin ones; decide the list.
-- **Which dashboard actions for support:** the three above. **Owner and other roles never see this prompt.**
+- **Which dashboard actions for support:** the three above *(amended V1.8: plus staff check-in in AD-30, Void in AD-11, Correct plan in AD-31, Session validity and Gym challenge in AD-13, FR-189)*. **Owner and other roles never see this prompt.**
 
 ---
 
@@ -3583,6 +5091,22 @@ Category:  All · Gym · Pilates Studio · Yoga Studio · Fitness Center · Othe
 
 **Rewards card *(V1.6)*:** a `flat` Card on Home grouping Loyalty Progress and Session Chips. Behaviour and copy are in MA-09. It never takes the `raised` treatment.
 
+**Goal Ring *(V1.8, `{components.goalRing}`)*:** a read-only progress display with N equal arc segments for a weekly goal of N (1 to 7). Filled segments `{colors.accent}`; complete: all `{colors.success}` plus a check glyph; empty: `border`. The centre "[visits] / [goal]" is `statNumeral`. It has no tap action of its own (the card around it does). Its accessible label is a sentence, not the arcs.
+
+**Streak Chip *(V1.8, `{components.streakChip}`)*:** an Icon Chip plus one `smallBold` line. The weekly variant is the main streak and uses the larger chip; the daily variant (Could) is compact. A streak chip is never rendered at a value of 0; the substitutes are the first-week line, the comeback card, or nothing.
+
+**Shield Chip *(V1.8, `{components.shieldChip}`)*:** Icon Chip glyph `shield` plus a count. Not rendered at 0. Tappable (explainer sheet). Held, used and earned states are communicated by words in notices, not by colour.
+
+**Calendar Day Cell *(V1.8, `{components.calendarDayCell}`)*:** the states in MA-18. Shape or glyph always accompanies colour.
+
+**Leaderboard Row *(V1.8, `{components.leaderboardRow}`)*:** rank, neutral Icon Chip (never a photo), label, visits. The member's own row carries the word "You" and a 2pt accent border. No special treatment for any rank.
+
+**Badge Tile *(V1.8, `{components.badgeTile}`)*:** earned and locked per MA-21.
+
+**At-Risk Pulse *(V1.8, `{components.atRiskPulse}`)*:** a short, bounded outline pulse with a static fallback, always with the glyph and words next to it.
+
+**Celebration Overlay *(V1.8, `{components.celebrationOverlay}`)*:** the MA-20 card and its motion. Used only by MA-20.
+
 ### Front-Desk Alert Panel
 
 Appears on AD-02 (Overview) and AD-11 (Attendance). Powered by Supabase Realtime. Visible to Receptionist, Manager, and Owner; absent from Coach Portal.
@@ -3853,8 +5377,8 @@ A list of named conditions, each `done` or `missing`, with a link to its field. 
 | Assigned Coach | Required; must be a Coach-role staff member at this gym | "Select a coach" |
 | Capacity | Required; positive integer | "Enter a capacity" |
 | Schedule type | Required: One-off or Recurring | "Select a schedule type" |
-| Days (if Recurring) | Required; ≥1 day selected | "Select at least one day" |
-| Time | Required | "Select a time" |
+| Days (if Recurring) *(amended V1.8: replaced by Weekly times, see Form Validation V1.8)* | Required; ≥1 day selected | "Select at least one day" |
+| Time *(amended V1.8: replaced by Weekly times)* | Required | "Select a time" |
 | Start date | Required; not in the past | "Select a valid start date" |
 
 **AD-13 Connect Payment Account** *(V1.5)*
@@ -3923,6 +5447,51 @@ A list of named conditions, each `done` or `missing`, with a link to its field. 
 
 **AD-28 Page Name** *(V1.7, FR-202)*: lowercase; 3–30 characters; `a-z`, `0-9`, `-`; no leading or trailing hyphen; no `--`; no `xn--` prefix; not digits only. Unique case-insensitively. Messages are the AD-28 list. Reserved and brand-word refusals use the single "not available" message. Typed errors `not_admitted` and `gym_not_active` have their own inline copy (AD-28): "Only the Owner can change the page name." / « Seul le propriétaire peut modifier le nom de la page. » · "Your gym isn't active, so the page name can't be changed right now." / « Votre salle n'est pas active : le nom de la page ne peut pas être modifié pour le moment. »
 
+**AD-30 Check in a member (V1.8)**
+| Field | Rule | Error |
+|---|---|---|
+| Search | Needs 2 letters or 3 digits before it queries; this gym only; at most 8 results | Hint: "Type at least 2 letters or 3 digits." No match: "No member matches "[term]". Check the spelling, or search by phone." |
+| Member (radio) | Exactly one chosen; [Check in [Name]] disabled until then | None (the button state is the signal) |
+| Time of entry | Not an input. Always the server's current time | — |
+
+**Void a staff check-in (V1.8)**
+| Field | Rule | Error |
+|---|---|---|
+| Reason | Required; trimmed 5 to 300 characters | "Enter a reason (at least 5 characters)." |
+| (Server) | Staff entry; same gym-local day; not already voided; no later same-day visit relying on its session | See AD-11 refusals |
+
+**AD-31 Correct plan (V1.8)**
+| Field | Rule | Error |
+|---|---|---|
+| New plan | Required; an active plan of this gym; not the current plan | "Choose a plan" (field error key `members.correctPlan.newPlan.error`) |
+| Reason | Required; trimmed 5 to 300 characters | "Enter a reason (at least 5 characters)." |
+| (Server) | No payment on the current subscription stands (verified, pending, in flight, partly refunded all stand); no unused paid session when moving to or from Pay-per-session; subscription unchanged since the modal opened | See AD-31 refusals F1 to F10 |
+
+**AD-13 Session validity (V1.8)**
+| Field | Rule | Error |
+|---|---|---|
+| Session validity | One of Whole day, Single use; [Save session validity] enabled only on a change | "Couldn't save session validity. Try again." |
+
+**AD-13 Gym challenge (V1.8, Could)**
+| Field | Rule | Error |
+|---|---|---|
+| Month | Not editable: the next gym-local month | Stale: "[Month] has already started, so a challenge can't be set for it." |
+| Target | Required; whole number, 1 to 100,000 `[ASSUMPTION — upper bound]` | "Enter a whole number of visit days, 1 or more." |
+| Reward | Required; trimmed 1 to 120 characters; plain text | "Write the reward (up to 120 characters)." |
+| (Server) | One challenge per gym per month, cancelled ones included | "A challenge already exists for [Month]." |
+
+**AD-19 Weekly times (V1.8)**
+| Field | Rule | Error |
+|---|---|---|
+| Weekly times (list) | Recurring: at least 1 row, at most 14 `[ASSUMPTION — FR-244]` | "Add at least one day and time." |
+| Day (per row) | Required; Monday to Sunday | "Choose a day." |
+| Time (per row) | Required; 24-hour `HH:MM` | "Enter a time, for example 18:30." |
+| Day + Time pair | Unique within the class (the same weekday twice at different times is allowed) | "This day and time is already in the list." (on the later row) |
+| Starting | As V1.5: required for recurring; not before today for a new class | As shipped |
+| Coach (Coach mode) | Not an input; the signed-in Coach | Stale: "You can only change your own classes." |
+
+**AD-23 Plan, annual interval (V1.8)**: no new rules. The helper text only (see AD-23).
+
 **SA-10 Create Support Account** *(V1.7)*
 | Field | Rule | Error (EN / FR) |
 |---|---|---|
@@ -3988,6 +5557,26 @@ A list of named conditions, each `done` or `missing`, with a link to its field. 
 | SA-19 Cities *(V1.7)* | "No cities for this country yet. Add the first one." | [+ Add city] |
 | PS-04 Directory, no gym published *(V1.7)* | "No gyms are listed yet." / « Aucune salle n'est encore répertoriée. » | None |
 | PS-06 Category filter, no result *(V1.7)* | "No [category] gyms in [city] yet." | "Show all gyms in [city]" link |
+| MA-18 Calendar, current month, no visit *(V1.8)* | "No visits yet this month. Your first one lights today." | [Check In] only on the Home route; none here |
+| MA-18 Calendar, past month, no visit *(V1.8)* | "No visits in [month]." | None |
+| MA-19 Leaderboard, fewer than 3 ranked *(V1.8)* | "Not enough members yet" (no names, no list) | None |
+| MA-19 Leaderboard, nobody ranked *(V1.8; supporting line under the block above)* | "No visits at [Gym] yet this month. Be the first on the board." | None |
+| MA-19 Leaderboard, member only one ranked *(V1.8; supporting line under the block above)* | "You're the only member on the board so far." | None |
+| MA-19 Leaderboard, member unranked *(V1.8)* | "Visit once this month to join the board." | None |
+| MA-21 Badges, none earned *(V1.8)* | Not an empty state: five locked tiles with progress lines | None |
+| MA-22 Your Month, no visit *(V1.8)* | "No visits in [month]." (only reachable by link; not offered otherwise) | [See my calendar] |
+| MA-09 Comeback card, Shield card, Gym challenge card, "Your month" card *(V1.8)* | Not empty states: **absent** when the state does not apply | — |
+| AD-30 before typing *(V1.8)* | "Type at least 2 letters or 3 digits." / « Saisissez au moins 2 lettres ou 3 chiffres. » | None |
+| AD-30 no match *(V1.8)* | "No member matches "[term]". Check the spelling, or search by phone." / « Aucun membre ne correspond à « [terme] ». Vérifiez l'orthographe ou cherchez par téléphone. » | [Clear search] |
+| AD-11 Currently Checked-In / Daily Log *(V1.8)* | Existing copy. A day with only voided entries is not empty: the Daily Log shows them muted | — |
+| AD-13 Gym challenge, none for next month *(V1.8)* | "No challenge for [Month]." with the form | [Set challenge for [Month]] |
+| AD-19 result, nothing left unchanged *(V1.8)* | "Nothing was left unchanged. Upcoming sessions follow the new times." / « Rien n'a été laissé tel quel. Les prochains cours suivent les nouveaux horaires. » | [Done] |
+| AD-21 My Classes, Coach with none *(V1.8)* | "You don't have any classes yet. Create one, or ask your manager to assign you to a class." / « Vous n'avez pas encore de cours. Créez-en un, ou demandez à votre responsable de vous en attribuer un. » | [+ Create class] |
+| AD-32 nothing chosen *(V1.8)* | "Choose a coach to see their classes and members." / « Choisissez un coach pour voir ses cours et ses membres. » | The coach select |
+| AD-32 gym has no coaches *(V1.8)* | "Your gym has no coaches yet. Add a coach in Staff." (Owner, Supervisor) / "…Ask an Owner or Supervisor to add one." (Manager) | [Open Staff →] (Owner, Supervisor) |
+| AD-32 Classes tab, no classes *(V1.8)* | "[Name] has no classes yet." / « [Nom] n'a pas encore de cours. » | None |
+| AD-32 Members tab, none assigned *(V1.8)* | "No members are assigned to [Name]." / « Aucun membre n'est attribué à [Nom]. » | None |
+| AD-32 excluded part, direct address *(V1.8)* | "This part isn't available in this view. Body measurements, photos, progress notes and progress activity are never shown here." | [Classes] [Members] |
 
 ### Loading States
 
@@ -4032,6 +5621,14 @@ A list of named conditions, each `done` or `missing`, with a link to its field. 
 | SA-08 Support list *(V1.7)* | 5 rows |
 | SA-16 / SA-17 / SA-18 *(V1.7)* | 5 rows each |
 | PS-04 / PS-05 / PS-06 *(V1.7)* | None: server-rendered complete pages, no client loading state exists |
+| MA-09 "This week" card *(V1.8)* | 120pt circle + 2 text lines, ~168pt card; independent of the status card; may show up to 2 s after a week closes while engagement settles |
+| MA-09 Leaderboard card *(V1.8)* | Rounded rectangle ~72pt |
+| MA-09 Gym challenge card *(V1.8)* | Rounded rectangle ~96pt; rendered only once the gym is known to have a challenge (no flash otherwise) |
+| MA-18 Calendar *(V1.8)* | Month bar and legend at once; 35 square skeletons in a Card |
+| MA-19 Leaderboard *(V1.8)* | 6 rows ~56pt; **never rendered behind the first-open notice** |
+| MA-21 Badges *(V1.8)* | 5 tile skeletons |
+| MA-22 Your Month *(V1.8)* | 3 metric rows ~64pt + grid skeleton |
+| MA-20 Celebration *(V1.8)* | No loading state: pushed only when its data is on the device |
 
 **Button loading state:** Spinner replaces label text; button width does not change (prevents layout shift); button disabled during request.
 
@@ -4102,6 +5699,17 @@ A list of named conditions, each `done` or `missing`, with a link to its field. 
 | SA-12 / SA-21 *(V1.7)* | Wrong code / session expired / account locked | Inline in the prompt; a lock or expiry closes the prompt into the SA-01 state |
 | SA-17 / SA-19 *(V1.7)* | Takedown or city save refused | Inline in the dialog; slug and alias collisions on their fields |
 | PS-03 *(V1.7)* | Missing field / rate limit | Server-returned form with an error summary; rate limit message does not name the page |
+| MA-09 *(V1.8)* | "This week" data load failure (no cache) | Error card in the card slot: "Couldn't load your week. Pull down to refresh." |
+| MA-09 *(V1.8)* | Settle call failed after a week closed | Last known state plus a small line "Couldn't update your streak just now. We'll try again."; retried on next focus |
+| MA-18 *(V1.8)* | Calendar load failure | Error card in the grid slot, pull to refresh |
+| MA-19 *(V1.8)* | Board load failure | Error card in the list slot; the visibility row still shows |
+| MA-19 *(V1.8)* | Notice choice not saved | Inline above the buttons: "Couldn't save your choice. You still appear as Anonymous."; sheet stays |
+| MA-12 / MA-19 *(V1.8)* | Anonymous or Streak reminder toggle fails to save | Toggle reverts with the existing inline error toast |
+| MA-20 *(V1.8)* | Share image could not be made | Inline "Couldn't make your image." + [Try again]; the screen still works |
+| MA-20 *(V1.8)* | Sharing unavailable on the device | Inline "Sharing isn't available on this phone."; Share hidden on next view |
+| MA-21 *(V1.8)* | Badge load failure | Error card; pull to refresh |
+| MA-22 *(V1.8)* | Month load failure | Error card; pull to refresh |
+| MA-23 *(V1.8)* | Goal not saved | Inline above [Save goal]: "Couldn't save your goal. Try again."; sheet stays |
 
 ### V1.5 — New State Patterns
 
@@ -4226,6 +5834,94 @@ V1.7 adds three small state machines (support access, page publication, second-f
 
 **Directory listings *(FR-212, FR-214)*:** below 3 published gyms a listing is `noindex` and absent from the sitemap but renders for visitors as normal; a gym that stops being visible leaves every listing within about 2 minutes (PS-06).
 
+### V1.8 — New State Patterns
+
+V1.8 adds a per-member engagement state machine. Everything is derived on the server from attendance (NFR-028); the app displays, it never decides. There is no per-gym switch for the core features: they apply to every member of every gym at release, from the first full week after the engagement start (FR-225). The Could features (daily streak, challenge, "Your month") and the Should features (Shields, comeback, badges, share, reminder) are absent from the screens, not disabled, when not shipped.
+
+**Weekly ring and streak states *(FR-219–FR-223)*:**
+| State | Rule | Member app |
+|---|---|---|
+| Goal default | No goal chosen: 3 | Ring of 3; one-time hint; goal button "Goal: 3 days" |
+| Goal change pending | Applies from next gym-local Monday; the current week keeps its goal | Goal button "Changes to 4 days on [date]" |
+| Release week | Weeks before the engagement start are never settled | Ring works, streak area says it starts next Monday |
+| First week | No settled week yet | No streak chip; "Close your ring to start your streak." |
+| Open week | Visit days fill segments, one per day | Ring "n / goal" |
+| Goal met (open) | Streak counts when the server settles the week | Ring complete; caption states what the streak becomes |
+| Week settled, met | Streak +1; Shield earned at every 4th | Chip updates; Shield chip +1 and a one-time notice |
+| Week settled, missed, Shield held | The Shield is used automatically; the saved week keeps the streak but does **not** add 1 to the streak count *(owner decision 2026-11-15)* | Streak count unchanged; one-time notice says which week it saved |
+| Week settled, missed, no Shield | Streak ends; best streak kept | Comeback card appears (never "0") |
+| Comeback | 3 visits within 10 days restore the status; a lapsed window restarts at the next visit | Comeback card with progress; restored note |
+| Daily run (Could) | Run of 3+ consecutive visit days; hidden when it ends; a missed day uses a Shield only when two are held | Compact daily chip appears and disappears silently |
+| At risk | FR-233 (a) or (b), no visit today | Hint on Home; today's cell on MA-18; the N-08 push if on |
+| Visit made offline | Counts after it syncs; a late visit corrects the week, the month and the milestone it belongs to | Dashed pending segment and cell until synced; no correction message |
+| Expired status | Check-in denied by the gate; N-08 is not sent | At-risk hint hidden *(owner decision 2026-11-15)*; everything else shown |
+
+**Milestone, badge and leaderboard states *(FR-225–FR-231)*:**
+| State | Rule | Member app |
+|---|---|---|
+| Milestone reached online | 7th, 30th or 100th visit day at this gym | MA-20 after Home settles; shown once |
+| Milestone reached offline | Counted after sync | MA-20 on the next Home focus after sync |
+| Milestone before release | Earned silently (badge only) | No celebration |
+| Several milestones waiting | Highest shown, others acknowledged silently | One MA-20 |
+| Badge | Earned once, never lost, grants nothing | MA-21 tile; no push, no dot |
+| Notice unseen | Appears as Anonymous to others whatever the toggle | MA-19 opens on the notice; leaving without choosing keeps Anonymous |
+| Notice seen, visible | First name and last initial, no photo or phone | Own row "You"; helper says how others see the member |
+| Hidden (Anonymous) | Counted and ranked; label replaced on the server | Own row "You" plus the hidden line |
+| Member deactivated or support | Not ranked (AD-54) | No board for them |
+| Challenge live / reached / cancelled / none | One per gym per month; reward is a promise | Card with progress / reached state / absent / absent |
+| Multi-gym member | Separate engagement per gym | Active gym only |
+
+V1.8 adds one small decision table for staff check-in, one for plan correction, and one classification for weekly-times edits. Defaults are conservative: existing gyms stay on Whole day, have no challenge, and keep their classes' times exactly as they were.
+
+**Staff check-in outcome *(FR-249; the same decision as a scan, plus a place to act)*:**
+| Member / gym state | Result | Attendance written | Alert panel | What the staff member can do in place |
+|---|---|---|---|---|
+| Active | R1 checked in | Yes (source staff) | No | Another member, Done |
+| Expiring Soon | R2 checked in with warning | Yes | No | Renew now |
+| Grace Period | R3 checked in with warning | Yes | No | Renew now |
+| Expired | R4 not checked in | No | No | Renew now, then the check-in completes |
+| Pay-per-session, charging on, no usable session | R5 no paid session | No (until paid) | No | Record the desk payment, then the check-in completes |
+| Pay-per-session, charging on, a usable session | R1 | Yes; consumes a session under the gym's Session validity | No | — |
+| Pay-per-session, charging off or price 0 | R1 | Yes | No | — |
+| Already checked in (open visit) | R7 | No | No | Another member, Done |
+| Deactivated / awaiting registration fee / no plan | R8 | No | No | Open the member |
+| Gym suspended | R9 | No | No | Done |
+- Every row writes one AD-12 entry (accepted, or "not accepted"), except R7 `[ASSUMPTION]`.
+- **Single use:** an open visit older than the visit limit (3 hours) is closed by the server and a new visit starts, which can turn R7 into R1 or R5. The UI shows only the server's result.
+
+**Void a staff check-in *(FR-250)*:**
+| State | [Void] shown | Effect of voiding |
+|---|---|---|
+| Staff entry, today, not voided, nothing relies on its session | Yes (Manager and above) | Visit closed if open; stops counting for occupancy, streaks, rank and the challenge; its session is given back; its stamp removed; milestones and badges already earned are not taken back |
+| Staff entry, today, a later same-day visit relies on its session | Yes, but refused on confirm | Nothing changes; refusal message |
+| Staff entry, an earlier gym-local day | No | — |
+| Scan entry | No | — |
+| Already voided | No | — |
+
+**Plan correction eligibility *(FR-242; classification of a payment on the current subscription)*:**
+| Payment state | Counts as standing | Message |
+|---|---|---|
+| Verified (not refunded) | Yes | F1 |
+| Awaiting verification | Yes | F2 |
+| Mobile money in flight | Yes | F3 |
+| Partly refunded | Yes | F4 |
+| Fully refunded | No | none |
+| Voided | No | none |
+| No payment record at all (import, override) | No | none; correction allowed |
+| Registration fee | Not a subscription payment | none |
+- Unused paid session while moving to or from Pay-per-session: refused (F6). A free session does not block `[ASSUMPTION — FR-242 says "paid"]`.
+
+**Weekly-times edit *(FR-245; what happens to each upcoming session)*:**
+| Session | Result |
+|---|---|
+| Future, no bookings | Regenerated to the new times |
+| Future, has bookings | Left as it is; listed in the result view; tagged "Old time" in AD-18 when it no longer matches |
+| Today or past | Untouched |
+| Created while the editor was saving | Treated by whether it has bookings at that moment; the server decides |
+- The class's bookings, capacity, cancellation cutoff and reminders are unchanged and work per session.
+
+**Gym challenge by month *(FR-234)*:** none, set (next month), running (this month), reached, cancelled. A cancelled month stays "cancelled" and cannot be set again. The challenge does not carry into the next month. The progress is a count of visit days; voided staff check-ins are not counted.
+
 ---
 
 ## Interaction Primitives
@@ -4273,8 +5969,14 @@ V1.7 adds three small state machines (support access, page publication, second-f
 | Check-in success, free session used *(V1.6)* | Medium impact (same as any success) |
 | MA-17 session payment verified *(V1.6)* | Success notification (matches a completed payment, distinct from check-in) |
 | MA-17 payment failed / not approved *(V1.6)* | Notification error |
+| Milestone celebration appears *(V1.8, MA-20)* | Success notification (reduced motion does not remove it) |
+| Weekly goal saved *(V1.8, MA-23)* | Light impact `[ASSUMPTION]` |
+| Shield saved / earned, comeback restored, at-risk hint appears *(V1.8)* | None. These are passive notices on a screen the member opened; a haptic would turn them into alarms |
+| Leaderboard notice choice, Anonymous toggle, Streak reminder toggle *(V1.8)* | None (matches the existing notification toggles) |
 
 *(V1.6)* Check-in result overlays keep their fade-in. MA-17 pushes with slide-left and returns with slide-right, like `/renew`. On MA-17 success, [Scan now] replaces the route with MA-10, so Back does not return to a paid screen.
+
+*(V1.8)* MA-18, MA-19, MA-21 and MA-22 push with slide-left and return with slide-right, like MA-17. MA-20 opens with the same fade as a check-in result overlay and closes to Home with a fade. MA-23 and the badge detail and Shield explainer sheets slide up and swipe down to dismiss (MA-19's first-open notice sheet is the one exception: it cannot be swiped away). The calendar's month swipe is optional (chevrons are primary). `{components.atRiskPulse}` is the only looping motion in the app besides the scan target's pulse, and it is bounded.
 
 ### Admin Dashboard (Desktop Web)
 
@@ -4297,6 +5999,12 @@ V1.7 adds three small state machines (support access, page publication, second-f
 - Icon-only buttons: hover tooltip with action label
 - Status badges: hover tooltip with full status description and date
 - AD-15 Workout Plan exercise rows *(V1.5)*: drag handle appears on row hover; drag-and-drop reorder
+- **AD-30 Check in a member** *(V1.8)*: opening the modal puts focus in the search field. Tab order: Search → result list (one tab stop; arrow keys move the choice, Space or Enter chooses) → [Check in [Name]] → [Cancel]. Enter in the search field with exactly one result chooses it; Enter on [Check in [Name]] confirms. After a result, focus moves to the result heading (R1 to R3, R6, R7 `role="status"`; R4, R5, R8 to R11 `role="alert"`). [Check in another member] returns focus to the search field. Closing returns focus to [Check in a member] on AD-11.
+- **Void modal** *(V1.8)*: Escape disabled (consequential, as other confirmations); opens with focus on [Keep check-in], so Enter does not void by accident. Tab order: Reason → [Void check-in] → [Keep check-in]. Closing returns focus to the row's [Void] (or to the row if it has disappeared).
+- **AD-31 Correct plan** *(V1.8)*: opens with focus on New plan (form state) or on the refusal heading (refusal state). Tab order: New plan → Reason → [Correct plan] → [Cancel]. Escape closes (not a destructive confirmation). Closing returns focus to [Correct plan] on AD-04.
+- **AD-13 V1.8 sections** *(V1.8)*: each section's save button is directly after its last field, as the V1.6 sections. The challenge set and cancel dialogs open with focus on [Back] and [Keep challenge], Escape disabled.
+- **AD-19 weekly times** *(V1.8)*: [+ Add a time] moves focus to the new row's Day select; [Remove] moves focus to the previous row's Day select, or to [+ Add a time] when none is left. Each row is a labelled group "Time [n] of [total]". Arrow keys do not reorder; the list re-sorts itself on blur, announced politely ("Weekly times sorted").
+- **AD-32 coach picker** *(V1.8)*: the select is the first tab stop after the sub-navigation; changing it moves focus to the first tab content heading and announces the banner. Read-only: there are no hidden editable controls to tab through.
 
 **Real-time alert arrival:**
 - No sound; no browser notification; no tab badge (V1)
@@ -4328,6 +6036,22 @@ V1.7 adds three small state machines (support access, page publication, second-f
 | Session rows *(V1.6, MA-09)* | Each Session Chip reads as one label: "Free session, use by 2 December" (dates spoken in full, not "2/12") |
 | Post-sync denial notice *(V1.6, MA-09)* | Announced once on Home render (live region, polite); [Got it] has the label "Dismiss notice" / "Fermer l'avis" |
 | MA-17 phases *(V1.6)* | Each phase change (pending, still waiting, success, failed) is announced through a polite live region, as on `/renew`'s `accessibilityRole="alert"` notes |
+| Goal ring *(V1.8, MA-09)* | The ring is **one** element with role `progressbar` and `accessibilityValue {min 0, max goal, now visits}`; the arcs are decorative (`accessibilityRole: 'none'`). Label: "Weekly goal: 2 of 3 visit days this week. 1 more visit closes your ring." / "Objectif de la semaine : 2 jours de visite sur 3. Encore 1 visite pour fermer votre cercle." When met: "Weekly goal met: 3 of 3." The "This week" card as a whole reads: ring label, then streak ("5 weeks in a row"), then Shields ("1 Shield"), then the at-risk hint, in that order, as one grouped, focusable element with the hint "Double tap to open your calendar"; the goal button and Shield chip are separate focusable children |
+| Streak and Shield chips *(V1.8)* | Labels are the sentence: "5 weeks in a row", "1 Shield. Double tap for what a Shield does". A streak is never announced as "0" |
+| At-risk hint *(V1.8, MA-09, MA-18)* | The words ("Visit today to close your ring. 6 hours left.") are the signal; the pulse, the glyph and the amber outline are redundant. Announced once when Home focuses (polite live region), **not** re-announced as the minutes tick; the hours left are re-read only when the element is focused. The hint never uses `alert`: it is a reminder, not a result |
+| At-risk pulse, reduced motion *(V1.8)* | When the system "reduce motion" setting is on (or the OS animations-off setting), the pulse is removed: a static 2pt `{colors.warning}` outline and the glyph remain. With motion allowed, the pulse runs for 3 cycles on screen focus and then stays static (it never loops forever) `[ASSUMPTION]`. Nothing flashes more than once a second |
+| Colour never the only signal *(V1.8)* | Lit day = fill + check glyph; today = thicker outline + "Today" legend; at risk = glyph + hours text + the line under the grid; milestone = star glyph + detail text; Shield = glyph + legend; ring complete = check glyph + text; the member's own leaderboard row = "You" word + thicker border; badge earned = check glyph + "Earned [date]"; challenge reached = check glyph + words |
+| Calendar *(V1.8, MA-18)* | The month heading is a header and is read first with the summary: "November 2026. 9 visit days." Each of the 7-column cells is a separate element in reading order (Mon to Sun, row by row), in groups of one per week labelled "Week of 10 November, 3 visit days". Cell labels are the full sentence: "Tuesday 12 November, visited" / "Wednesday 13 November, no visit" / "Friday 15 November, your 30th visit" / "Today, Friday 15 November, no visit yet. 6 hours left" (never "12/11"). Cells of the other months and future days are not focusable. Month chevrons are labelled "Previous month" and "Next month" and the disabled one is announced as dimmed. Changing the month re-announces the heading and the summary. The detail line is a polite live region updated on cell selection |
+| Calendar swipe *(V1.8)* | The swipe-between-months gesture has no accessible equivalent need (the chevrons are the control); with a screen reader the swipe is disabled so it does not fight the reader's own swipes |
+| Leaderboard *(V1.8, MA-19)* | Each row is one element: "Rank 4, Chantal N., 11 visits" / "Rang 4, Chantal N., 11 visites"; own row: "Rank 9, you, 9 visits. 2 visits behind the member above." Ties: "Rank 4, tied". The separator row is announced "Rows between are not shown". Anonymous rows read "Anonymous". Rows are not buttons and are not announced as tappable |
+| Leaderboard notice *(V1.8)* | The sheet is a modal dialog: focus moves to its title on open, is trapped inside, and the list behind is not reachable. Both buttons have labels that state the consequence: "Show my name: other members will see you as Mireille K." / "Appear as Anonymous: other members will see you as Anonymous". Because it can't be swiped away, the back arrow stays reachable |
+| Celebration *(V1.8, MA-20)* | Announced once as an `alert` with `engage.celebration.a11y`; focus starts on the headline; the numeral count-up and the mini calendar are decorative. The Success haptic fires with reduced motion on |
+| Share *(V1.8)* | [Share] has the label "Share my milestone image". While building: "Making your image" is announced politely; failure uses the inline message in a polite live region |
+| Badges *(V1.8, MA-21)* | Tile label: "30 visits badge, earned 14 October" / "100 visits badge, not earned yet, 82 more visits to go". Locked is stated in words in the label, never by dimming only |
+| Goal picker *(V1.8, MA-23)* | The seven options are a radio group ("Weekly goal, 3 days a week, selected, current"); each option is 44pt minimum and labelled in full ("5 days a week"); [Save goal] announces "disabled" while nothing has changed |
+| Dynamic type *(V1.8)* | Up to +2 text sizes with no clipping, as the floor already says. The ring is a fixed 120pt; at more than 130% text size, or under 360pt width, the "This week" card **stacks** (ring above, text below, all centred) instead of side by side. Calendar day numerals are clamped at 130% inside the cells (the cell size is fixed at 44pt); the detail line, the legend and the at-risk line under the grid are **not** clamped and carry the full information at any size. Leaderboard rows grow in height with the text and wrap the label; the rank numeral keeps its column. The celebration card shrinks its mini calendar away rather than clipping |
+| Touch targets *(V1.8)* | Calendar cells 44pt (6pt gaps), goal options 44pt, Shield chip 44pt hit area, chevrons 44pt, toggles and rows as existing |
+| Language switch *(V1.8)* | Re-announces the title; all `engage.*` strings and the month and weekday names re-render in the new language; the gym challenge reward text stays as the Owner typed it |
 
 ### Admin Dashboard
 
@@ -4362,6 +6086,18 @@ V1.7 adds three small state machines (support access, page publication, second-f
 | Auto-unpublish / takedown banner *(V1.7, AD-27)* | `role="alert"` on first render; reason text is the accessible name of the banner; dismissal never removes the page status line |
 | Publish screen *(V1.7, AD-29)* | The "what becomes public" list is a `<dl>` or table with `<th scope="row">`; focus moves to the success region after publishing |
 | Step-up prompt *(V1.7, SA-21)* | The six digits are one labelled input (`autocomplete="one-time-code"`, `inputmode="numeric"`), paste supported, not six separate boxes; the bound action line is in `aria-describedby`; wrong-code error is `role="alert"` |
+| Check-in result panels *(V1.8, AD-30)* | R1 to R3, R6, R7 are `role="status"` (polite). R4, R5, R8 to R11 are `role="alert"`. The icon is `aria-hidden`; the label text carries the meaning, and the colour is supplementary (success, warning, danger, info, neutral). A result is never colour alone |
+| Member search results *(V1.8, AD-30)* | A `radiogroup` of options; each option's accessible name reads name, plan, status and "In the gym since [time]" when present. The status badge text is the label. The result count is announced politely ("3 members found") after typing pauses (300 ms) |
+| Staff entry marker *(V1.8, AD-11)* | The "By staff" pill is text with an `aria-hidden` icon; the row reads "Checked in by staff, [Name]". The "Voided" pill and the muted row style are paired with text, so a voided row is never conveyed by opacity alone; the reason is in the row's accessible description |
+| Void action *(V1.8, AD-11)* | The button's accessible name includes member and time ("Void the check-in of Ange T. at 07:02"); the dialog is named "Void this check-in?"; its confirm is labelled by action ("Void check-in"); the conditional effect lines are in `aria-describedby` |
+| Correct plan *(V1.8, AD-31)* | The confirm button is labelled "Correct plan"; the rule line is in `aria-describedby`. A refusal is `role="alert"` and its link [Open payments] is a real link. The "Checking payments…" state is `aria-busy="true"` |
+| Session validity radios *(V1.8, AD-13)* | A real `radiogroup` with a visible label; each option's description is its `aria-describedby`; the info lines (charging off, loyalty) are in the group's description |
+| Gym challenge *(V1.8, AD-13)* | The fixed-note is in the Target and Reward fields' `aria-describedby`; the running line's progress is text ("412 / 1,000 visit days"), not only a bar; both dialogs focus-trap and are labelled by action |
+| Weekly times *(V1.8, AD-19)* | Each row is a `group` named "Time [n] of [total]"; Day and Time have visible labels; [Remove] is named "Remove Wednesday 18:30"; the counter "[n] of 14" and a re-sort are announced politely; the duplicate error is on the later row and linked by `aria-describedby`; the left-unchanged list is a list with `aria-labelledby` its heading, and focus moves to the result heading on save |
+| Cancel class dialog *(V1.8, AD-18, AD-21)* | Labelled by action ([Keep class], [Cancel class]); the booking count is in `aria-describedby`; Escape disabled |
+| Coach picker *(V1.8, AD-32)* | A labelled select ("Choose a coach"); the read-only banner is `role="status"` once when a coach is chosen and then static text; the sub-navigation is `aria-current` on the active tab; the persistent "no body data" line is plain text in reading order, not an icon-only cue |
+| Read-only portal *(V1.8, AD-32)* | Read-only views contain no disabled or hidden-but-focusable controls; absent controls are absent from the DOM, as for every role-gated control |
+| Support actor *(V1.8)* | "GymOS Support" in the Entry cell, the void text and the audit row is plain text with the same accessible name as a staff name would have |
 
 **Color contrast:** All text meets WCAG 2.1 AA (4.5:1 for body; 3:1 for large text and UI components). See `DESIGN.md` for token values.
 
@@ -4406,6 +6142,29 @@ Public pages are plain HTML with no script (Architecture Decision AD-44), so acc
 | 360–430px (standard phones) | Nominal layout as designed |
 | > 600px (tablet) | Content max-width 480px centered; additional padding on cards |
 
+| Screen width | V1.8 behaviour |
+|---|---|
+| < 360px | "This week" card stacks (ring above text). Calendar uses 6pt side gutters so seven 44pt cells fit down to 320pt (7 x 44 = 308); the legend wraps to two lines; the goal options wrap to two rows (1 to 4, 5 to 7) |
+| 360–430px | Nominal: ring beside text, cells 44pt |
+| > 600px (tablet) | Content max-width 480px centred, as everywhere; the calendar and badge grid do not widen; the celebration card is capped at 420pt wide |
+
+**Text size and orientation.** Landscape is respected, not designed (as elsewhere): the calendar scrolls and the celebration card scrolls if it does not fit; the mini calendar is hidden on short screens. **Safe areas:** the celebration screen has no back arrow, so its buttons sit above the bottom safe area with 16pt padding.
+
+**Offline behaviour (summary)**
+
+| Screen | Offline |
+|---|---|
+| MA-09 ring, streak, Shields | Last settled state from the device cache; a visit made offline fills its segment with a dashed outline and "1 visit waiting to sync"; counts and streak are corrected only after sync (the device never settles a week) |
+| MA-09 at-risk hint | Shown only from a cache taken the same gym-local day; otherwise hidden. The hours left use the cached day-end instant, not the phone clock `[ASSUMPTION]` |
+| MA-18 calendar | Previously loaded months render; today's offline visit shows dashed |
+| MA-19 leaderboard | Last cached board, "Updated [time]"; notice buttons and the toggle disabled; a cached board is never shown on first open before the notice is chosen |
+| MA-20 celebration | Appears only once the milestone is known on the device (after sync); Share works offline |
+| MA-21 badges | Cached; Share works offline |
+| MA-22 Your Month | If loaded before, else "Connect to see your month." |
+| MA-23 goal | Options work, [Save goal] disabled offline |
+| Toggles on MA-12 | Optimistic with revert on failure, as existing |
+| The N-08 reminder | A push; works whenever the phone has a connection to receive it; it is not sent from the device |
+
 ### Admin Dashboard — Responsive Breakpoints
 
 | Viewport | Layout |
@@ -4434,6 +6193,16 @@ Public pages are plain HTML with no script (Architecture Decision AD-44), so acc
 - *(V1.6)* The session-required variant keeps [Record session payment] visible; its in-flight line truncates first. The Record Session Payment Panel opens as the same 320px right drawer as the Inline Renewal Panel.
 
 **Guest sessions card *(V1.6)*:** three figures side by side at ≥ 768px. Below 768px they stack vertically, and the period control moves under the title.
+
+*(V1.8)*
+- **AD-11 Entry column:** the staff name part is hidden under 1024 px with the other "Actor" values; the **"By staff" pill and the "Voided" pill always stay**. Under 768 px the table scrolls horizontally as today, with Name, Check-in time, Entry pill and Actions pinned. [Check in a member] stays in the header; under 768 px it is full-width under the page title `[ASSUMPTION]`.
+- **AD-30:** under 768 px full-screen; from 768 px a centered card (max 640 px), as every modal. Results rows stack avatar and name over phone and plan. The Record Session Payment Panel and the Inline Renewal Panel open as an **inline expanding section inside the modal** at every width, as inside the AD-04 modal (not a drawer, because a drawer would sit on top of a modal).
+- **AD-31:** same modal rule; the plan select is full width; the refusal message wraps, and [Open payments] sits under it on narrow screens.
+- **AD-13 sections:** radios stack with their descriptions; Target and Reward fields stack under 768 px; the set and cancel dialogs are full-screen under 768 px.
+- **AD-19 weekly times:** from 768 px a row is one line (Day, Time, [Remove]); under 768 px a row wraps to Day over Time with [Remove] under them, each row a card with a 1 px border. The list scrolls inside the modal; [+ Add a time] stays directly under the list. The result view's session list scrolls in the modal body.
+- **AD-18 Schedule column:** under 1024 px it truncates to the first group plus "+N more"; the full list stays in the tooltip and in the AD-19 editor.
+- **AD-32:** the select is full width under 768 px; the banner wraps under it; the Classes and Members tabs scroll horizontally if needed; AD-14 and AD-21 keep their existing narrow-viewport rules.
+- **Sidebar:** the Coach Portal item appears in the 64 px icon rail on tablet with the usual hover tooltip.
 
 ### Super Admin Dashboard
 
@@ -4699,3 +6468,66 @@ Gym pages are for mobile, tablet and desktop *(product owner, 2026-11-08; supers
 7. **If the Owner appeals.** The appeal reaches SA-18; Chidi decides with a reason, which the Owner receives.
 
 **Climax beat:** Chidi acts once and the page vanishes from every public door in under a minute. A visitor and the impersonator see the same "This page isn't available." as for any random name, so the address gives away nothing, and the name stays locked to that gym so it can't be re-registered to dodge the takedown.
+
+---
+
+### Flow 16 · Mireille Keeps Her Week *(V1.8, UJ-15)*
+
+**Protagonist:** Mireille, 31, trains three evenings a week at Martin's gym in Douala, on a monthly plan; the flow is identical for a Pay-per-session guest (FR-225). `[ASSUMPTION]` She joined shortly before the update, so her 30th visit falls after release and is celebrated; a member with 30 or more visits before release would get that badge silently. `[NOTE FOR UX]` UJ-15 compresses the timeline (a 5-week streak, a 30th visit and a Shield all appear within weeks of the update); the steps below keep UJ-15's facts and put them in the order the screens show them, not in strict calendar order. Supporting cast: Martin (Owner), only as the person whose gym name and logo are on the image she shares.
+
+**Entry:** The V1.8 update lands. She opens the app on a Tuesday evening, in French.
+
+1. **MA-09.** Under the status card and the quick actions, "Cette semaine": an empty ring of three segments, "0 / 3", "Nouvelle semaine. 3 visites pour fermer votre cercle." A small line says "Nous démarrons à 3 jours par semaine…". There is no streak yet, so no number is shown.
+2. **MA-23.** She taps "Objectif : 3 jours", sees the goal options, and keeps 3. The sheet says a change would start next Monday; she closes it without saving. The default stands.
+3. **MA-10, then MA-09.** She scans as she always has; the green overlay is unchanged. Home shows the first segment filled: "Encore 2 visites pour fermer votre cercle." On Thursday the third segment fills, the ring turns green with a check, and the card says "Objectif atteint. Votre série passera à 5 semaines à la fin de la semaine."
+4. **MA-09, Monday.** Home settles the week once; the chip now reads "5 semaines d'affilée". Since her fourth consecutive week she has held a Shield: a "1 bouclier" chip sits beside the streak (a one-time notice told her when she earned it).
+5. **MA-19, first time.** Out of curiosity she taps the Leaderboard card. Before any list, the notice: "Vous êtes dans le classement de votre salle", with a preview "Mireille K." and the line that until she chooses, others see her as Anonyme. She taps "Apparaître comme Anonyme". The list loads: she is 9th, her row says "Vous", with "2 visites de retard sur le membre au-dessus". Others see "Anonyme" at rank 9.
+6. **MA-18.** She taps the ring card and sees November: every evening she came is lit; the 30th visit carries a star.
+7. **MA-20.** Some weeks after release, on her 30th visit, the green overlay closes, Home paints, and the celebration comes up: "30 visites" and "Trente visites chez Martin Gym. Vous avez construit quelque chose." She taps "Partager"; the phone's share sheet opens with an image showing the gym's logo and name, the 30 and her month's lit days; she picks her WhatsApp status. Nothing else about her was in the image.
+8. **MA-09, Monday of week six.** She had a fever and missed the whole week. Home says: "Votre bouclier a sauvé la semaine du 3 novembre. Votre série reste à 5 semaines." The Shield chip is gone (0 held, so it is not shown). Her streak is not reset, and nothing said she missed anything.
+9. **Week seven, Friday.** One visit so far: the ring shows "1 / 3". The status is not at risk yet, because Friday still leaves two days.
+10. **Saturday, 18:00.** The one reminder of the day arrives: "Votre semaine est à portée. Venez aujourd'hui : encore 2 visites pour fermer votre cercle." (Saturday and Sunday are the two days left, so the goal is reachable only if she comes today and tomorrow.)
+11. **MA-09 and MA-18, Saturday.** Opening Home she sees the hint with the amber glyph, "Venez aujourd'hui pour fermer votre cercle. 4 heures restantes", and today's cell on the calendar has a pulsing amber outline with "4 h". She goes at 19:40; the second segment fills and today's cell lights.
+12. **Sunday.** She goes again. The third segment fills, the ring closes, and the card reads "Objectif atteint."
+
+**Climax beat:** Saturday evening. One calm reminder, one amber cell with the hours left, and Mireille walks to the gym because the week she built is worth protecting, not because anything scolded her. The ring closes on Sunday with a streak that survived a fever, a Shield and two evenings.
+
+---
+
+### Flow 17 · Brice Checks In a Member at the Door *(V1.8, UJ-16)*
+
+**Protagonist:** Brice, Receptionist at Martin's gym, 7 a.m. at the desk. Supporting cast: Ange (the Pay-per-session guest of Flow 12) with a dead phone, and Nadia (Manager, Flow 4 and Flow 10) later in the day. `[ASSUMPTION — narrative drafted, per PRD UJ-16]`
+
+**Entry:** Martin's gym has "Charge guests per session" on and Session validity set to **Single use** (AD-13). Ange arrives at 07:00 and cannot scan: her phone is dead. Her phone number is on her record as for every member; this is a desk problem, not a missing account.
+
+1. **AD-11.** Brice opens Attendance and taps [Check in a member].
+2. **AD-30, step 1.** He types "Ange". One match: Ange T., Drop-in, Active. The line "Entry time: now (07:02). It can't be changed." is the only time on screen. He chooses her; the button reads "Check in Ange T."
+3. **AD-30, R5.** The result is blue, not red: "Ange T. has no paid session. Record 2,000 XAF at the desk and Ange T. is checked in straight away." The rule is the same as for a scan: Single use means a paid session covers one visit.
+4. **Record Session Payment Panel, inside the modal.** Amount 2,000 XAF (fixed), method Cash (default). Brice collects the cash and taps [Record session payment →].
+5. **AD-30, R6.** The modal turns green: "Session recorded. Ange T. is checked in at 07:02." No front-desk alert was raised for any of this; Brice saw the outcome where he acted. He taps [Done].
+6. **AD-11.** Currently Checked In shows Ange T., 07:02, "By staff · Brice N." The same entry sits in the Daily Log with the same marker.
+7. **09:10.** Ange finishes her workout. At the desk, Brice taps [Check Out] on her row (existing action). Her visit has ended.
+8. **18:00, same day.** Ange returns. Brice repeats steps 1 to 5; at the "no paid session" result he records another 2,000 XAF. Her morning visit ended at check-out (had she forgotten, it would have ended at the 3-hour limit), so the evening visit needs its own session. At a **Whole day** gym the same evening return would have gone straight to a green result with nothing to pay.
+9. **Variation: the wrong Ange.** A different morning Brice picks the wrong "Ange" from two. He has no [Void] button (it is absent for a Receptionist). Nadia opens AD-11, taps [Void] on that row, types "wrong member selected" and confirms. The row is muted and marked Voided; the visit stops counting everywhere, and the session it used goes back to that member. Brice checks in the right Ange.
+10. **Later, AD-12 (Nadia).** The log shows "Member checked in by staff" with Brice's name, and "Staff check-in voided" with Nadia's name and her reason. Had GymOS Support entered it, the actor would read "GymOS Support".
+
+**Climax beat:** Ange's dead phone is a two-minute desk problem, not a lost sale and not a free pass. The screen asks for exactly what a scan would have asked for, takes the payment in the same window, and leaves a log that says who entered the visit.
+
+---
+
+### Flow 18 · Nadia Fixes a Plan and a Timetable *(V1.8, UJ-17)*
+
+**Protagonist:** Nadia, Manager (Flows 4 and 10). Supporting cast: Emmanuel (Coach, Flow 9), Grace (Owner, Flows 7 and 12). `[ASSUMPTION — narrative drafted, per PRD UJ-17]`
+
+**Entry:** a Tuesday morning. Last week a new member, Paul E., was signed up on the **Annual** plan; he meant **Monthly**. No payment has been recorded for the subscription yet.
+
+1. **AD-04.** Nadia opens Paul E. The header shows "Plan: Annual (250,000 XAF · 365 days · Paid once)" and "Subscription started 12 Nov 2026". She taps [Correct plan].
+2. **AD-31.** For a moment the modal says "Checking payments…". Nothing stands, so the form appears. She chooses Monthly, and types "Wrong plan chosen at sign-up". The rule line says the new expiry counts from 12 Nov, not from today. She taps [Correct plan].
+3. **Toast and AD-04.** "Plan corrected. Paul E. is now on Monthly; expires 12 Dec 2026 · Active." AD-12 holds one line with both plans, both prices, both expiries and her reason. Paul's app shows the new plan next time it opens; no notification was sent and no loyalty stamp was earned.
+4. **Variation: money already moved.** For a different member, Jean B., the same wrong plan had been paid in cash and verified. Nadia taps [Correct plan]; the modal does not open a form. It says "Can't correct the plan yet. The payment of 250,000 XAF on 10 Nov (Cash) is still recorded. Refund it fully first, then correct the plan." She taps [Open payments], records the full refund in AD-09 (the existing flow), and returns. The form now opens.
+5. **AD-18 → AD-19.** The same morning she edits the Pilates class. The weekly times list holds Mon, Wed and Fri, all at 18:00 (the class's old schedule, migrated invisibly). She changes Monday to 07:00, Wednesday to 18:30, and Friday to Saturday 09:00; no row needed adding. She saves.
+6. **AD-19, result view.** "Class saved. Weekly times: Mon 07:00 · Wed 18:30 · Sat 09:00. 2 sessions with bookings were left unchanged: Wed 18 Nov · 18:00 · 8 / 15 booked; Fri 20 Nov · 18:00 · 12 / 15 booked. They keep their old time and their bookings." She taps [Done], and calls Emmanuel about those two. Back on AD-18 the two sessions carry an "Old time" tag.
+7. **Emmanuel, AD-21.** In his Coach Portal's My Classes he taps [+ Create class], names it Stretching, sets capacity 10 and one weekly time, Tue 12:30. His own name is shown as the coach and cannot be changed. He saves; the class is in his list and in Nadia's AD-18.
+8. **Grace, AD-32.** The Owner opens the Coach Portal. A picker asks her to choose a coach; she picks Emmanuel. A banner reads "You're viewing Emmanuel T.'s Coach Portal. Read-only." She sees his classes with the booked names, and, under Members, his assigned clients with their notes and workout plans. Under every member the line says body measurements, photos and progress notes aren't shown in this view. There is no Progress tab and no Overview.
+
+**Climax beat:** A wrong plan is corrected before any money moves, with both versions and the reason written to the audit log; when money had moved, the screen named the exact payment to refund first, so nothing is rewritten silently. In the same hour a timetable is fixed without breaking a single booking, a coach adds his own class without asking, and the Owner sees what Emmanuel sees: his classes and his clients' notes, never their bodies.

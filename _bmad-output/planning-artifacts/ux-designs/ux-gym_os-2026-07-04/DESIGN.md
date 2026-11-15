@@ -2,13 +2,15 @@
 name: GymOS
 status: final
 created: 2026-07-04
-updated: 2026-11-08
+updated: 2026-11-15
 sources:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
   - _bmad-output/planning-artifacts/epics.md
   - _bmad-output/planning-artifacts/architecture/architecture-gym_os-2026-08-11/ARCHITECTURE-SPINE.md
   - _bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md
   - _bmad-output/implementation-artifacts/deferred-work.md
+  - _bmad-output/brainstorming/brainstorm-member-engagement-streaks-calendar-2026-11-14/brainstorm-intent.md
+  - _bmad-output/brainstorming/brainstorm-member-engagement-streaks-calendar-2026-11-14/v1.8-gym-feedback.md
 colors:
   primary: '#1B2A41'
   accent: '#E0971F'
@@ -55,6 +57,30 @@ components:
   statNumeral: { fontFamily: Barlow_800ExtraBold, fontSize: 32, lineHeight: 36 }
   loyaltyProgress: { numeral: statNumeral, segmentHeight: 8, segmentGap: 4, segmentRadius: 999, maxSegments: 12, fill: accent, track: border } # V1.6
   sessionChip: { iconChip: iconChip, paidTint: accent, freeTint: success, dormantTint: neutral } # V1.6
+  goalRing: { diameter: 120, strokeWidth: 12, segmentGapDegrees: 8, maxSegments: 7, numeral: statNumeral, fill: accent, complete: success, track: border } # V1.8
+  streakChip: { iconChip: iconChip, glyph: local_fire_department, tint: accent, label: smallBold, compactGlyph: bolt, compactIconSize: 28 } # V1.8, weekly + daily variant
+  shieldChip: { iconChip: iconChip, glyph: shield, tint: accent, label: smallBold, hitArea: 44 } # V1.8, not rendered at 0
+  calendarDayCell:
+    size: 44
+    gap: 6
+    radius: 8
+    numeral: small
+    empty: { fill: none, border: border, borderWidth: 1 }
+    lit: { fill: accent, glyph: check }
+    today: { border: accent, borderWidth: 2 }
+    atRisk: { border: warning, borderWidth: 2, glyph: schedule, hoursLabelSize: 10, pulse: atRiskPulse }
+    milestone: { glyph: star, glyphSize: 14 }
+    shieldSaved: { border: neutral, borderWidth: 1, glyph: shield }
+    pending: { borderStyle: dashed }
+    future: { numeralOpacity: 0.4 }
+    mini: { size: 28, numeral: none } # celebration, share image and "Your month" read-only variant
+  leaderboardRow: { minHeight: 56, iconChip: iconChip, glyphNamed: person, glyphAnonymous: visibility_off, rank: smallBold, rankWidth: 32, label: smallBold, visits: small, selfBorder: accent, selfBorderWidth: 2, selfTag: "You", photo: none }
+  badgeTile: { radius: 16, border: 1, padding: 16, iconChipSize: 48, earnedTint: accent, earnedGlyph: check, lockedTint: neutral, lockedBorder: border, columns: 2 }
+  goalOption: { size: 44, radius: 999, selected: { fill: accent, glyph: check }, unselected: { border: border, borderWidth: 1 }, rowWrapUnderWidth: 360 }
+  atRiskPulse: { property: opacity, from: 1, to: 0.45, durationMs: 1600, maxCycles: 3, color: warning, reducedMotion: static }
+  celebrationOverlay: { background: background, card: { radius: 24, surface: surface, padding: 24 }, numeral: celebrationNumeral, countUpMs: 700, enterMs: 400, reducedMotionEnterMs: 150, confetti: none, haptic: notificationSuccess }
+  celebrationNumeral: { fontFamily: Barlow_800ExtraBold, fontSize: 96, lineHeight: 104 } # NEW TYPE SIZE, see note
+  shareImage: { width: 1080, height: 1920, background: background, card: celebrationOverlay, logoMax: 120, calendar: calendarDayCell.mini, watermark: none } # V1.8, built on the device
 ---
 
 ## Brand & Style
@@ -78,7 +104,7 @@ defaults and are not specified here — the experience spine governs behavior.
 | accent | #E0971F | Primary CTA buttons, active states, highlights; overridden by gym color on member surfaces |
 | background | #FAFAF7 | Page/screen background |
 | success | #1E8E3E | Status badges (active), success toasts, check-in success overlay, positive progress-trend deltas |
-| warning | #D97706 | Status badges (expiring_soon, grace_period, pending_activation), front-desk grace alert, "already checked in" / "wrong QR" overlays, quiet-gym/reminder-adjacent warning icons |
+| warning | #D97706 | Status badges (expiring_soon, grace_period, pending_activation), front-desk grace alert, "already checked in" / "wrong QR" overlays, quiet-gym/reminder-adjacent warning icons V1.8: the **at-risk** state of today's calendar cell and the Home hint (outline and glyph only, always with words), because "a visit today keeps this" is a near-term, recoverable reminder. Never `danger`. |
 | danger | #DC2626 | Status badges (expired, suspended), front-desk denied alert, check-in denied overlay, destructive-action confirmations |
 | neutral | #6B7280 | Status badges with no active signal (no plan, deactivated), disabled states, secondary/muted text on status rows |
 | info *(V1.6)* | #2563EB | Action-required or pending-verification states: "Pay for your session" and "Check-in saved — will be verified" overlays, session-required front-desk alert, post-sync denial notice, guest "no paid session" badge, AD-18 refusal row border, AD-09 session-refund notice border. A recoverable step, not a failure, so not `danger`; and not `warning`, which on the alert panel means "entry allowed". Contrast: 5.17:1 with white text, 4.94:1 as text on `#FAFAF7` |
@@ -94,6 +120,7 @@ Barlow, app-wide (Member App; Admin/Super Admin dashboards use system-ui per pla
 | title | Barlow ExtraBold (800) | 40 / 46 | UPPERCASE, +0.5 tracking | Screen-level headlines (onboarding, empty-state heroes) |
 | subtitle | Barlow Bold (700) | 26 / 32 | UPPERCASE, +0.5 tracking | Section headers, card titles |
 | statNumeral *(new)* | Barlow ExtraBold (800) | 32 / 36 | As-typed, tabular figures | Bold standalone numbers — see Stat Tile below. Never uppercase/letter-spaced; numerals don't take a case |
+| celebrationNumeral *(V1.8)* | Barlow ExtraBold (800) | 96 / 104 | As-typed, tabular figures | The milestone numeral on the MA-20 celebration card and the share image only. Same family and weight as statNumeral, larger |
 | default | Barlow Regular (400) | 16 / 24 | Sentence case | Body copy |
 | smallBold | Barlow SemiBold (600) | 14 / 20 | Sentence case | List item titles, button labels, emphasis within body |
 | small | Barlow Medium (500) | 14 / 20 | Sentence case | Secondary/meta text, captions |
@@ -147,6 +174,44 @@ Visual specs only — behavior lives in `EXPERIENCE.md`'s Member App Component L
 **Front-desk alert — session-required variant** *(V1.6, dashboard)* — the same row anatomy as the grace and denied variants, with an `info` status dot and header text. It uses system-ui like the rest of the dashboard.
 
 **Category label** *(V1.6, dashboard only)* — plain text in the table cell or field. No chip and no colour: the category is descriptive data (FR-172) and must not look like a status.
+
+**Goal Ring** *(V1.8, `components.goalRing`)* — a 120pt ring of N equal arc segments (N is the member's weekly goal, 1 to 7) with a small gap between segments, 12pt stroke. Filled segments are `accent` (the gym colour on member surfaces); a completed ring is all `success` with a check glyph; empty segments are the `border` colour. The centre is `statNumeral` "visits / goal" with a `small` unit word beneath. Visits beyond the goal never add segments. It sits in a `flat` Card (the "This week" card), never `raised`.
+
+**Streak Chip and Shield Chip** *(V1.8, `components.streakChip`, `components.shieldChip`)* — an Icon Chip with a glyph in `accent`, followed by one `smallBold` line. The weekly streak chip is the larger; the daily chip (only on a run of 3+ days) is compact. Neither chip is ever drawn at a value of 0, and the Shield chip is not drawn when none is held; the substitutes are text lines ("First week done", the comeback card), never a zero.
+
+**Calendar Day Cell** *(V1.8, `components.calendarDayCell`)* — 44pt square, radius 8, 6pt gaps. States: empty (outline), lit (`accent` fill with a check glyph), today (2pt `accent` outline), at risk (2pt `warning` outline, a `schedule` glyph and the hours left in 10pt text), milestone (a star corner glyph on a lit cell), Shield-saved (a `shield` glyph on a `neutral` outline), pending sync (dashed outline), future (dimmed numeral). Every state is distinguished by shape, glyph or text in addition to colour. A 28pt `mini` variant with no numerals is used in the celebration card, the share image and "Your month".
+
+**At-Risk Pulse** *(V1.8, `components.atRiskPulse`)* — the outline of the at-risk cell and the glyph of the Home hint fade between full and 45% opacity over 1.6 s, for at most 3 cycles after the screen gains focus, then stay still. With the system reduce-motion setting on, no animation: a static 2pt outline. The hint's words are always present and are what carries the message.
+
+**Leaderboard Row** *(V1.8, `components.leaderboardRow`)* — a List Item at least 56pt tall inside one `flat` Card: rank in `smallBold` (32pt column, tabular), a 36pt neutral Icon Chip (`person`, or `visibility_off` for Anonymous; **never a photo**), the label in `smallBold`, and the visit count in `small`. The member's own row has a 2pt `accent` border and the word "You". Ranks 1 to 3 are not styled differently (no crown, medal or gold).
+
+**Badge Tile** *(V1.8, `components.badgeTile`)* — a `flat` Card tile with a 48pt Icon Chip, the badge name and one `small` line. Earned: `accent` glyph, a check, and "Earned [date]". Locked: `neutral` glyph, `border` outline, and a progress line such as "12 more visits to go", never a padlock and never "0".
+
+**Goal Option** *(V1.8, `components.goalOption`)* — a 44pt pill showing 1 to 7; selected is `accent` fill with a check glyph, unselected is a 1pt `border` outline. Seven in a row; two rows under 360pt width.
+
+**Celebration Overlay and Share Image** *(V1.8, `components.celebrationOverlay`, `components.shareImage`)* — a full-screen `background` surface holding one `hero`-radius (24) card on `surface`: gym logo and name at the top, the milestone numeral in `celebrationNumeral`, the headline in `title` style, one `default` sentence, and a read-only mini month calendar where it fits. The shared image is this card rendered at 1080 by 1920 px on the same background, with no GymOS wordmark and no member name (see EXPERIENCE.md MA-20). Motion: a 700 ms numeral count-up and a 400 ms fade and 96% to 100% scale; no confetti, no looping animation; reduce-motion shows the final state with a 150 ms cross-fade. No mascot in V1.8; the card reserves nothing for it (the mascot region has zero height when empty).
+
+**Gym Challenge progress** *(V1.8, Could)* — reuses `loyaltyProgress` in its continuous-bar form (N above 12 segments), 8pt, `accent` fill; reached is `success` with a check glyph. It lives in a `flat` Card.
+
+**V1.8 token notes** *(Member App)*.
+
+Tokens that are not in the existing set and could not be avoided (owner decision 2026-11-15: `celebrationNumeral` accepted): (1) `celebrationNumeral` is a new type size (96/104) above `statNumeral` (32/36); it keeps the same family and weight, as numerals never take a case. Without it the celebration reads as a stat tile, not a moment. (2) `surface` and `border` are the mobile dark theme's existing palette values (`#141F30` and the existing `border`), already referenced by `card.flat` and `loyaltyProgress`; no new colour is introduced. (3) `[NOTE FOR UX]` Gym-colour lit cells use `accent`, which is per-gym: a very dark or very light gym colour on the dark `#0A0F17` background has no enforced 3:1 floor on mobile (the web templates do have one). Same exposure as `loyaltyProgress` segments today; the check glyph and the outline already carry the meaning, so no failure of colour independence. Recommend a mobile contrast guard on the per-gym `accent` as a follow-up. `[ASSUMPTION]` glyph names are MaterialIcons (the app's set) and may change at build time.
+
+`[ASSUMPTION]` Contrast (computed from the hex values, to verify in the build): `{colors.warning}` `#D97706` on `#0A0F17` is about 5.0:1 (passes AA for text and UI) and on `#141F30` about 4.3:1 (passes the 3:1 UI floor, below 4.5:1 as text); so the at-risk **words** are set in the body text colour and only the outline and glyph use `warning`. `{colors.success}` `#1E8E3E` on `#0A0F17` is about 4.6:1. `{colors.neutral}` `#6B7280` is used for locked and disabled states only, as it is today.
+
+**V1.8 Admin Dashboard and Coach Portal: no new tokens.** Colours, type, radii and spacing are reused unchanged; nothing is added to the `colors`, `typography`, `rounded`, `spacing` or `components` front matter.
+
+Reuse map, so nothing is invented in the build:
+
+| Element | Reuses |
+|---|---|
+| Check-in result panels (AD-30 R1 to R11) | The status colours as the alert panel and check-in overlays use them: `success` (accepted), `warning` (accepted with a warning, already checked in), `danger` (expired, gym suspended, network), `info` (no paid session, the same meaning as the V1.6 session-required alert), `neutral` (refused for a non-expiry reason). Each pairs an icon and a label (Do's table). System-ui, dashboard type |
+| "By staff" and "Voided" pills (AD-11) | The neutral pill of AD-16 ("Created by GymOS Support"): pill, 1 px border, icon plus text, no colour signal |
+| Voided row | The muted row treatment already used for lapsed or voided sessions in the AD-04 Sessions section |
+| Read-only banner (AD-32) | A `flat` bordered strip with the `neutral` token and an eye icon (not `info`, which means "a recoverable step is waiting") |
+| Modals, dialogs, inline panels (AD-30, AD-31, void, cancel class, challenge dialogs) | The existing modal sizes (full-screen under 768, centered card max 640), the Record Session Payment Panel and the Inline Renewal Panel as inline sections |
+| Weekly times rows (AD-19) | The existing form-row, select and time input; each row on narrow screens is a bordered `flat` card |
+| Plan summary line, annual "Paid once" | Plain text in the existing plan row; no chip, no colour (the Category label rule: descriptive data must not look like a status) |
 
 ## Public Page Templates
 
@@ -246,5 +311,13 @@ One map of the continent, shown in the hero of `/{locale}/gyms/` and nowhere els
 | Use `info` for a recoverable "act now" state (pay for a session, wait for verification) | Use `danger` for session-required. Red means an expired membership, and a guest who needs to pay is not expired |
 | Pair every status colour with a label and an icon | Signal session-required, pending verification, or a reward by colour alone |
 | Keep one `raised` card per screen (Home: the status card) | Make the Rewards card `raised` to make it "pop" |
-| Show loyalty progress as the plain "n / N" numeral plus segments | Add confetti, badges, or celebratory animation to a reward. The tone stays factual (Voice and Tone) |
+| Show loyalty progress as the plain "n / N" numeral plus segments | Add confetti, badges, or celebratory animation to a reward. The tone stays factual (Voice and Tone) *(amended V1.8: this applies to loyalty rewards; the one milestone celebration, MA-20, is restrained: a count-up and a fade, no confetti, see below)* |
 | Show category as plain text | Give categories colours, icons, or chips that read as status |
+| Pair the at-risk state with the `warning` glyph, the words and the hours left | Use `danger` red for an at-risk day, a missed week or an ended streak. Red means expired or denied; a streak is never a failure |
+| Keep a streak chip out of sight when there is nothing to show; use "First week done" or the comeback card | Draw a "0 weeks" or "Streak: 0", ever |
+| Say what the member built ("5 weeks in a row") and what is in reach ("2 more visits close your ring") | Say what was lost or missed; use "last chance", countdown wording or exclamation marks |
+| Keep the "This week" card `flat` so the status card stays the one `raised` card on Home | Make the ring card `raised` to make it "pop" |
+| Use the plain "n / N" numeral and segments for the ring, the comeback card and the challenge | Add confetti or looping animation. The one place for celebration is MA-20, restrained (a count-up and a fade). This amends the V1.6 row above (amended V1.8): that rule stays for loyalty rewards, which remain factual; a milestone is not a reward and the owner asked for it |
+| Show the same neutral person glyph for every named leaderboard row and a `visibility_off` glyph for Anonymous | Show a photo, an avatar, a phone number or any identifier of another member; give ranks 1 to 3 a crown, medal or gold |
+| Show locked badges with progress in words | Show a padlock or a dimmed tile with no explanation |
+| Let the share image carry the gym's name and logo and the member's own milestone | Put another member's data, a phone number, a payment figure or a GymOS watermark on the image |
