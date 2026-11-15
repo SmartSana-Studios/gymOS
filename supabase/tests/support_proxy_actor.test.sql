@@ -277,6 +277,8 @@ insert into fk_class (col, class, note) values
   ('messaging_provider_config.updated_by',      'actor_converted', 'update_messaging_instance (Super Admin only)'),
   ('payments.actor_id',                         'actor_converted', 'record_* / initiate_* RPCs and the aa_support_force_actor trigger'),
   ('refunds.actor_id',                          'actor_converted', 'aa_support_force_actor trigger'),
+  ('attendance_events.entered_by',              'actor_exempt',    '27.2 adds the column; no writer sets it before 27.3, whose staff_check_in passes private.actor_id() (the per-gym proxy id for support) to record_check_in'),
+  ('attendance_events.voided_by',                'actor_exempt',    '27.2 adds the column; no writer sets it before 27.3, whose void function passes private.actor_id()'),
   ('gym_data_escalations.actor_id',             'actor_exempt',    'Super Admin escalation'),
   ('gym_data_escalations.revoked_by',           'actor_exempt',    'Super Admin revoke'),
   ('audit_disclosure_requests.requested_by',    'non_actor',       'the Owner who filed the request (Owner-only function; 23.8)'),

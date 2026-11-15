@@ -1,3 +1,5 @@
+  # Member lock on every check-in, charging or not; a second scan must wait behind it (two real sessions; Story 27.2, NFR-021).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/check-in-member-lock-race.sh" || return 1
 #!/usr/bin/env bash
 # Local mirror of .github/workflows/ci.yml -- run this BEFORE merging anything,
 # so GitHub Actions only ever runs once per epic (the epic -> master PR).

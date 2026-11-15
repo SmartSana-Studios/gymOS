@@ -380,6 +380,8 @@ insert into identity_none (col, reason) values
   ('audit_disclosure_requests.answered_by',      'Super Admin answers; never gym visible'),
   ('device_push_tokens.user_id',                 'own device token'),
   ('staff_notices.user_id',                      'the recipient of an in-app notice (23.9); not an actor'),
+  ('attendance_events.entered_by',              'the staff member of a desk check-in (27.2 adds the column; no writer sets it before 27.3, whose staff_check_in passes private.actor_id() to record_check_in and must record the identity then)'),
+  ('attendance_events.voided_by',                'the Manager who voids a desk check-in (27.2 adds the column; no writer sets it before 27.3, whose void function must record the identity then)'),
   ('members.user_id',                            'membership owner'),
   ('private.support_accounts.user_id',           'the support account itself'),
   ('support_assignments.support_user_id',        'the assigned person'),

@@ -43,6 +43,7 @@ Two independent chains: 27.1 → 27.2 → 27.3 (attendance) and 27.4 (plans). 27
 
 - 27.2 depends on 27.1; 27.3 on 27.2; 27.4 on nothing.
 - Epic 28 depends on `record_check_in`, the source and void columns and `void_staff_check_in`; Epics 30 and 31 read `attendance_counted` and `member_visit_days`. They must reuse these objects and never redefine them.
+- 27.3 must carry two items from the 27.2 review as acceptance criteria: (1) `check_out()`, `check_out_member` and `run_check_in_auto_timeout_job` read the open row with `voided_at is null` (a voided open row can sit beside a live one after 0174), proved by a pgTAP case per updater; (2) `private.record_check_in` reads the gym status through `private.current_gym_status()` (session gym), so a support caller must be shown to resolve it for the `p_gym_id` it passes.
 - Spine decisions: AD-56, AD-59, AD-53 (visit day only), AD-35, AD-39, AD-29, AD-30, AD-31, AD-22.
 
 ## Workflow

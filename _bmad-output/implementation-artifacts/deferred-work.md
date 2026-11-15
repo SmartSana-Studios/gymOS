@@ -2137,3 +2137,12 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-27-1-protected-attendance-counting.md`
   summary: Migration 0173 backfills `visit_day` in one UPDATE with a per-row function call (own exception sub-block and `gyms` lookup) while holding ACCESS EXCLUSIVE on `attendance_events`; unmeasured, marked medium unverified.
   evidence: `lock_timeout = '5s'` bounds only the wait for the lock, not the hold time. The first pass estimated tens of thousands of production rows at microseconds per call. Would settle it: `select count(*) from attendance_events` on production and a timed local run of the backfill at that size before the prod apply; if the count is large, backfill in a join (`update ... from gyms`) or in batches.
+
+## Deferred from: code review of spec-27-2-one-check-in-insert-path (2026-11-15)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-2-one-check-in-insert-path.md`
+  summary: Story 27.3 must make `check_out()`, `check_out_member(uuid)` and `run_check_in_auto_timeout_job()` read "the open row" with `voided_at is null` (or prove it unneeded), because after 0174 a voided open row can sit beside a live open row for one member.
+  evidence: 0174 narrows the one-open index to `voided_at is null`; the three updater bodies (0124, 0111) still match `checked_out_at is null` only, and 27.2's frozen Always keeps them unchanged. Unreachable until 27.3 adds `void_staff_check_in`. Belongs in 27.3's acceptance criteria (epic-27-context.md Cross-Story Dependencies carries it); a pgTAP case should run each updater with a voided open row present.
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-2-one-check-in-insert-path.md`
+  summary: `private.record_check_in` checks `private.current_gym_status()`, which resolves the gym from the session or the support proxy, not from `p_gym_id`; story 27.3 must prove or enforce that a support caller's resolved gym is the `p_gym_id` it passes.
+  evidence: identical for a scan (the gym comes from the same session). Only the 27.3 `staff_check_in` support path can differ. Flagged in the spec Design Notes and `docs/decisions.md`; belongs in 27.3's acceptance criteria.

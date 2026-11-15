@@ -9,7 +9,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000002701xx.
 
 begin;
-select plan(77);
+select plan(81);
 
 -- ============================================================================
 -- Fixtures
@@ -108,7 +108,7 @@ select is(
 );
 
 -- ============================================================================
--- (2) Columns: visit_day is NOT NULL, voided_at is the only void column
+-- (2) Columns: visit_day is NOT NULL; 27.2 (0174) adds source, entered_by, voided_by and void_reason beside voided_at
 -- ============================================================================
 select col_type_is('public', 'attendance_events', 'visit_day', 'date', 'visit_day is a date');
 select col_not_null('public', 'attendance_events', 'visit_day', 'visit_day is NOT NULL');
@@ -118,8 +118,8 @@ select col_hasnt_default('public', 'attendance_events', 'voided_at', 'voided_at 
 select is(
   (select array_agg(column_name::text order by column_name)
    from information_schema.columns where table_schema = 'public' and table_name = 'attendance_events'),
-  array['checked_in_at', 'checked_out_at', 'checkout_type', 'client_scan_id', 'created_at', 'gym_id', 'id', 'member_id', 'visit_day', 'voided_at'],
-  'the table gained exactly visit_day and voided_at (no voided_by, void_reason, source or entered_by: those are 27.2)'
+  array['checked_in_at', 'checked_out_at', 'checkout_type', 'client_scan_id', 'created_at', 'entered_by', 'gym_id', 'id', 'member_id', 'source', 'visit_day', 'void_reason', 'voided_at', 'voided_by'],
+  'the table has visit_day and voided_at (27.1) and source, entered_by, voided_by, void_reason (27.2, 0174)'
 );
 
 -- ============================================================================
@@ -238,8 +238,8 @@ select is(
 select is(
   (select array_agg(attname::text order by attnum) from pg_attribute
    where attrelid = 'public.attendance_counted'::regclass and attnum > 0 and not attisdropped),
-  array['id', 'gym_id', 'member_id', 'checked_in_at', 'checked_out_at', 'checkout_type', 'visit_day', 'created_at', 'client_scan_id'],
-  'attendance_counted has the explicit column list, no void column'
+  array['id', 'gym_id', 'member_id', 'checked_in_at', 'checked_out_at', 'checkout_type', 'visit_day', 'created_at', 'client_scan_id', 'source'],
+  'attendance_counted has the explicit column list (27.2 appends source), no void column and never entered_by'
 );
 select is(
   (select array_agg(attname::text order by attnum) from pg_attribute
@@ -286,7 +286,7 @@ select ok(
   'the views grant authenticated nothing but SELECT'
 );
 select is(
-  (select array_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text) from pg_proc p
+  (select array_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text collate "C") from pg_proc p
    where p.oid in ('private.gym_local_date(uuid, timestamptz)'::regprocedure, 'private.attendance_events_visit_day_guard()'::regprocedure)
      and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('authenticated', p.oid, 'EXECUTE')
           or exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee = 0))),
@@ -335,7 +335,7 @@ reset role;
 -- ============================================================================
 -- (8) A voided row (fixture as postgres) is hidden from the base policies and from both views
 -- ============================================================================
-update attendance_events set voided_at = now() where id = '00000000-0000-0000-0000-000000270153'; -- e3: M2's visit on 8 Nov
+update attendance_events set voided_at = now(), voided_by = '00000000-0000-0000-0000-000000270121', void_reason = 'wrong person' where id = '00000000-0000-0000-0000-000000270153'; -- e3: M2's visit on 8 Nov
 
 select is((select count(*)::int from attendance_counted where gym_id = '00000000-0000-0000-0000-000000270111'), 4,
   'as the table owner (no RLS), attendance_counted still excludes the voided row');
@@ -372,7 +372,7 @@ insert into attendance_events (id, gym_id, member_id, checked_in_at) values
   ('00000000-0000-0000-0000-000000270162', '00000000-0000-0000-0000-000000270111', '00000000-0000-0000-0000-000000270132', now()),
   ('00000000-0000-0000-0000-000000270163', '00000000-0000-0000-0000-000000270111', '00000000-0000-0000-0000-00000027013a', now());
 select is(private.gym_occupancy_band('00000000-0000-0000-0000-000000270111'), 'medium', 'occupancy: three open rows of ten is medium');
-update attendance_events set voided_at = now() where id = '00000000-0000-0000-0000-000000270163';
+update attendance_events set voided_at = now(), voided_by = '00000000-0000-0000-0000-000000270121', void_reason = 'wrong person' where id = '00000000-0000-0000-0000-000000270163';
 select is(private.gym_occupancy_band('00000000-0000-0000-0000-000000270111'), 'low', 'occupancy: a voided open row is not counted (two of ten is low)');
 select is(
   (select position('attendance_counted' in pg_get_functiondef('private.gym_occupancy_band(uuid)'::regprocedure)) > 0
@@ -484,8 +484,10 @@ create function pg_temp.attendance_readers_outside_list() returns setof text lan
   )
   select name from found
   where name not in (
-    -- check_in writes and takes the open row (27.2 replaces it with private.record_check_in)
+    -- check_in no longer writes (27.2): it calls record_check_in, and still names the table in its RETURNS type
     'function check_in(timestamp with time zone,uuid)',
+    -- the one inserter of attendance_events (27.2, 0174) and the stale-open closer
+    'function private.record_check_in(uuid,uuid,text,uuid,timestamp with time zone,uuid)',
     -- staff and member check-out close the open row
     'function check_out()',
     'function check_out_member(uuid)',
@@ -511,12 +513,32 @@ select is(
 select is(
   (select count(*)::int from (
      select p.oid from pg_proc p
-     where p.oid::regprocedure::text in ('check_in(timestamp with time zone,uuid)', 'check_out()', 'check_out_member(uuid)', 'run_check_in_auto_timeout_job()')
+     where p.oid::regprocedure::text in ('check_in(timestamp with time zone,uuid)', 'private.record_check_in(uuid,uuid,text,uuid,timestamp with time zone,uuid)',
+                                          'check_out()', 'check_out_member(uuid)', 'run_check_in_auto_timeout_job()')
        and p.prokind in ('f', 'p')
        and (case when p.prokind in ('f', 'p') then pg_get_functiondef(p.oid) end) ~ '\mattendance_events\M') q),
-  4,
-  'the four committed function readers exist and still mention attendance_events'
+  5,
+  'the five committed function readers exist and still mention attendance_events'
 );
+
+-- ----------------------------------------------------------------------------
+-- (11b) Story 27.2: exactly ONE function inserts into attendance_events, and exactly four update it. Comments are stripped before matching.
+-- ----------------------------------------------------------------------------
+create function pg_temp.attendance_writers(p_verb text) returns text[] language sql as $f$
+  select array_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text collate "C")
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname not in ('pg_catalog', 'information_schema', 'pg_temp') and n.nspname not like 'pg_temp%' and n.nspname not like 'pg_toast%'
+    and p.prokind in ('f', 'p')
+    and regexp_replace(pg_get_functiondef(p.oid), '--[^\n]*', '', 'g') ~* (p_verb || '\s+(public\.)?attendance_events\M')
+$f$;
+select is(
+  pg_temp.attendance_writers('insert\s+into'),
+  array['private.record_check_in(uuid,uuid,text,uuid,timestamp with time zone,uuid)'],
+  'exactly one function inserts into attendance_events: private.record_check_in');
+select is(
+  pg_temp.attendance_writers('update'),
+  array['check_out()', 'check_out_member(uuid)', 'private.record_check_in(uuid,uuid,text,uuid,timestamp with time zone,uuid)', 'run_check_in_auto_timeout_job()'],
+  'the updaters of attendance_events are exactly check_out, check_out_member, run_check_in_auto_timeout_job and record_check_in (the stale branch); 27.3 adds void_staff_check_in');
 
 -- Seeded offenders: a fake reader in each place is returned by the comparison.
 create function public.zz_attendance_offender() returns bigint language sql as $f$ select count(*) from attendance_events $f$;
@@ -539,6 +561,18 @@ select is(
   ],
   'seeded offenders (a function, a policy on another table, a view) are all returned by the enumeration'
 );
+
+-- A seeded second inserter and a second updater are returned by the two enumerations.
+create function public.zz_attendance_insert_offender() returns void language sql as $f$ insert into attendance_events (gym_id, member_id) values (gen_random_uuid(), gen_random_uuid()) $f$;
+create function public.zz_attendance_update_offender() returns void language sql as $f$ update attendance_events set checkout_type = 'manual' $f$;
+select is(
+  pg_temp.attendance_writers('insert\s+into'),
+  array['private.record_check_in(uuid,uuid,text,uuid,timestamp with time zone,uuid)', 'zz_attendance_insert_offender()'],
+  'a seeded second inserter is returned by the insert enumeration');
+select is(
+  array_length(pg_temp.attendance_writers('update'), 1),
+  5,
+  'a seeded second updater is returned by the update enumeration');
 
 select * from finish();
 rollback;
