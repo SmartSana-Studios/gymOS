@@ -219,3 +219,30 @@ After the architecture reviewer gate, the Step 1 design changed in these ways (a
 - Sign-in for support is phone + password, then TOTP at AAL2; the staff login screen becomes a Phone | Email choice with a password, and the email option is enabled for an account once its address is verified.
 - Factor enrollment runs only through a server function that checks the session's assurance level; a platform flag turns the Super Admin AAL2 requirement on after both factors are verified; there is no in-app Super Admin factor reset.
 - Support step-up is recorded server-side, not read from token claims; credentials are versioned and payments resolve the one they started under (AD-37). Payment-connection proposals were dropped 2026-10-15.
+
+
+## M. V1.8 — Rationale, Rejected Alternatives and Technical Inputs (2026-11-15)
+
+Source: the member-engagement brainstorm and the first-gym meeting, both in `_bmad-output/brainstorming/brainstorm-member-engagement-streaks-calendar-2026-11-14/` (the memlog there is the full trail). The PRD holds the decisions; this holds the reasoning that does not belong in it.
+
+**Why a weekly ring and not a daily streak as the main mechanic.** Few members train every day; a daily streak breaks quickly and discourages. The ring (goal 1–7, default 3) is gentler and fits a member who trains three or four times a week. The daily streak stays for members already on a run (FR-221). A streak that never falls to a bare zero (FR-223) and Shields earned rather than bought (FR-222) keep illness, travel and Ramadan from erasing weeks of work.
+
+**Brainstorm ideas parked or rejected, with the reason.**
+- *Mascot:* the owner has one and will add it later. Names proposed: Rep (top pick; one syllable, works in both languages), Flex, Pump, Streaky, Flamme, Zazou, Kiko, Gogo; avoid Momo (reads as mobile money in Cameroon) and Tara (the payment product). Asset format when ready: one SVG per pose (happy, neutral, sad, celebrating) preferred, transparent PNG at 1024 px or larger acceptable; Lottie or Rive would need a new library and is not required (the app already has `react-native-svg` and `react-native-reanimated`).
+- *Leagues and a "champion of the month" badge:* extra complexity; a newcomer can still win a monthly board because it resets.
+- *Owner list of members whose streak just broke:* rejected by the owner.
+- *Anti-cheat (rotating QR on a gym screen, location check at scan, minimum stay before a visit counts, anomaly flags, staff void):* check-in is a static entrance QR scanned from the member's own app (FR-042, FR-043), so a photo of the QR or a friend's scan counts today. The owner decided to keep check-in unchanged. Cheapest options if it ever matters: minimum stay (data already exists), then staff void, then a rotating QR (needs a screen), then a location check (the PRD defers presence detection to V3.0).
+- *Shared milestone image:* kept, as a Share button on the celebration screen; WhatsApp status is widely used and the image carries the gym's name.
+- *Instalments for annual plans:* not supported; the gym asked only how annual works, and an annual plan is paid once.
+
+**Why the coach picker excludes body data.** FR-095 allows only the owning member and their assigned coach to read measurements and photos. The feedback asked that staff above the coach "see the same things"; FR-247 follows that for classes, members, notes and plans and stops at body data, and OQ-34 asks the owner to confirm, because widening FR-095 is a privacy change that needs its own review.
+
+**Technical inputs for architecture and stories (not requirements).**
+- Streaks, Shields, milestones, ring and leaderboard are derived on the server from the attendance table; a staff check-in writes the same row with a source marker and the actor. Compute at week and month close rather than on every read where possible; keep the calculation idempotent so a retry or a late offline sync cannot double-spend a Shield (NFR-028).
+- The leaderboard query must return the label "Anonymous" and a rank with no stable identifier for hidden members (NFR-027); cache per gym per month is acceptable if it respects that.
+- Single-use validity needs a consumption record tied to a visit (check-in to check-out) instead of a covered day; the existing `guest_sessions` record has `covered_day` and `consumed_at` (AD-28) and would gain a visit link, not a new table.
+- Per-day class slots replace the single `recurrenceDays` plus `recurrenceTime` pair on a recurring class; existing rows migrate to one slot per selected day at the old time.
+- The share image is generated on the device from local data and handed to the OS share sheet; no server storage.
+- Reminder N-08 runs on the same scheduler pattern as the V1.5 class reminders; one send per member per day with a unique key per day; it must never share a failure path with check-in.
+- Correct plan reuses the audit and mandatory-reason pattern of FR-151 (void a fee recorded in error); the refund-first rule reuses FR-040.
+- Versioning: V1.8 = mobile 1.8.0 at the release carrying Step 3; the repository has no release tags except `landing-v1-dark`, and a `v1.7.0` tag on the commit that shipped V1.7 is an open housekeeping item.

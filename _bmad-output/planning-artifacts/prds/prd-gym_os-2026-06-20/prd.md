@@ -2,15 +2,15 @@
 title: GymOS — Product Requirements Document
 status: final
 created: 2026-06-20
-updated: 2026-10-15
-version: "1.7"
+updated: 2026-11-15
+version: "1.8"
 audience: Development Team
-scope: V1.0 (shipped) + V1.5 — Beta-Ready (shipped) + V1.6 — Session Guests, Loyalty & Gym Category (shipped) + V1.7 — GymOS Support Staff, Gym Landing Pages & Directory (this update; support staff ships first)
+scope: V1.0 (shipped) + V1.5 — Beta-Ready (shipped) + V1.6 — Session Guests, Loyalty & Gym Category (shipped) + V1.7 — GymOS Support Staff, Gym Landing Pages & Directory (shipped) + V1.8 — Member Engagement & First-Gym Feedback (this update)
 ---
 
 # GymOS — Product Requirements Document
 
-> Stable requirement IDs (FR-NNN, NFR-NNN) are never renumbered. V1.0 ended at FR-086 / NFR-010; V1.5 ran FR-087–FR-155 / NFR-011–NFR-020; V1.6 ran FR-156–FR-174 / NFR-021–NFR-022; V1.7 begins at FR-175 / NFR-023. Where a V1.5 requirement changes a V1.0 requirement's behavior, it says so explicitly ("Amendment to FR-XXX") and states the change — V1.0 text is not edited in place, so history stays legible. The exceptions are the two pre-existing FR-071/FR-082 edits below, decided and shipped (Story 1.13) before this convention was adopted for V1.5.
+> Stable requirement IDs (FR-NNN, NFR-NNN) are never renumbered. V1.0 ended at FR-086 / NFR-010; V1.5 ran FR-087–FR-155 / NFR-011–NFR-020; V1.6 ran FR-156–FR-174 / NFR-021–NFR-022; V1.7 ran FR-175–FR-214 / NFR-023–NFR-026 (FR-215–FR-218, delivered by Epic 26, are recorded in 6.41); V1.8 begins at FR-219 / NFR-027. Where a V1.5 requirement changes a V1.0 requirement's behavior, it says so explicitly ("Amendment to FR-XXX") and states the change — V1.0 text is not edited in place, so history stays legible. The exceptions are the two pre-existing FR-071/FR-082 edits below, decided and shipped (Story 1.13) before this convention was adopted for V1.5.
 
 ## 1. Overview
 
@@ -79,6 +79,24 @@ V1.6 is live. V1.7 does two things, in a fixed order: it lets GymOS help a gym f
 
 ---
 
+### 1.4 What V1.8 Adds
+
+V1.7 is live and the first gym has been met. V1.8 does two things: it fixes what the first gym's desk and classes ran into, and it gives members a reason to open the app between visits. Its guiding constraint is **simplicity**: every member engagement feature is derived from attendance records the product already keeps, with no new way to check in and no new hardware. (The desk and gym-operations steps do change how check-in works, deliberately: FR-237, FR-248.)
+
+| Order | Area | Before V1.8 | V1.8 |
+|-------|------|-------------|------|
+| 1 | Desk fixes | A member who cannot use their phone at the entrance cannot be checked in; a plan assigned by mistake cannot be corrected | Staff check a member in at the entrance (FR-248–FR-250); staff correct a wrongly assigned plan with a reason and an audit trail (FR-240–FR-243) |
+| 2 | Gym operations | A paid session always covers the whole day; a recurring class has one time for every day; the Coach Portal is for coaches only and only a Manager or Owner creates classes | Each gym chooses whether a paid session is good for the whole day or a single visit (FR-236–FR-239); a class has its own time on each day (FR-244–FR-245); coaches create their own classes and staff above them see any coach's classes and members through a coach picker (FR-246–FR-247) |
+| 3 | Member engagement | The app shows a QR scanner, plan status and loyalty progress; streaks, leaderboards and challenges were listed for V2.0 | A weekly goal ring with streaks and Streak Shields, an attendance calendar, a monthly gym leaderboard, milestone celebrations with a share image, a streak reminder and, optionally, a gym-wide monthly challenge (FR-219–FR-235) |
+
+**Existing gyms are not changed silently.** "Session validity" starts on **Whole day** for every gym, so today's behavior is unchanged until an Owner or Supervisor changes it (FR-236). The gym-wide challenge starts **off** (FR-234). The streak reminder is **on** by default for members, with one off-switch (FR-233), and no member appears on the leaderboard by name before seeing its notice (FR-227).
+
+**Loyalty stays separate.** Streaks, milestones and badges grant nothing and change no stamp or free session (FR-170 is untouched).
+
+The decisions behind V1.8, its delivery order and the assumptions to confirm are in Section 13.
+
+---
+
 ---
 
 ## 2. Problem
@@ -119,6 +137,8 @@ The cost is twofold: operational chaos for the gym owner, and invisible churn th
 | G-16 | Let GymOS set up and repair a gym from the inside — plans, settings, members, staff, payment account — without anyone sharing a gym's login credentials, while the Owner keeps one switch to turn that access off and is notified immediately of every connection or change of the gym's payment account | 1.7 |
 | G-17 | Give every gym an optional public web presence with no extra work beyond entering its own content once | 1.7 |
 | G-18 | Make gyms discoverable by search and AI-search, country by country, without exposing any tenant data | 1.7 |
+| G-19 | Fix what the first gym's desk and classes ran into: check in a member who cannot use their phone, correct a plan assigned in error, let a gym choose how a paid session is valid, and run a real timetable | 1.8 |
+| G-20 | Give members a reason to keep coming back through a weekly rhythm, streaks, a calendar and a gym leaderboard, built only on attendance the product already keeps | 1.8 |
 
 ### 3.2 Success Metrics
 
@@ -144,6 +164,9 @@ The cost is twofold: operational chaos for the gym owner, and invisible churn th
 | Gym set-up effort `[ASSUMPTION — baseline to measure]` | Median time from gym creation to its first member check-in, and founder-support tickets per new gym, fall against the pilot gyms' baseline for gyms that use support | Support actions later reversed by the Owner (a sign of unwanted changes) | 1.7 |
 | Landing-page adoption `[ASSUMPTION]` | ≥ 50% of gyms active at release publish a page within 60 days of release; every published page continuously meets the publish gate (FR-199) | Pages unpublished within 30 days of publishing (a sign the template or gate is wrong) | 1.7 |
 | Directory discoverability `[ASSUMPTION — conditional on gym count]` | Every published page's structured data validates with zero errors; published pages are indexed within 30 days; directory listings are indexed once they meet the FR-212 threshold (at launch, with few gyms, only individual pages are expected to be indexed) | Thin listings indexed (FR-212) | 1.7 |
+| Member habit `[ASSUMPTION — targets to confirm with pilot data]` | At gyms that have V1.8 live for 60 days, the share of active members who open the app on a non-visit day rises versus the pre-release baseline (extends the 1.5 non-visit-day metric), and the median visit days per active member per month rises | Reminder opt-outs and leaderboard "Anonymous" rate (once members have seen the notice): if more than half of members hide or silence the features, the features are read as pressure, not reward (FR-227, FR-233) | 1.8 |
+| Desk reliability `[ASSUMPTION]` | A member who cannot use their phone is checked in at the entrance in under 30 seconds, and a plan assigned in error is corrected without a developer or a database edit (FR-241, FR-248) | Staff check-ins as a share of all attendance: a rising share signals a problem with QR check-in, not success (FR-248) | 1.8 |
+| Class schedule fit `[ASSUMPTION]` | The first gym can run its real weekly timetable, with a different time on each day, without splitting one class into several (FR-244) | Classes created per gym after release: a jump may mean the workaround is still in use | 1.8 |
 
 ---
 
@@ -223,6 +246,20 @@ One new account type, no new gym role: a **GymOS support person** is a platform 
 | Owner | Turn "Allow GymOS Support" on or off; be notified immediately of every connection or replacement of the gym's payment account; see one "GymOS Support" row, never individuals; claim and rename the page name; publish and unpublish; choose public plans (FR-180, FR-182, FR-183, FR-198–FR-200, FR-203) |
 | Supervisor | Edit page content, publish and unpublish, and choose public plans; cannot claim a name or change "Allow GymOS Support" (FR-183, FR-198) |
 | Manager / Receptionist / Coach / Member | No change |
+
+### 4.6 Role Capability Deltas in V1.8
+
+No new role and no new account type. Every V1.8 capability sits on an existing role.
+
+| Role | New in V1.8 |
+|------|-------------|
+| Owner / Supervisor | Choose "Session validity" for the gym (FR-236); turn on and set the monthly gym challenge (FR-234); correct a member's plan (FR-241); check a member in (FR-248); pick any coach in the Coach Portal (FR-247) |
+| Manager | Correct a member's plan (FR-241); check a member in (FR-248); set a class's per-day schedule (FR-244); pick any coach in the Coach Portal (FR-247) |
+| Receptionist | Check a member in at the entrance (FR-248); no other change |
+| Coach | Create, edit and cancel their own classes (FR-246); no other change. Still sees only their assigned members (FR-022), and cannot see another coach's data |
+| Member | Set a weekly goal; see the ring, streaks, calendar, leaderboard, milestones, badges and gym challenge; choose to appear as "Anonymous"; turn the streak reminder off; share a milestone image (FR-219–FR-235) |
+
+Nothing in V1.8 widens who can read body and progress data (FR-095): staff above the coach still cannot read measurements or photos (FR-247). Section 4.1's "own data only" for a member gains one exception: other members' first name and last initial on the gym leaderboard, shown only for members who have seen its notice and have not hidden (FR-227).
 
 ---
 
@@ -305,6 +342,22 @@ Aminata, new to Douala, searches for "pilates studio Douala" and lands on a gym'
 ### UJ-14: Chidi takes down an impersonating page (V1.7) `[ASSUMPTION — narrative to confirm]`
 
 A visitor reports a page named `getgymfit` whose about text says "Official GymOS payment page — pay your fees here". The name passes every rule, so nothing held it; the report form is how it surfaced. Chidi takes the page down with the reason "impersonation"; the address stops returning content within the minute, the gym's Owner is told why, and republishing is blocked until Chidi lifts the takedown. The name stays reserved to that gym.
+
+### UJ-15: Mireille keeps her week (V1.8) `[ASSUMPTION — narrative to confirm]`
+
+Mireille trains at Martin's gym three evenings a week. When the V1.8 app update arrives she sets her weekly goal to 3 (the default) and sees an empty ring on Home. Each visit fills a third of it; on Thursday the ring closes, and when the week ends her weekly streak reads "5 weeks". On the calendar every day she came is lit, and the 30th visit carries a marker; when she reached it, a celebration screen appeared and she shared the image to her WhatsApp status with the gym's name on it.
+
+In week six she has a fever and misses the whole week. She still has a Streak Shield, earned at four weeks, so the streak survives and the app tells her so. In week seven she has visited once by Friday and needs two more visits to close the ring. On Saturday at 18:00 she gets one reminder, because the goal can now be met only if she comes today and tomorrow; she goes both days, and the ring closes on Sunday. In the month's leaderboard she is ninth of 43; she has chosen to appear as "Anonymous", so other members see a rank and no name.
+
+### UJ-16: Brice checks in a member at the door (V1.8) `[ASSUMPTION — narrative to confirm]`
+
+At 7 a.m. Ange arrives at the gym with a dead phone. Brice, at the desk, opens the Attendance page, searches "Ange" and taps **Check in**. Her plan is a Pay-per-session plan, and at this gym "Session validity" is **Single use**, so the system asks for a session: Brice records her 2,000 XAF at the desk, the check-in goes through, and the entry shows "checked in by Brice". At 6 p.m. Ange comes back for a second workout; her morning visit ended when she checked out (or at the 3-hour visit limit, had she forgotten), so a second session is needed and Brice records another payment. At a gym on **Whole day**, the same evening return would have cost nothing.
+
+### UJ-17: Nadia fixes a plan and a timetable (V1.8) `[ASSUMPTION — narrative to confirm]`
+
+Nadia assigned the annual plan to a new member by mistake; she meant monthly. No payment has been recorded yet, so she opens the member, chooses **Correct plan**, selects the monthly plan, types "wrong plan chosen at sign-up", and the new expiry is computed from the original start date; the audit log keeps both plans and the reason. When a different member's wrong plan had already been paid, the action refused and told her to refund the payment first.
+
+The same morning she edits the Pilates class: Monday 07:00, Wednesday 18:30 and Saturday 09:00 are three slots of one class. Coach Emmanuel, who also teaches the class, adds a stretching class of his own without asking her. The Owner opens the Coach Portal, picks Emmanuel from the coach picker, and sees his classes and class lists; she does not see his clients' measurements.
 
 ---
 
@@ -1051,6 +1104,119 @@ One program engine per gym with two earning rules: guests earn toward a free ses
 
 ---
 
+### 6.33 Member Engagement — Weekly Goal, Streaks & Calendar — V1.8
+
+Members have a reason to open the app only on the days they visit. This section gives them a weekly rhythm to keep, a streak to protect, and a calendar to be proud of. **The constraint is simplicity:** every item here is derived from attendance records the product already keeps, plus the small member state it needs: the goal, Shields, badges and the Anonymous choice (FR-225). The feeling to design for is **pride in what the member has built and a wish to protect it**, never guilt. Each requirement in 6.33–6.36 that is not a *Must* carries its priority: *(Should)* items ship with V1.8 unless deferred at epic planning, and *(Could)* items ship only if ready (Section 10.3). Where each feature sits on screen is a UX decision, not decided here.
+
+**FR-219** — **Weekly goal and ring.** A member sets a weekly goal of **1 to 7 visit days**; the default is **3**. A change of goal applies from the start of the next gym-local week, so a goal cannot be lowered after a bad week. The Home screen shows a ring that fills with each visit day of the current week and closes when the goal is met. `[ASSUMPTION]` A week runs Monday to Sunday in the gym's timezone (FR-010); the default and the week start are confirmed against pilot data (OQ-33).
+
+**FR-220** — **Weekly streak.** The weekly streak is the number of consecutive gym-local weeks in which the member met the goal in force that week. It is computed on the server when a week closes, never on the device. The member's **best streak** is stored and never lowered. A missed week ends the streak unless a Streak Shield saves it (FR-222); missing a visit inside a week that still meets the goal costs nothing. `[ASSUMPTION]` "Consecutive" is read strictly: a week below the goal, with no Shield, ends the run.
+
+**FR-221** — **Daily streak** *(Could)*. A daily streak (consecutive visit days) appears automatically once the member has a current run of **3 or more** consecutive visit days, and is hidden when the run ends. There is no opt-in and no setting. The weekly streak stays the main streak. A missed day can be saved by a Shield (FR-222).
+
+**FR-222** — **Streak Shield** *(Should)*. A member earns one Streak Shield each time the weekly streak reaches a multiple of **4 weeks**, and holds at most **2**; a third is not stored. `[ASSUMPTION]` Earned at every fourth consecutive week of a run, so a member who restarts after a break earns again after four more weeks. When a missed week or a missed day would end a streak, a held Shield is used **automatically** and the streak continues; the app shows which period it saved. One Shield saves one period. Shields cannot be bought, given, or granted by staff, and are not part of the loyalty program (FR-170 is untouched). `[ASSUMPTION]` If a whole missed week would end both streaks, the Shield saves the weekly streak and the daily streak ends. A Shield spent on a missed day could leave none for the weekly streak; the story decides whether the last held Shield is reserved for the weekly streak (OQ-35).
+
+**FR-223** — **Comeback** *(Should)*. When a streak ends and no Shield saves it, the member's best streak stays visible and the app shows a **comeback** state with a goal of **3 visits**; completing it restores the member's active streak status, and the new streak counts from the first week the goal is met again. `[ASSUMPTION]` The goal is 3 visits **within 10 days**, and a window that lapses simply restarts from the member's next visit; the owner decided "3 visits", the 10-day window is a proposal. The app never shows a bare "0" with no context. `[ASSUMPTION]` What "restored status" looks like is a UX decision.
+
+**FR-224** — **Attendance calendar.** The member sees a month view in which every visit day is lit and every other day is empty, and can move to earlier months. **Today's cell shows an "at risk" state, with the hours left in the gym-local day, when the member has not visited today and a visit today is needed to keep a streak** — conditions (a) and (b) of FR-233, which apply whether or not the reminder is shipped or switched on; (a) applies only if the daily streak ships. Days that carried a milestone visit show a marker (FR-229).
+
+**FR-225** — **What counts, and for whom.** A **visit day** is a gym-local calendar day on which the member has at least one attendance record at the gym; several check-ins in one day count once. Everything in 6.33–6.36 reads attendance records the product already keeps: **these engagement features** change no check-in rule, add no hardware, and add no new member check-in method. (Steps 1 and 2 do change check-in on purpose: staff check-in, FR-248, and Single-use validity, FR-237; attendance entered by staff is the same record.) `[ASSUMPTION]` **At release**, existing attendance counts: the calendar shows past days, total visits and the current month's leaderboard use stored history, and a member who has already passed 7, 30 or 100 visits gets those badges silently with no celebration; the weekly streak starts from the first full gym-local week after release, and a member who has not set a goal uses the default of 3. The day a visit falls on is the gym-local day of the attendance record's recorded visit time, exactly as FR-061 and FR-159 already set it, offline scans included; V1.8 adds no new time rule. A rejected scan records no attendance (FR-031, FR-159) and counts for nothing. **All members see the same features whatever their plan**, Pay-per-session members and rare visitors included; there is no plan gating and no upsell mechanism in V1.8. A member sees only their own streaks, calendar and badges.
+
+---
+
+### 6.34 Gym Leaderboard — V1.8
+
+**FR-226** — **Monthly gym leaderboard.** Each gym has a leaderboard in the member app that ranks the gym's members by the number of **visit days** (FR-225) in the current gym-local calendar month, and resets at the start of each month. It shows the **top 10**, then the member's own row with the member directly above and below, and how many visits the member is behind the one above. `[ASSUMPTION]` Ties share a rank and are ordered by who reached the count first; the member sees one neighbour above and one below; members with no visit in the month are not ranked. The board is per gym, never across gyms, and is not shown in the dashboard in V1.8.
+
+**FR-227** — **Anonymous.** A member can choose to appear as **"Anonymous"** from their Profile. They are still counted and ranked; only their name is replaced. Other members see a visible member as **first name and last initial**, with no photo and no phone number. **Until a member has opened the leaderboard and seen the notice, they appear as "Anonymous"**; the notice says how they will appear to the gym and offers to hide, and after it they appear by name unless they hide. No existing member is named to the gym before seeing it. The choice can be changed at any time and applies from the next load. `[ASSUMPTION]` Visible after the notice by default (OQ-32).
+
+**FR-228** — **Enforcement and no prizes.** "Anonymous" is enforced **on the server**: another member's device never receives a hidden member's name or any identifier that reveals it, only a rank and the label "Anonymous" (NFR-027). A member sees only their own gym's board (FR-005). Rank carries **no prize, discount, session, Shield, or stamp** in V1.8, there are no leagues and no "champion" badge, and no role can edit a member's count or rank directly; counts change only through attendance records, including staff check-in and its void (FR-248, FR-250).
+
+---
+
+### 6.35 Milestones, Badges & Sharing — V1.8
+
+**FR-229** — **Milestones.** At the member's **7th, 30th and 100th total visit day** at the gym (one per visit day, counted over the member's time at that gym), the app shows a celebration screen once. The calendar marks the day of each milestone visit. A milestone reached while offline is shown after the visit syncs.
+
+**FR-230** — **Badge shelf** *(Should)*. The app keeps a shelf of earned badges that the member can open at any time. The V1.8 badges are: **First visit**, **7 visits**, **30 visits**, **100 visits**, and **4 weeks in a row** (the week a Shield is earned, FR-222). A badge is earned once and never lost, and grants nothing. `[ASSUMPTION]` The badge set beyond the 7/30/100 milestones is a proposal to confirm.
+
+**FR-231** — **Share** *(Should)*. The celebration screen, and each earned badge on the shelf, has a **Share** button that makes an image of the milestone (with the member's month calendar where it fits) carrying the gym's name and `[ASSUMPTION]` logo, and hands it to the phone's own share sheet, so the member chooses WhatsApp status, a chat, or any other target. The image is built on the device from the member's own data and never contains another member's data, a phone number or a payment figure. Sharing is always the member's own action; GymOS stores nothing about what was shared.
+
+**FR-232** — **Wording as editable text.** All goal, celebration, comeback, and reminder wording is kept as editable text, not fixed inside screens, in English and French (FR-014–FR-018 apply), so wording can change — and a character can speak it later — without redesigning a screen.
+
+---
+
+### 6.36 Streak Reminder, Gym Challenge & Monthly Summary — V1.8
+
+**FR-233** — **Streak reminder (N-08)** *(Should)*. A new push notification, N-08, is added to FR-075. It is **on by default** with one off-switch in the member's notification preferences (Amendment to FR-076: a non-critical notification). At most **one per member per day**, sent at **18:00** gym-local time, and only if the member has not visited today **and** either (a) a daily streak of 3 or more days would end today, or (b) the weekly goal can still be met but **only if the member visits today** — that is, the visit days still needed this week equal the gym-local days left in the week, today included, so no rest day remains. Otherwise nothing is sent. N-08 shares no limit with N-06 or N-07. Delivery follows FR-074; wording follows FR-232. A member-chosen time is not in V1.8.
+
+**FR-234** — **Gym-wide monthly challenge** *(Could)*. The Owner or Supervisor (`[ASSUMPTION]` Supervisor included, as with FR-157) can set **one challenge per gym per gym-local month** in Settings: a numeric **target** of total visit days by all the gym's members in that month, and a **reward** written as free text (for example "a free smoothie"). It is **off by default**. The app shows progress toward the target ("412 / 1,000") and a reached state. The reward is a promise by the gym: GymOS never grants money, a session, a Shield or a loyalty stamp from it, no payment runs through it, and nobody gets a prize for individual rank. `[ASSUMPTION]` Target and reward are fixed once the month starts, to prevent moving the goal mid-month; the Owner can cancel a challenge. Setting, changing and cancelling are audit-logged (FR-080). A challenge does not carry into the next month.
+
+**FR-235** — **"Your month" summary** *(Could)*. From the first day of a month, the app can show a member a summary of the month just ended: visit days, best week, and the change from the month before. It is computed from attendance, sends no push, and can be ignored.
+
+---
+
+### 6.37 Pay-per-Session Validity — V1.8
+
+First-gym feedback: one gym wants a paid session to cover **one visit**, another keeps today's rule of **one whole day**. This section lets each gym choose. It amends FR-157, FR-159 and FR-174.
+
+**FR-236** — **Session validity setting.** Each gym has a setting **Session validity** with two values: **Whole day** (a paid session covers every check-in until the end of that gym-local day, exactly as FR-159 does today) and **Single use** (a paid session covers one visit). The Owner or Supervisor changes it on Settings, and it is audit-logged with old and new value (FR-080). It matters only while "Charge guests per session" is on (FR-157). It is **Whole day** for every gym, existing or new, so nothing changes until an Owner chooses.
+
+**FR-237** — **Single use.** In Single use, a check-in by a Pay-per-session member consumes one usable session (FR-159's ordering and expiry rules apply), and that session covers that **visit**. A visit ends at check-out, manual or automatic (FR-045), **or** `[ASSUMPTION]` 3 hours after its check-in, whichever comes first: members rarely check out, and without a limit a member who leaves and returns later the same day would be refused as "already checked in" and pay nothing (OQ-36). While a visit is open and younger than that limit, a second scan is rejected "You're already checked in" and costs nothing (FR-044). Once the visit has ended, or the limit has passed, the next check-in — the same day or later — consumes another session; a scan after the limit closes the stale open visit under FR-044's existing handling and starts a new one. Time handling is FR-159's, including offline scans (FR-161). With no usable session the check-in is rejected, no attendance is recorded, and the app shows the "Pay for your session" state, exactly as FR-159.
+
+**FR-238** — **Classes in a Single-use gym.** Amendment to FR-174. Marking a Pay-per-session member attended at a class consumes a session unless the member has an open check-in at that gym, in which case that visit's session covers the class. `[ASSUMPTION]` Confirm in stories.
+
+**FR-239** — **Changing the setting; loyalty and reporting.** A change applies to check-ins made after it; a visit already open finishes under the rule it began with, and a session already consumed keeps the coverage it had. Unused paid sessions (7 days, FR-159) and free sessions (60 days, FR-166) lapse as before. Loyalty is unchanged (FR-165): one guest stamp per consumed paid session, so a Single-use gym earns stamps faster and its Owner tunes N (FR-164) to the discount they intend. The Guest sessions card (FR-163) and the session audit (FR-162) count consumed sessions under either setting.
+
+---
+
+### 6.38 Plans — Correction & Annual Clarification — V1.8
+
+**FR-240** — **Clarification of FR-025: annual plans.** An annual plan is a plan with an **annual billing interval**, a price that carries the gym-set discount (FR-025), and a duration of about a year. The member pays the whole price **once**; the subscription then runs for the plan's duration under the normal lifecycle (FR-027–FR-032), and renewal is a new payment for the next period (FR-032). A monthly plan and an annual plan are two separate plans; a member does not choose "how to pay" one plan. **Paying an annual plan in instalments is not supported in V1.8** (Section 8). `[ASSUMPTION]` Annual plan cards on the dashboard state price, duration, and "paid once" in plain words, because the first gym found the annual flow unclear.
+
+**FR-241** — **Correct plan.** An Owner, Supervisor or Manager (the roles that assign plans) can **correct** the plan on a member's current subscription from the member's page. A reason is mandatory. The action replaces the plan on that subscription and records the actor, the reason, and the old and new plan, price and expiry in the audit log (FR-080).
+
+**FR-242** — **When a correction is allowed.** Only while **no payment** linked to the current subscription stands. A payment stands unless it is voided or **fully** refunded: a payment awaiting verification (FR-037), a Tara Money payment still in flight, and a partially refunded payment all stand. If one stands, the action is refused with a message that names the payment and says to refund it fully first (FR-040) or wait for it to settle, after which the correction can be made. A subscription with **no payment record** (an imported member, or a payment-less renewal override) can be corrected, and its "original start date" is its recorded start date. A correction **to or from a Pay-per-session plan** is also refused while the member holds an unused paid session. `[ASSUMPTION]` The registration fee (FR-148) is not a subscription payment and is unaffected.
+
+**FR-243** — **What a correction does.** The new expiry is the subscription's **original start date** plus the new plan's duration, and the subscription status is recalculated from it (FR-027). `[ASSUMPTION]` It is not a renewal: it earns no loyalty stamp (FR-167) and sends no payment notification. Attendance, consumed and free sessions, stamps, streaks and badges are never rewritten. The member's app shows the new plan the next time it loads. The start date cannot be changed by a correction.
+
+---
+
+### 6.39 Classes — Per-Day Schedules & Coach Access — V1.8
+
+**FR-244** — **Per-day schedule.** Amendment to FR-104. A recurring class holds one or more **schedule slots**, each a weekday and a start time (and the class's length where the class has one), so one class can run at a different time each day (for example Monday 07:00, Wednesday 18:30, Saturday 09:00); the same weekday may appear twice at different times. `[ASSUMPTION]` Up to 14 slots per class. Booking, capacity, the cancellation cutoff and reminders (FR-105, FR-106, FR-116) work per generated session, unchanged. One-off classes are unchanged.
+
+**FR-245** — **Migration and edits.** Each existing recurring class becomes a class whose slots are its current days, all at its current time; its sessions and bookings are untouched. An edit to the slots applies to future sessions that have **no bookings**; a future session that has bookings is left as it is and is listed to the editor, who decides what to do with it. `[ASSUMPTION]` Confirm in stories.
+
+**FR-246** — **Coaches create classes.** Amendment to FR-104, FR-121, FR-122 and FR-145: the read-only rule of FR-145 no longer applies to a coach's **own** classes. A Coach can create, edit and cancel classes of which they themselves are the coach, inside the Coach Portal's My Classes surface; they cannot assign another coach or change another coach's class. FR-053 is otherwise unchanged: the admin Classes page stays closed to the Coach role. Manager, Supervisor and Owner keep full control of every class. A coach sees the booked members of their own classes, as today.
+
+**FR-247** — **Coach picker.** Amendment to FR-053. The Owner, Supervisor and Manager can open the Coach Portal and choose any coach of their gym from a **coach picker**; they then see what that coach sees — the coach's classes and class lists, the coach's assigned members with profile, session notes and workout plans — **read-only**. **Body and progress data stay excluded** (FR-095, NFR-011, NFR-016): measurements, photos, progress notes (FR-098), the Overview's recent progress activity (FR-146) and plan completion data (FR-110) are never shown through this view. `[ASSUMPTION]` Session notes and workout plans as authored are shown, as they already are to Owner and Manager (FR-055, FR-111); confirm with OQ-34. Receptionist and Coach roles have no picker. The picker is limited to the staff member's own gym (FR-005). See OQ-34.
+
+---
+
+### 6.40 Staff Check-In — V1.8
+
+**FR-248** — **Staff check-in.** A Receptionist, Manager, Supervisor or Owner can check a member in from the Attendance page: search by name or phone, confirm. Every member keeps a required phone number (FR-020); this serves a member who **cannot use their phone at the entrance** — no smartphone, a dead battery, an app problem. It creates the same attendance record as a scan, marked **checked in by staff** with the staff member's name. `[ASSUMPTION]` The time is the time of entry; it cannot be set to the past or the future. The visit appears in the member's app, counts toward occupancy (FR-046), and counts in streaks, calendar and leaderboard like any visit.
+
+**FR-249** — **Same rules as a scan.** A staff check-in follows a scan's rules: one open check-in per member (FR-044; check-out is unchanged, FR-045); the member-status outcomes of FR-031 — accepted with a warning for `expiring_soon` and `grace_period`, **rejected** for `expired`, with the renewal action (FR-050) offered to the staff member in place; and for a Pay-per-session member at a gym with "Charge guests per session" on, a usable session under FR-159 or FR-237 — when there is none, the screen offers recording the desk payment (FR-158) and then completes the check-in. A rejected attempt records no attendance. `[ASSUMPTION]` No separate real-time alert (FR-049) is raised for the staff member's own entry, because they see the outcome in place.
+
+**FR-250** — **Audit and visibility.** Amendment to FR-080. Every staff check-in, and every rejected staff attempt, is audit-logged with actor, member, time and outcome. The attendance log (FR-048) marks staff check-ins and shows who entered them; a support person appears only as "GymOS Support" (FR-186). `[ASSUMPTION]` A staff check-in entered on the wrong member can be **voided** by a Manager, Supervisor or Owner on the same gym-local day, with a mandatory reason and an audit entry; the voided visit stops counting for occupancy, streaks, rank and the challenge. This is a correction of a staff mistake, not a member-facing anti-cheat measure (Section 8). Staff check-in does not replace QR check-in and gives members no new path.
+
+**FR-251** — **GymOS support in V1.8.** Amendment to FR-179. The V1.8 staff capabilities — the Session validity setting (FR-236), the gym challenge setting (FR-234), Correct plan (FR-241), staff check-in and its void (FR-248, FR-250) — are added to the support allow-list exactly as a Supervisor has them, in assigned gyms, behind the second factor (FR-189), and are audited under the individual and shown to the gym as "GymOS Support" (FR-186). Support gets no member-app capability and no body-data access.
+
+---
+
+### 6.41 Epic 26 Carry-Over — FR-215–FR-218 (recorded, not new)
+
+These four requirements were delivered by Epic 26 and are recorded in `epics.md` but were never added to this document; they are listed here so the PRD matches what shipped. Their full wording is in `epics.md` (Epic 26). Nothing here is a V1.8 change.
+
+- **FR-215** — A member record carries an optional birth year, profession and neighborhood, entered by staff and shown with the member.
+- **FR-216** — The birth year is shown as an approximate age and never as an exact date of birth; the existing optional date of birth is unchanged.
+- **FR-217** — A members-only CSV import (name, phone and the three profile fields, no plan) creates members awaiting the registration fee, so the Owner decides each person individually. This amends FR-154 for the members-only import: those members are not treated as existing members and are not exempt from the fee.
+- **FR-218** — The existing plan import is unchanged, and a gym with a registration fee of 0 can still run the members-only import, with a warning.
+
+---
+
 ## 7. Non-Functional Requirements
 
 ### 7.1 Performance
@@ -1139,6 +1305,16 @@ One program engine per gym with two earning rules: guests earn toward a free ses
 
 ---
 
+### 7.9 Engagement, Privacy & Correctness (V1.8)
+
+**NFR-027** — **Leaderboard privacy is enforced and tested on the server.** A test on every read path that returns leaderboard data proves another member's device never receives a hidden member's name, photo or any identifier that reveals them, and that a gym's board never contains another gym's members (extends NFR-001). The label "Anonymous" is produced by the server, not hidden by the client.
+
+**NFR-028** — **Engagement counts are deterministic.** The weekly goal, streaks, Shields, milestones, badges, calendar and leaderboard are derived on the server from attendance records. Recomputing them from attendance gives the same result; a visit that arrives late through offline sync (FR-061) corrects the counts it belongs to; day, week and month boundaries use the gym's local time and a later timezone change does not move past days; a goal change after a week has begun does not alter that week's result (the goal in force that week is kept); a Shield cannot be used twice for the same period, even under retries.
+
+**NFR-029** — **Speed and safety of delivery.** The ring, calendar and leaderboard load within 2 seconds on a mid-range Android phone on 4G for a gym at its tier's member cap `[ASSUMPTION — baseline to measure]`. The N-08 reminder job sends at most one per member per day, is safe to run twice, and a failure in it never blocks or delays a check-in.
+
+---
+
 ## 8. Out of Scope
 
 The following are explicitly deferred. Nothing below may be added to scope without an explicit decision recorded in `.memlog.md` (see also the legacy `.decision-log.md`).
@@ -1168,7 +1344,14 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | Class waitlists (auto-promote when a spot frees) | V2.0 |
 | Nutrition / meal logging | V2.0 |
 | Progress data export (member downloads history) | V2.0 |
-| Streaks, challenges, leaderboards, activity feed | V2.0 |
+| Streaks, challenges, leaderboards | **Moved into V1.8** (FR-219–FR-235, decided by the product owner 2026-11-15) |
+| Activity feed | V2.0 |
+| Gym mascot | After V1.8 (the character exists; wording is built as editable text so it can be added, FR-232) |
+| Leagues and a monthly "champion" badge on the leaderboard | After V1.8 |
+| Paying an annual plan in instalments | Not planned; revisit if other gyms ask (FR-240) |
+| Anti-cheat on check-in (rotating QR, location check, minimum stay, anomaly flags) | Not planned in V1.8; the product owner chose to keep check-in unchanged. Location and presence checks stay with V3.0 |
+| Owner list of members whose streak just broke | Rejected for V1.8 |
+| Member-chosen reminder time | After V1.8 (FR-233) |
 | Live multi-currency payments beyond XAF | V2+ |
 | Gym-owned merch store | V2.5 |
 | Platform-wide marketplace | V3.0 |
@@ -1217,6 +1400,11 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | OQ-29 | **Directory thin-page threshold** — default 3 published gyms per listing (FR-212); confirm or change. | Product owner | Before directory stories |
 | OQ-30 | **Resolved (2026-10-20)** — confirmed by the product owner (docs/decisions.md, Story 23.0): default as written: switching "Allow GymOS Support" off suspends assignments, switching on re-activates those that were active, and assignments made while off stay pending (FR-177, FR-183). | — | — |
 | OQ-31 | **Resolved by owner risk acceptance (2026-10-20), not reviewed by counsel (docs/decisions.md, Story 23.0)** — liability terms for support actions (FR-187), publishing a gym's phone and address (FR-197), and support access to member data under the applicable data-protection law. | — | — |
+| OQ-32 | **Leaderboard default visibility** — FR-227 assumes members appear as "Anonymous" until they have seen the first-open notice, then by first name and last initial unless they hide. The alternative is hidden by default. Recommended: visible after the notice, because a board of anonymous members does not motivate; confirm, and have counsel look at consent wording if required. | Product owner | Before leaderboard stories |
+| OQ-33 | **Engagement defaults** — weekly goal default 3 and range 1–7 (FR-219), week starting Monday, reminder at 18:00 (FR-233), Shield every 4 weeks and cap 2 (FR-222). Set from common fitness guidance, not gym data. Revisit with pilot-gym usage after release. | Product owner | Post-release check |
+| OQ-34 | **Coach picker and body data** — the request was that Owner, Supervisor and Manager see what the coach sees. FR-095 says no role other than the member and their assigned coach reads measurements or photos, so FR-247 excludes them. Confirm this is acceptable, or decide separately to widen FR-095 (a privacy change needing its own review). | Product owner | Before coach-view stories |
+| OQ-35 | **V1.8 assumptions to confirm in stories** — Shield use when both streaks would end (FR-222); badge set beyond 7/30/100 (FR-230); challenge target fixed once the month starts (FR-234); class attendance inside an open Single-use visit (FR-238); a correction to or from Pay-per-session (FR-242); edits to a slot that has bookings (FR-245); no separate alert for a staff check-in (FR-249); the 10-day comeback window (FR-223); whether the last Shield is reserved for the weekly streak (FR-222); how existing attendance counts at release (FR-225); leaderboard ties and neighbours (FR-226); a staff void of a mistaken check-in (FR-250); the 3-hour visit limit (FR-237, OQ-36). All are tagged `[ASSUMPTION]` where they appear. | Product owner | The story each one belongs to |
+| OQ-36 | **Visit length in Single use** — members rarely check out, so a Single-use visit ends at check-out or after a visit limit (FR-237). The draft uses 3 hours and a fixed value. Without a limit, a member who leaves and returns the same day would pay nothing. Confirm 3 hours, or choose a per-gym value, before the session-validity stories. | Product owner | Before session-validity stories |
 
 ---
 
@@ -1271,6 +1459,43 @@ V1.7 ships in order, and each step has its own gate. Step 1 must be done before 
 
 All three steps are delivered in English and French with database-level tests and the E2E baseline (NFR-014, NFR-015).
 
+### 10.3 Release Definition — V1.8
+
+V1.8 ships in three steps, in the order of Section 13; each step has its own gate and the mobile app is versioned 1.8.0 at the release that carries step 3 (earlier steps that need a mobile change ship as 1.7.x builds).
+
+**Pre-flight.** OQ-32 (leaderboard default), OQ-34 (coach picker and body data) and OQ-36 (visit length in Single use) are answered before the stories that depend on them.
+
+**Step 1 — Desk fixes.** Done when:
+1. A Receptionist or above can check in a member from the Attendance page, the visit is marked as staff-entered with the staff member's name, and it follows every scan rule: one open check-in, the three status outcomes, and the session rule for Pay-per-session members (FR-248–FR-250).
+2. Staff check-in cannot be dated to the past or the future, and a rejected attempt records no attendance (FR-248, FR-249).
+3. An Owner, Supervisor or Manager can correct a member's plan with a mandatory reason; it is refused when a payment stands, with the refund message; expiry is recomputed from the original start date; the audit entry holds old and new plan, price and expiry (FR-241–FR-243).
+4. Annual plan cards state price, duration and "paid once" (FR-240).
+5. Correct plan refuses while a payment stands in any of the states of FR-242 (awaiting verification, in flight, partly refunded) and works for a subscription with no payment record; a staff check-in entered by mistake can be voided the same gym-local day with a reason, and a support person can do every Step 1 action and appears only as "GymOS Support" (FR-242, FR-250, FR-251).
+
+**Step 2 — Gym operations.** Done when:
+1. "Session validity" is on Settings for Owner and Supervisor, is **Whole day** for every gym, and every existing gym behaves exactly as before the release, proven by tests (FR-236).
+2. In Single use, a second visit on the same day consumes a second session, a second scan during an open visit costs nothing, and offline scans follow FR-159's time rule (FR-237–FR-239).
+3. A recurring class can have a different time on each day; every existing class migrates to the same times as before, with no change to sessions or bookings (FR-244, FR-245).
+4. A Coach can create, edit and cancel their own classes and nobody else's; Owner, Supervisor and Manager can pick any coach and see the coach's classes, members, notes and plans, and a test proves no measurement, photo, progress note, progress activity or plan completion is returned (FR-246, FR-247, FR-095).
+5. A Single-use visit ends at check-out or at the visit limit, a scan after the limit consumes a new session, a change of the setting follows FR-239, and a Pay-per-session member attended at a class follows FR-238 (FR-237–FR-239).
+6. Editing a class's slots changes only future sessions without bookings, and lists those with bookings to the editor (FR-245).
+
+**Step 3 — Member engagement.** Done when:
+Must and Should items gate the release; Could items (FR-221, FR-234, FR-235) ship only if ready and their absence never holds it.
+1. A member can set a weekly goal, see the ring and the weekly streak (Must); Shields and the comeback state work (Should); and, if shipped, the daily streak appears only after 3 consecutive visit days (FR-219–FR-223).
+2. The calendar lights visit days, shows the at-risk cell with hours left, and marks milestone days (FR-224, FR-229).
+3. The leaderboard shows the top 10 and the member's neighbours, ties and resets work, "Anonymous" members' names never reach another device, and a gym never sees another gym's board, by test per read path (FR-226–FR-228, NFR-027).
+4. Milestones, badges and the Share button work, and sharing produces an image with the gym's name and no other member's data (FR-229–FR-231).
+5. The N-08 reminder is sent at most once a day, only under the two conditions, can be turned off, and a reminder failure never delays a check-in (FR-233, NFR-029).
+6. Streaks, Shields and counts recompute identically from attendance, including after a late offline sync and across a timezone change (NFR-028).
+7. The engagement features read existing attendance only: a test shows they change no check-in rule (FR-225); Steps 1 and 2 change check-in on purpose (FR-237, FR-248). Existing history counts at release as FR-225 says.
+8. The gym challenge and "Your month" summary ship only if they are ready; their absence does not hold the release (FR-234, FR-235).
+9. No prize, discount, session, Shield or stamp is attached to rank anywhere (FR-228), and all wording is stored as editable text in both languages (FR-232).
+10. The ring, calendar and leaderboard meet the NFR-029 load target once its baseline is measured.
+11. All of it in English and French, with database-level tests and the E2E baseline (NFR-014, NFR-015).
+
+Section 13 is explicitly **not** part of this gate.
+
 ---
 
 ## 11. Glossary
@@ -1290,7 +1515,7 @@ All three steps are delivered in English and French with database-level tests an
 | Registration fee | One-time, flat, per-gym fee a new member must settle (pay or have waived) before getting member-app access and a plan; 0 XAF by default (FR-147–FR-155) |
 | Awaiting registration fee | A member state: the member record exists, but the app is unavailable and no plan can be assigned until the fee is settled (FR-148) |
 | Session guest | An ordinary member on a Pay-per-session plan; not a separate account type (FR-156) |
-| Paid session | One recorded purchase of a session at the guest's plan price, consumed by the first check-in of a day and covering the rest of that gym-local calendar day; an unused one lapses after 7 days (FR-158, FR-159) |
+| Paid session | One recorded purchase of a session at the guest's plan price, consumed by a check-in and covering either the rest of that gym-local calendar day (Whole day) or that one visit (Single use, FR-236); an unused one lapses after 7 days (FR-158, FR-159, FR-237) |
 | Charge guests per session | The per-gym setting that makes a paid session required at check-in; off for existing gyms, on for new ones (FR-157) |
 | Stamp | One unit of loyalty progress: a consumed paid session for a guest, an on-time renewal for a subscriber (FR-165, FR-167) |
 | Free session | A session with no payment, earned after N guest stamps and consumed like a paid one; valid 60 days (FR-166) |
@@ -1302,6 +1527,16 @@ All three steps are delivered in English and French with database-level tests an
 | TOTP | Time-based one-time password from an authenticator app, the support and Super Admin second factor (FR-189) |
 | Landing page | A gym's optional public page at `{name}.gymosapps.com` (FR-196) |
 | Published projection | The narrow, read-only, anon-safe view of gym content that the public site reads instead of tenant tables (FR-206) |
+| Visit day | A gym-local calendar day on which a member has at least one attendance record at the gym; several check-ins in a day count once (FR-225) |
+| Weekly goal / ring | The number of visit days a member aims for each week (1–7, default 3), shown as a ring that fills with each visit day (FR-219) |
+| Weekly streak | The number of consecutive gym-local weeks in which the member met their weekly goal (FR-220) |
+| Streak Shield | An earned protection (one per 4 weeks of streak, at most 2 held) that automatically saves one missed week or day (FR-222) |
+| Comeback | The state after a streak ends: the best streak stays visible and a goal of 3 visits restores status (FR-223) |
+| Session validity | Per-gym setting for Pay-per-session gyms: **Whole day** (a paid session covers the day) or **Single use** (it covers one visit) (FR-236) |
+| Correct plan | Staff action that replaces the plan on a member's current subscription before any payment stands, with a reason and an audit entry (FR-241) |
+| Schedule slot | One weekday and start time of a recurring class; a class can have several, each at its own time (FR-244) |
+| Coach picker | Staff control in the Coach Portal that shows what a chosen coach sees, excluding body and progress data (FR-247) |
+| Staff check-in | A check-in entered by staff at the entrance for a member who cannot use their phone (FR-248) |
 
 ---
 
@@ -1342,3 +1577,59 @@ Section 12 started as the V1.7 backlog recorded on 2026-10-11. V1.7 planning ran
 | UJ-12, UJ-13, UJ-14 | Narratives are drafted, not user-contributed | Before UX |
 
 **Not planned for V1.7 and recorded elsewhere:** mobile app and dashboard redesign and the large template library (Section 8).
+
+
+---
+
+## 13. V1.8 — Decisions, Delivery Order & Open Assumptions
+
+V1.8 was planned on 2026-11-15 from two inputs, both fully decided by the product owner: a brainstorm on member engagement (what makes a member open the app between visits) and the first meeting with the first gym (five requests). The requirements are FR-219–FR-250 (6.33–6.40) and NFR-027–NFR-029 (7.9); 6.41 records FR-215–FR-218 from Epic 26. The brainstorm record is in `_bmad-output/brainstorming/brainstorm-member-engagement-streaks-calendar-2026-11-14/`.
+
+**Release label.** The product is called V1.8; the mobile app's version is 1.8.0 at the release that carries Step 3. Bug-fix builds in between stay 1.7.x. The two web apps deploy continuously and carry no version.
+
+**Delivery order `[ASSUMPTION — proposed 2026-11-15, confirm at epic planning]`:** Step 1, desk fixes (staff check-in, correct plan, annual wording), because they fix problems the first gym hits every day; Step 2, gym operations (session validity, per-day class schedules, coach views); Step 3, member engagement, which also reads the attendance records that staff check-in adds.
+
+**Decisions (product owner, 2026-11-15):**
+- Streaks, the leaderboard and the gym-wide challenge move from V2.0 into V1.8; the activity feed stays in V2.0.
+- **Simplicity is the rule.** Everything member-facing reads existing attendance; no check-in change, no new hardware.
+- Weekly goal ring is the main streak; the daily streak is only for members already on a run of 3 or more days. Streak Shields are earned, never bought. A broken streak never falls to a bare zero.
+- The leaderboard ranks everyone in the gym by visit days this month; a member can hide as "Anonymous" and is still counted. Loyalty stays fully separate.
+- **No anti-cheat work.** Check-in stays as it is. This holds only while stakes stay low: rank carries no prize, and the challenge reward is a small promise by the gym (FR-228, FR-234).
+- All members see the same features whatever their plan; pay-per-session and rare visitors are members like the rest.
+- The mascot exists but is added later; wording is editable text so it can speak it (FR-232).
+- First-gym feedback: "one use" in Single-use means one visit, not one scan (FR-237); annual plans are paid once, with no instalments in V1.8 (FR-240); a wrong plan is mainly caught before payment, so the direct correction is the main flow and a paid subscription needs a refund first (FR-242); the coach picker lives inside the Coach Portal (FR-247); a member who cannot use their phone is checked in by staff and keeps a required phone number (FR-248).
+
+**Scope by priority (member engagement):**
+
+| Priority | Items |
+|----------|-------|
+| Must | Weekly ring and weekly streak; calendar with the at-risk cell; monthly leaderboard with "Anonymous"; milestone celebration |
+| Should | Shields and comeback; streak reminder (N-08); badge shelf; share image |
+| Could | Daily streak; gym-wide challenge; "Your month" summary |
+
+**Assumptions index** (each is tagged `[ASSUMPTION]` where it appears; confirm or change before the stories that depend on it):
+
+| Where | Assumption | Confirm in |
+|-------|------------|-----------|
+| FR-219, FR-222, FR-233 | Goal default 3, range 1–7, Monday week start, Shield every 4 weeks and cap 2, reminder at 18:00 | OQ-33, after release |
+| FR-220, FR-222 | A run is strictly consecutive; a Shield is earned at every fourth consecutive week; when a missed week would end both streaks the Shield saves the weekly streak only; a Shield spent on a missed day may leave none for the weekly streak | Engagement stories (OQ-35) |
+| FR-223 | The comeback window is 10 days and restarts from the next visit; what "restored status" looks like | Engagement stories, UX |
+| FR-225 | Existing attendance counts at release; the weekly streak starts from the first full week after release; members without a goal use 3 | Engagement stories |
+| FR-226 | Ties ordered by who reached the count first; one neighbour above and below; unranked at zero visits | Leaderboard story |
+| FR-231, FR-234, FR-243 | Logo on the share image; Supervisor may set the challenge; a correction earns no stamp and sends no notification | Their stories |
+| FR-240 | Annual plan cards state "paid once" | Plan-card story |
+| FR-248, FR-250 | No back-dating of a staff check-in; a mistaken staff check-in can be voided the same day by Manager or above | Staff check-in story |
+| FR-227 | Visible by default as first name and last initial, with a first-open notice | OQ-32 |
+| FR-230 | Badge set beyond 7/30/100 (First visit, 4 weeks in a row) | Engagement stories |
+| FR-234 | Challenge target and reward fixed once the month starts | Challenge story |
+| FR-238 | Class attendance inside an open Single-use visit is covered by that visit | Session-validity stories |
+| FR-242 | Correction to or from Pay-per-session refused while an unused paid session is held; registration fee unaffected | Correct-plan story |
+| FR-244, FR-245 | Up to 14 slots per class; edits skip sessions that have bookings | Class stories |
+| FR-237 | A Single-use visit ends at check-out or after 3 hours, a fixed value | OQ-36 |
+| FR-247 | Coach picker excludes body and progress data (measurements, photos, progress notes, Overview progress activity, plan completion); session notes and workout plans as authored are shown | OQ-34 |
+| FR-249 | No separate real-time alert for a staff member's own check-in | Staff check-in story |
+| NFR-029 | 2-second load target for ring, calendar and leaderboard | After a measured baseline |
+| Section 3.2 | V1.8 targets; the first-gym feedback is from one gym | Release planning |
+| UJ-15, UJ-16, UJ-17 | Narratives are drafted, not user-contributed | Before UX |
+
+**Not planned for V1.8 and recorded elsewhere:** the mascot, leagues, the champion badge, instalments, anti-cheat on check-in, an owner "streak just broke" list, and a member-chosen reminder time (Section 8).
