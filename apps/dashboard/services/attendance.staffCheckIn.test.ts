@@ -46,15 +46,8 @@ vi.mock("@/services/gym-settings", () => ({ getGymLocalPeriodBounds: vi.fn() }))
 
 let claimRole = "receptionist";
 
-import {
-  accentInsensitivePattern,
-  isSearchTermLongEnough,
-  listAttendanceLog,
-  phoneSearchDigits,
-  searchMembersForCheckIn,
-  staffCheckIn,
-  voidStaffCheckIn,
-} from "./attendance";
+import { accentInsensitivePattern, isSearchTermLongEnough, phoneSearchDigits } from "@/lib/attendance-search";
+import { listAttendanceLog, searchMembersForCheckIn, staffCheckIn, voidStaffCheckIn } from "./attendance";
 
 describe("staffCheckIn", () => {
   beforeEach(() => {

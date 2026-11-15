@@ -12,12 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { SupportCodeField, goToLoginExpired, isSupportCodeWellFormed } from "@/components/support-code-field";
 import { RenewalPanel } from "@/components/shared/RenewalModal";
 import { RecordSessionPaymentPanel } from "@/components/shared/RecordSessionPaymentDialog";
-import {
-  CHECK_IN_SEARCH_LIMIT,
-  isSearchTermLongEnough,
-  type CheckInSearchRow,
-  type StaffCheckInResult,
-} from "@/services/attendance";
+import { CHECK_IN_SEARCH_LIMIT, isSearchTermLongEnough } from "@/lib/attendance-search";
+import type { CheckInSearchRow, StaffCheckInResult } from "@/services/attendance";
 import { searchMembersForCheckInAction, staffCheckInAction } from "../actions";
 import { STATUS_BADGE_CONFIG, resolveBadgeStatus } from "../attendanceLabels";
 
