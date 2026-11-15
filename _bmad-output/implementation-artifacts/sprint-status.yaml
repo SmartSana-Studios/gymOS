@@ -496,7 +496,7 @@ development_status:
   # Could items FR-221 (daily streak), FR-234 (gym challenge), FR-235 ("Your month") are deferred: no stories.
   epic-27: in-progress
   27-1-protected-attendance-counting: done
-  27-2-one-check-in-insert-path: backlog
+  27-2-one-check-in-insert-path: ready-for-dev
   27-3-staff-check-in-and-void: backlog
   27-4-correct-plan-and-annual-plan-wording: backlog
   epic-27-retrospective: optional
@@ -2158,3 +2158,4 @@ last_updated: 11-15-2026 12:00
 # last_updated: 2026-11-15 (bmad-build: 27-1 implemented, status in-progress -> review. Migration 0173 (visit_day, voided_at, private.gym_local_date, insert and immutability triggers, views attendance_counted and member_visit_days, voided-hiding policies, occupancy band over the view, two partial indexes), rollback script, pgTAP attendance_counting.test.sql (74), node reader gate check-attendance-readers.mjs wired into ci-local static and ci.yml, dashboard attendance.ts onto attendance_counted with the gym-local today count, Vitest, hand-spliced database.ts, decisions.md entry. Local DB: 0173 applied alone with psql (migration up stops at 0160); full pgTAP 190 files green, dashboard Vitest 236 files green, typecheck green. ci-local result recorded in the story hand-off)
 # last_updated: 2026-11-15 (bmad-code-review 27-1, second pass, 4 layers: 1 decision resolved (option 1) + 2 patches applied, 3 deferred, 19 rejected; the page's three reads were not covered by the EXPLAIN proof, so 0173 gains idx_attendance_events_gym_checked_in (gym_id, checked_in_at) where voided_at is null, the rollback drops it, and attendance_counting.test.sql explains the three real page reads (plan 74 -> 77; shown failing with the index dropped; full file green on the local DB); reader list recorded in the spec Implementation Notes; rollback header corrected; backfill-lock item added to deferred-work.md; status review -> done; owner-run supabase db reset + full scripts/ci-local.sh still owed on story/27-1 before merge to epic/27; nothing committed)
 # last_updated: 2026-11-15 (ad-hoc, merge: 27-1 merged into epic/27 via PR #130 after owner-run supabase db reset + full ci-local green; story/27-1 branch deleted local and remote; story/27-2-one-check-in-insert-path branched from epic/27; no code changed)
+# last_updated: 2026-11-15 (bmad-build: 27-2 spec written (spec-27-2-one-check-in-insert-path.md), approved by the owner, status backlog -> ready-for-dev; investigation found the live check_in() body is 0124:765 (no later redefinition), alerts and session_attempts stay in check_in() so a staff entry in 27.3 makes none, suspension_rpc_coverage silently drops check_in() once the guard moves; no code changed)
