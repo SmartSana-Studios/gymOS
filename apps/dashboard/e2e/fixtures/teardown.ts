@@ -111,7 +111,8 @@ export default async function globalTeardown(): Promise<void> {
   await tryDelete("classes delete", admin.from("classes").delete().eq("id", fixtures.classId));
   await tryDelete("gym_payment_credentials delete", admin.from("gym_payment_credentials").delete().eq("gym_id", fixtures.gymId));
   await tryDelete("members delete", admin.from("members").delete().eq("gym_id", fixtures.gymId));
-  await tryDelete("plans delete", admin.from("plans").delete().eq("id", fixtures.planId));
+  // by gym, not by id: the desk-fixes spec seeds a second (Pay-per-session) plan
+  await tryDelete("plans delete", admin.from("plans").delete().eq("gym_id", fixtures.gymId));
   await tryDelete("gyms delete", admin.from("gyms").delete().eq("id", fixtures.gymId));
 
   for (const userId of userIds) {

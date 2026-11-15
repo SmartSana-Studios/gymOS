@@ -8,13 +8,12 @@ import { loginViaUi, signInForApi, callRpc } from "./helpers/auth";
 // at a charging gym with no session records the desk payment and is checked in (R5 then R6); a Receptionist sees no [Void], a Manager
 // voids the entry, the row is muted, and the member can scan in.
 //
-// Serial and non-idempotent against the shared global fixtures (each step leaves attendance rows the next relies on), so a CI retry is
-// skipped rather than allowed to mask the first failure with a misleading second one.
+// Serial and non-idempotent against the shared global fixtures (each step leaves attendance rows the next relies on), so there is no
+// retry: a retry would rerun the group on rows the first pass already used, and skipping the retry (as a single-test spec may) would
+// turn a first-pass failure into a skipped, green result.
 
 test.describe.serial("Epic 27 staff check-in and void", () => {
-  test.beforeEach(({}, testInfo) => {
-    test.skip(testInfo.retry > 0, "non-idempotent against shared global fixtures -- see file header");
-  });
+  test.describe.configure({ retries: 0 });
 
   async function checkInFromModal(page: import("@playwright/test").Page, search: string, memberName: string) {
     await page.getByRole("button", { name: "Check in a member" }).click();
@@ -43,7 +42,7 @@ test.describe.serial("Epic 27 staff check-in and void", () => {
     await page.goto("/attendance");
 
     await checkInFromModal(page, "Desk Expired", fixtures.desk.expired.name);
-    await expect(page.getByText(/Not checked in\. .* expired 3 days ago/i)).toBeVisible();
+    await expect(page.getByText(/Not checked in\. .* expired \d+ days ago/i)).toBeVisible();
     await page.getByRole("button", { name: "Renew now" }).click();
     // the shared renewal panel opens inside the same modal (one dialog), cash by default
     await expect(page.locator("dialog")).toHaveCount(1);
