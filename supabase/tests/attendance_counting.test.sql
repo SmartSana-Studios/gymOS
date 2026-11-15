@@ -9,7 +9,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000002701xx.
 
 begin;
-select plan(74);
+select plan(77);
 
 -- ============================================================================
 -- Fixtures
@@ -426,12 +426,31 @@ select alike(
   '%idx_attendance_events_member_visit_day%',
   'a member-and-day-range read on member_visit_days uses the (member_id, visit_day) partial index'
 );
+-- The Attendance page's three reads (apps/dashboard/services/attendance.ts), as PostgREST sends them against the view: none filter on
+-- visit_day, so the (gym_id, checked_in_at) partial index is the one they use.
+-- Read 1 asks for open rows only, so the planner takes the existing one-open partial index (open rows only, a far smaller set than the
+-- gym's history); what is pinned is an index scan and no sequential scan.
+select ok(
+  pg_temp.plan_of($$select member_id, checked_in_at from attendance_counted where gym_id = '00000000-0000-0000-0000-000000270112' and checked_out_at is null order by checked_in_at asc limit 5$$) ~ 'Index Scan'
+  and pg_temp.plan_of($$select member_id, checked_in_at from attendance_counted where gym_id = '00000000-0000-0000-0000-000000270112' and checked_out_at is null order by checked_in_at asc limit 5$$) !~ 'Seq Scan',
+  'page read 1 (Currently Checked In: the gym''s open rows, oldest first) reads through an index, not a sequential scan'
+);
+select alike(
+  pg_temp.plan_of($$select count(id) from attendance_counted where gym_id = '00000000-0000-0000-0000-000000270112' and checked_in_at >= timestamptz '2025-06-01 00:00:00+01' and checked_in_at < timestamptz '2025-06-02 00:00:00+01'$$),
+  '%idx_attendance_events_gym_checked_in%',
+  'page read 2 (the today count: a gym-local day range) uses the (gym_id, checked_in_at) partial index'
+);
+select alike(
+  pg_temp.plan_of($$select id, member_id, checked_in_at, checked_out_at from attendance_counted where gym_id = '00000000-0000-0000-0000-000000270112' and checked_in_at >= timestamptz '2025-06-01 00:00:00+00' and checked_in_at < timestamptz '2025-06-08 00:00:00+00' order by checked_in_at desc limit 5$$),
+  '%idx_attendance_events_gym_checked_in%',
+  'page read 3 (the Daily Log: a date range, newest first) uses the (gym_id, checked_in_at) partial index'
+);
 select is(
   (select count(*)::int from pg_indexes where tablename = 'attendance_events'
-     and indexname in ('idx_attendance_events_gym_visit_day', 'idx_attendance_events_member_visit_day')
+     and indexname in ('idx_attendance_events_gym_visit_day', 'idx_attendance_events_member_visit_day', 'idx_attendance_events_gym_checked_in')
      and indexdef ~ 'WHERE \(voided_at IS NULL\)'),
-  2,
-  'both indexes are partial on voided_at is null'
+  3,
+  'all three counting indexes are partial on voided_at is null'
 );
 
 -- ============================================================================

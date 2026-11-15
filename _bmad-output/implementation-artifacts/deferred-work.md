@@ -2131,3 +2131,9 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-27-1-protected-attendance-counting.md`
   summary: Migration 0173 was proven only applied alone on a local database sitting at 0159 (`supabase migration up` stops at 0160), not in sequence after 0160 to 0172.
   evidence: grep shows 0160 to 0172 do not touch `attendance_events`, its policies or `private.gym_occupancy_band`, so the risk is low. Settled by `supabase db reset` followed by the full `scripts/ci-local.sh` before epic/27 reaches master; the reset needs the owner's `!` line because the permission classifier refused it for the subagent.
+
+## Deferred from: code review of spec-27-1-protected-attendance-counting (2026-11-15, second pass)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-1-protected-attendance-counting.md`
+  summary: Migration 0173 backfills `visit_day` in one UPDATE with a per-row function call (own exception sub-block and `gyms` lookup) while holding ACCESS EXCLUSIVE on `attendance_events`; unmeasured, marked medium unverified.
+  evidence: `lock_timeout = '5s'` bounds only the wait for the lock, not the hold time. The first pass estimated tens of thousands of production rows at microseconds per call. Would settle it: `select count(*) from attendance_events` on production and a timed local run of the backfill at that size before the prod apply; if the count is large, backfill in a join (`update ... from gyms`) or in batches.

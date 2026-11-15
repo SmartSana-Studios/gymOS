@@ -1,8 +1,9 @@
 -- Rollback for migration 0173: protected attendance counting.
 --   psql -v ON_ERROR_STOP=1 --single-transaction -f scripts/rollback-0173-attendance-counting.sql
--- Data effects: visit_day and voided_at are dropped with their values (visit_day is derivable again from checked_in_at and the gym's
--- zone; voided_at is always null until Story 27.3 ships, so a rollback BEFORE 27.3 loses nothing). Do NOT run this after 27.3 has
--- voided a visit: the voided rows would silently count again.
+-- Data effects: visit_day and voided_at are dropped with their values. visit_day can be re-derived from checked_in_at, but only in the
+-- gym's CURRENT zone (that is the 0173 backfill): a gym whose zone changed after rows were written gets different past days on a
+-- re-apply, so the frozen days of such a gym are lost by a rollback. voided_at is always null until Story 27.3 ships, so a rollback
+-- BEFORE 27.3 loses nothing else.
 -- Aborts if any attendance_events row has voided_at set (Story 27.3 onward): dropping the column would silently count those visits again.
 -- Void-free data is the only state this rollback is safe for.
 do $guard$
@@ -67,6 +68,7 @@ drop trigger if exists attendance_events_visit_day_immutable on public.attendanc
 drop trigger if exists attendance_events_visit_day_insert on public.attendance_events;
 drop function if exists private.attendance_events_visit_day_guard();
 
+drop index if exists public.idx_attendance_events_gym_checked_in;
 drop index if exists public.idx_attendance_events_member_visit_day;
 drop index if exists public.idx_attendance_events_gym_visit_day;
 

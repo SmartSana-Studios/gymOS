@@ -17,7 +17,8 @@
 --   * the two base-table SELECT policies (as last rewritten in 0124) hide voided rows; tenant_active_gate is untouched.
 --   * private.gym_occupancy_band (0056; member_occupancy_band() only delegates to it) counts from attendance_counted. Signature, grants
 --     and result are unchanged.
---   * partial indexes (gym_id, visit_day) and (member_id, visit_day) where voided_at is null.
+--   * partial indexes (gym_id, visit_day) and (member_id, visit_day) where voided_at is null, and (gym_id, checked_in_at) where voided_at
+--     is null for the Attendance page's own reads.
 --
 -- BACKFILL CHOICE. The project keeps no history of gym timezone changes, so the gym's CURRENT gyms.timezone is the best available reading
 -- of every past row. The default zone (Africa/Douala) has no daylight saving, so for a gym that never changed zone the result is exact.
@@ -105,6 +106,10 @@ create index idx_attendance_events_gym_visit_day
   on public.attendance_events (gym_id, visit_day) where voided_at is null;
 create index idx_attendance_events_member_visit_day
   on public.attendance_events (member_id, visit_day) where voided_at is null;
+-- The Attendance page's three reads (Currently Checked In, the "today" count, the Daily Log) filter on gym_id and a checked_in_at
+-- range or checked_out_at is null, ordered by checked_in_at; none of them filter on visit_day, so the two indexes above cannot serve them.
+create index idx_attendance_events_gym_checked_in
+  on public.attendance_events (gym_id, checked_in_at) where voided_at is null;
 
 -- ----------------------------------------------------------------------------
 -- Views. security_invoker: the caller's own RLS on attendance_events applies, including the RESTRICTIVE tenant_active_gate.
