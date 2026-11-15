@@ -16,11 +16,15 @@ export type Database = {
           checkout_type: string | null
           client_scan_id: string | null
           created_at: string
+          entered_by: string | null
           gym_id: string
           id: string
           member_id: string
+          source: string
           visit_day: string
+          void_reason: string | null
           voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           checked_in_at?: string
@@ -28,11 +32,15 @@ export type Database = {
           checkout_type?: string | null
           client_scan_id?: string | null
           created_at?: string
+          entered_by?: string | null
           gym_id: string
           id?: string
           member_id: string
+          source?: string
           visit_day: string
+          void_reason?: string | null
           voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           checked_in_at?: string
@@ -40,13 +48,23 @@ export type Database = {
           checkout_type?: string | null
           client_scan_id?: string | null
           created_at?: string
+          entered_by?: string | null
           gym_id?: string
           id?: string
           member_id?: string
+          source?: string
           visit_day?: string
+          void_reason?: string | null
           voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_events_entered_by_fkey"
+            columns: ["entered_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "attendance_events_gym_id_fkey"
             columns: ["gym_id"]
@@ -57,6 +75,12 @@ export type Database = {
             foreignKeyName: "attendance_events_member_id_fkey"
             columns: ["member_id"]
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_events_voided_by_fkey"
+            columns: ["voided_by"]
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -2589,6 +2613,7 @@ export type Database = {
           gym_id: string | null
           id: string | null
           member_id: string | null
+          source: string | null
           visit_day: string | null
         }
         Relationships: [
@@ -2737,9 +2762,15 @@ export type Database = {
           checkout_type: string | null
           client_scan_id: string | null
           created_at: string
+          entered_by: string | null
           gym_id: string
           id: string
           member_id: string
+          source: string
+          visit_day: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         SetofOptions: {
           from: "*"
@@ -2763,9 +2794,15 @@ export type Database = {
           checkout_type: string | null
           client_scan_id: string | null
           created_at: string
+          entered_by: string | null
           gym_id: string
           id: string
           member_id: string
+          source: string
+          visit_day: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         SetofOptions: {
           from: "*"
@@ -2782,9 +2819,15 @@ export type Database = {
           checkout_type: string | null
           client_scan_id: string | null
           created_at: string
+          entered_by: string | null
           gym_id: string
           id: string
           member_id: string
+          source: string
+          visit_day: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         SetofOptions: {
           from: "*"

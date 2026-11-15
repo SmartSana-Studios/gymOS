@@ -121,6 +121,8 @@ stage_pgtap() {
   bash "$ROOT/scripts/pgprove-run.sh" || return 1
   # Refund-vs-consume and loyalty-ledger race (two real sessions; pgTAP runs one). Epic 19 R-1, Epic 20 R-1.
   bash "$ROOT/scripts/session-refund-race.sh" || return 1
+  # Member lock on every check-in, charging or not; a second scan must wait behind it (two real sessions; Story 27.2, NFR-021).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/check-in-member-lock-race.sh" || return 1
   # job-runs-alert.sql against fixtures (Epic 20 R-4).
   bash "$ROOT/scripts/job-runs-alert.test.sh" || return 1
   # Super Admin aal2 enable/reset operator scripts against fixtures on the local DB (Story 22.6).

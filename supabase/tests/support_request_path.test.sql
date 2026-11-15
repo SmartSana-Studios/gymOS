@@ -228,18 +228,18 @@ create temp table cgs as
    where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.proname <> 'current_gym_status'
      and p.prosrc like '%current_gym_status()%';
 select is((select array_agg(distinct name order by name) from cgs),
-          array['add_session_note', 'assign_coach', 'book_class_session', 'cancel_class_booking', 'check_in', 'check_out', 'check_out_member', 'claim_page_name', 'confirm_renewal',
+          array['add_session_note', 'assign_coach', 'book_class_session', 'cancel_class_booking', 'check_out', 'check_out_member', 'claim_page_name', 'confirm_renewal',
                 'create_class', 'create_staff_member', 'create_workout_plan', 'deactivate_staff_member', 'delete_page_media', 'edit_session_note', 'effective_loyalty',
                 'file_audit_disclosure_request', 'initiate_member_payment', 'initiate_registration_fee_payment', 'initiate_session_payment', 'list_my_class_session_roster',
-                'list_my_classes', 'mark_class_attendance', 'materialize_class_sessions', 'publish_gym_page', 'record_registration_fee', 'record_session_payment', 'register_page_media', 'renew_subscription',
+                'list_my_classes', 'mark_class_attendance', 'materialize_class_sessions', 'publish_gym_page', 'record_check_in', 'record_registration_fee', 'record_session_payment', 'register_page_media', 'renew_subscription',
                 'set_guest_charging', 'set_gym_location', 'set_gym_page_content', 'set_loyalty_program', 'set_registration_fee', 'support_connect_gym_payment_credentials', 'take_ownership_of_workout_plan',
                 'update_class', 'update_plan_pricing', 'update_staff_role', 'update_workout_plan', 'void_registration_fee_payment', 'waive_registration_fee']::text[],
           'E1 the callers of current_gym_status() are exactly the listed functions (a new caller must be added here deliberately)');
 select is((select count(*)::int from cgs where role_at is not null and role_at > st), 0,
           'E2 every caller with a role check runs it BEFORE the suspension check (a wrong role never learns the gym state)');
 select is((select array_agg(distinct name order by name) from cgs where role_at is null),
-          array['create_workout_plan', 'list_my_class_session_roster', 'list_my_classes', 'support_connect_gym_payment_credentials', 'take_ownership_of_workout_plan', 'update_workout_plan']::text[],
-          'E3 the callers with no role helper are exactly the six named ones (ownership checks or support-only, each denied to a non-live caller by gym_id/support_gym_id being NULL)');
+          array['create_workout_plan', 'list_my_class_session_roster', 'list_my_classes', 'record_check_in', 'support_connect_gym_payment_credentials', 'take_ownership_of_workout_plan', 'update_workout_plan']::text[],
+          'E3 the callers with no role helper are exactly the seven named ones (ownership checks, support-only, or record_check_in, a private function reached only from check_in() after its role gate and, from 27.3, from staff_check_in() after its own; each denied to a non-live caller by gym_id/support_gym_id being NULL)');
 
 -- E4-E5: every audit action an allow-listed support RPC (or a trigger it fires) can write is on the support allow-list
 create temp table reach_actions as

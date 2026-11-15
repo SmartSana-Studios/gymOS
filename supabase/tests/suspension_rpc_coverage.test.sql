@@ -31,7 +31,7 @@
 -- wrongly excluding one silently reopens this story's vulnerability.
 
 begin;
-select plan(7);
+select plan(12);
 
 -- ============================================================================
 -- The 21 tables carrying tenant_active_gate. Derived from pg_policies rather
@@ -71,7 +71,14 @@ select
   -- NULL, the `if` never fires and the function PROCEEDS TO WRITE -- counted
   -- as guarded and passed this test. It now matches the fail-closed predicate
   -- itself, so a regression to `<>` fails here instead of shipping silently.
-  p.prosrc ~* 'current_gym_status\(\)\s+is\s+distinct\s+from\s+''active''' as has_status_guard
+  p.prosrc ~* 'current_gym_status\(\)\s+is\s+distinct\s+from\s+''active''' as has_status_guard,
+  -- Story 27.2: check_in() no longer carries the guard itself. It calls private.record_check_in(), whose body holds the guard before its
+  -- first write, and it must make that call before its own first insert (the alert and attempt rows). A function counts as delegating only
+  -- when the call comes first; assertion 8 below proves the callee's own placement and assertion 9 the callers'.
+  (position('private.record_check_in(' in p.prosrc) > 0
+   and position('private.record_check_in(' in p.prosrc) < least(
+         coalesce(nullif(position('insert into' in lower(p.prosrc)), 0), 2147483647),
+         coalesce(nullif(position('delete from' in lower(p.prosrc)), 0), 2147483647))) as delegates_to_record_check_in
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where p.prosecdef
@@ -169,13 +176,14 @@ select is(
     select coalesce(string_agg(w.schema_name || '.' || w.function_name, ', ' order by w.function_name), '')
     from secdef_gated_writers w
     where not w.has_status_guard
+      and not w.delegates_to_record_check_in
       and not exists (
         select 1 from suspension_gate_exclusions e
         where e.function_name = w.function_name and e.schema_name = w.schema_name
       )
   ),
   '',
-  'every SECURITY DEFINER function writing a tenant_active_gate table either calls private.current_gym_status() or is on the documented exclusion list (Story 11.8 AC #6)'
+  'every SECURITY DEFINER function writing a tenant_active_gate table either calls private.current_gym_status(), calls private.record_check_in() before its first write (27.2), or is on the documented exclusion list (Story 11.8 AC #6)'
 );
 
 -- The mirror of the assertion above: an exclusion that has quietly acquired a
@@ -381,6 +389,100 @@ select is(
   '',
   'in every status-guarded function the suspension gate precedes the first write statement -- a guard below a write would let a suspended gym mutate state before raising (Story 11.8 code review)'
 );
+
+-- ============================================================================
+-- Story 27.2: the check-in body moved into private.record_check_in, which the placement assertion above (public functions only) does not
+-- see. check_in() also dropped out of the guard match silently: its own source no longer contains the guard. These assertions keep the
+-- protection where it now lives. Comments are stripped before positions are compared.
+-- ============================================================================
+create temp view attendance_events_functions as
+with src as (
+  select n.nspname::text as schema_name, p.proname::text as function_name,
+         regexp_replace(lower(p.prosrc), '--[^\n]*', '', 'g') as body
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where p.prosecdef and p.prokind = 'f' and n.nspname in ('public', 'private')
+    and p.prosrc ~* '\mattendance_events\M'
+)
+select schema_name, function_name,
+       position('current_gym_status' in body) as guard_at,
+       position('private.record_check_in(' in body) as call_at,
+       coalesce(least(
+         nullif(position('insert into' in body), 0),
+         nullif(position('update attendance_events' in body), 0),
+         nullif(position('update public.attendance_events' in body), 0),
+         nullif(position('delete from' in body), 0)), 2147483647) as write_at
+from src;
+
+-- 8: inside record_check_in the gym status check comes before the first write.
+select is(
+  (select coalesce(string_agg(function_name, ', ' order by function_name), '')
+   from attendance_events_functions
+   where schema_name = 'private' and (function_name = 'record_check_in' or function_name like 'zz_rci%')
+     and not (guard_at > 0 and guard_at < write_at)),
+  '',
+  'private.record_check_in checks the gym status before its first write (27.2)');
+
+-- 9: every public function that mentions attendance_events either carries the guard before its first write or calls record_check_in first.
+select is(
+  (select coalesce(string_agg(function_name, ', ' order by function_name), '')
+   from attendance_events_functions
+   where schema_name = 'public'
+     and not ((guard_at > 0 and guard_at < write_at) or (call_at > 0 and call_at < write_at))),
+  '',
+  'every public function touching attendance_events carries the status guard first or calls private.record_check_in before its own first write (27.2)');
+
+-- 10: check_in() itself calls record_check_in before its first insert (the alert and attempt rows).
+select is(
+  (select call_at > 0 and call_at < write_at from attendance_events_functions where schema_name = 'public' and function_name = 'check_in'),
+  true,
+  'check_in() calls private.record_check_in before its first insert (27.2)');
+
+-- Seeded offenders: a public writer with no guard, a public caller that writes first, and a record_check_in lookalike with the guard below
+-- its first write. Each is named by the assertions above.
+create function public.zz_attendance_unguarded() returns void language plpgsql security definer set search_path = public as $f$
+begin
+  insert into attendance_events (gym_id, member_id) values (gen_random_uuid(), gen_random_uuid());
+end;
+$f$;
+create function public.zz_attendance_writes_first() returns void language plpgsql security definer set search_path = public as $f$
+begin
+  insert into attendance_events (gym_id, member_id) values (gen_random_uuid(), gen_random_uuid());
+  perform private.record_check_in(gen_random_uuid(), gen_random_uuid(), 'qr', null, null);
+end;
+$f$;
+-- A schema-qualified update with the guard below it: before the (public\.) variant in write_at this passed vacuously (review 2026-11-15).
+create function public.zz_attendance_qualified_update_late_guard() returns void language plpgsql security definer set search_path = public as $f$
+begin
+  update public.attendance_events set checked_out_at = now() where false;
+  if private.current_gym_status() is distinct from 'active' then
+    raise exception 'check_in: gym is not active';
+  end if;
+end;
+$f$;
+create function private.zz_rci_late_guard() returns void language plpgsql security definer set search_path = public as $f$
+begin
+  insert into attendance_events (gym_id, member_id) values (gen_random_uuid(), gen_random_uuid());
+  if private.current_gym_status() is distinct from 'active' then
+    raise exception 'check_in: gym is not active';
+  end if;
+end;
+$f$;
+
+select is(
+  (select coalesce(string_agg(function_name, ', ' order by function_name), '')
+   from attendance_events_functions
+   where schema_name = 'private' and (function_name = 'record_check_in' or function_name like 'zz_rci%')
+     and not (guard_at > 0 and guard_at < write_at)),
+  'zz_rci_late_guard',
+  'seeded offender: a record_check_in lookalike with the guard below its first write is named by assertion 8');
+select is(
+  (select coalesce(string_agg(function_name, ', ' order by function_name), '')
+   from attendance_events_functions
+   where schema_name = 'public'
+     and not ((guard_at > 0 and guard_at < write_at) or (call_at > 0 and call_at < write_at))),
+  'zz_attendance_qualified_update_late_guard, zz_attendance_unguarded, zz_attendance_writes_first',
+  'seeded offenders: an unguarded public writer, a caller that writes before calling record_check_in and a schema-qualified update below its guard are named by assertion 9');
 
 select * from finish();
 rollback;
