@@ -45,7 +45,7 @@ test.describe.serial("Epic 27 staff check-in and void", () => {
     await expect(page.getByText(/Not checked in\. .* expired \d+ days ago/i)).toBeVisible();
     await page.getByRole("button", { name: "Renew now" }).click();
     // the shared renewal panel opens inside the same modal (one dialog), cash by default
-    await expect(page.locator("dialog")).toHaveCount(1);
+    await expect(page.locator("dialog[open]")).toHaveCount(1);
     await page.getByRole("button", { name: "Confirm Renewal" }).click();
     await expect(page.getByText(/Membership renewed\. .* is checked in at/i)).toBeVisible();
   });
@@ -58,7 +58,7 @@ test.describe.serial("Epic 27 staff check-in and void", () => {
     await checkInFromModal(page, "Desk Session", fixtures.desk.pps.name);
     await expect(page.getByText(/has no paid session/i)).toBeVisible();
     await page.getByRole("button", { name: "Record payment and check in" }).click();
-    await expect(page.locator("dialog")).toHaveCount(1);
+    await expect(page.locator("dialog[open]")).toHaveCount(1);
     await page.getByRole("button", { name: "Record session payment" }).click();
     await expect(page.getByText(/Session recorded\. .* is checked in at/i)).toBeVisible();
   });
@@ -88,7 +88,7 @@ test.describe.serial("Epic 27 staff check-in and void", () => {
     await page.getByRole("tab", { name: "Daily log" }).click();
     const logRow = page.getByRole("row", { name: new RegExp(fixtures.desk.active.name, "i") });
     await expect(logRow).toHaveAttribute("data-voided", "true");
-    await expect(logRow.getByText("Voided")).toBeVisible();
+    await expect(logRow.getByText("Voided", { exact: true })).toBeVisible();
 
     // the one-open slot is free at once: the member's own scan is accepted
     const session = await signInForApi(request, { phone: fixtures.desk.active.phone });
