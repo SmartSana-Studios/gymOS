@@ -494,7 +494,7 @@ development_status:
   # V1.8 (PRD v1.8, 2026-11-15): Member Engagement & First-Gym Feedback. Epics 27-31, 21 stories.
   # Delivery order: 27 first (attendance foundation), then 28 and 29 (29 independent), 30 after 27, 31 after 30.
   # Could items FR-221 (daily streak), FR-234 (gym challenge), FR-235 ("Your month") are deferred: no stories.
-  epic-27: backlog
+  epic-27: in-progress
   27-1-protected-attendance-counting: backlog
   27-2-one-check-in-insert-path: backlog
   27-3-staff-check-in-and-void: backlog
@@ -2151,3 +2151,4 @@ last_updated: 11-15-2026 12:00
 # last_updated: 2026-11-15 (ad-hoc, no story: V1.8 architecture update at the owner's request (bmad-architecture, Coaching path) -- spine AD-53..AD-61 added after reviewer gate (adversary, code reality-check, PRD reconcile; reports in architecture/.../reviews/*-v18.md), PRD wording synced (FR-222, FR-234, FR-251); bmad-create-epics-and-stories step 1 done (V1.8 FR/NFR inventory in epics.md); pushed as 6f521ce; no code changed)
 # last_updated: 2026-11-15 (ad-hoc, no story: V1.8 UX update (bmad-ux, Fast path, no mock-ups per owner): ux-gym_os-2026-07-04 DESIGN.md/EXPERIENCE.md extended with MA-18..MA-23, AD-30..AD-32, flows 16-18 and 25 in-place amendments; PM decisions logged; PRD FR-220/226/233 and spine AD-53/54 amended from the UX open questions; epics.md V1.8 epic list and FR coverage map saved, story breakdown (34 stories) awaiting owner approval; no code changed)
 # last_updated: 2026-11-15 (ad-hoc, no story: V1.8 epics added to development_status at the owner's request: epic-27..epic-31 and 21 stories (27-1..27-4, 28-1..28-3, 29-1..29-4, 30-1..30-7, 31-1..31-3), all backlog; retrospectives optional; no story files created yet; tag v1.7.0 created on 753a68a (merge of PR #129) and pushed; no code changed)
+# last_updated: 2026-11-15 (ad-hoc, no story: Epic 27 started at the owner's request: branch epic/27 cut from master (5675246), epic-27-context.md written from epics.md V1.8 stories, epic-27 set backlog -> in-progress; no story files yet, no code changed)
