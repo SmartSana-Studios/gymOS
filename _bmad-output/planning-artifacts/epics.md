@@ -1,7 +1,8 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
-status: final  # V1.7 update complete: Epics 22-25 (37 stories); Epics 1-21 unchanged
+status: in-progress  # V1.8 update in progress (step 1 done): V1.7 update complete (Epics 22-25, 37 stories); Epics 1-21 and 26 unchanged
 v17UpdateStepsCompleted: [1, 2, 3, 4]
+v18UpdateStepsCompleted: [1]
 inputDocuments:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/addendum.md
@@ -11,6 +12,9 @@ inputDocuments:
   - _bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md
   - _bmad-output/planning-artifacts/sprint-change-proposal-2026-08-11.md
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md (v1.7, 2026-10-15)
+  - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md (v1.8, 2026-11-15; FR-219-FR-251, NFR-027-NFR-029; addendum section M)
+  - _bmad-output/brainstorming/brainstorm-member-engagement-streaks-calendar-2026-11-14/brainstorm-intent.md
+  - _bmad-output/brainstorming/brainstorm-member-engagement-streaks-calendar-2026-11-14/v1.8-gym-feedback.md
 ---
 
 # gym_os - Epic Breakdown
@@ -306,6 +310,61 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - FR-213: Amends FR-172. Directory filterable by category (FR-171), category label shown on the public page; category stays descriptive for behavior, plan types, permissions; category changes audited.
 - FR-214: A gym that unpublishes, is suspended, or taken down leaves directory, sitemap and listings within the FR-207 times.
 
+**prd §6.33 Member Engagement — Weekly Goal, Streaks & Calendar — V1.8 (Step 3)**
+- FR-219: Member sets a weekly goal of 1–7 visit days, default 3; a change applies from the next gym-local week (week = Monday–Sunday, assumption); Home shows a ring that fills per visit day and closes at the goal.
+- FR-220: Weekly streak = consecutive gym-local weeks the goal in force was met, computed on the server when a week closes; best streak stored and never lowered; a missed week ends the run unless a Shield saves it.
+- FR-221 *(Could)*: Daily streak appears automatically once the member has a current run of 3+ consecutive visit days; no opt-in; hidden when the run ends.
+- FR-222 *(Should)*: Streak Shield earned at every 4th consecutive streak week, max 2 held, used automatically to save one missed week or day, never bought or staff-granted, separate from loyalty (FR-170 untouched).
+- FR-223 *(Should)*: Comeback — after a broken streak the best streak stays visible; goal of 3 visits (10-day window, assumption) restores active status; never a bare "0".
+- FR-224: Attendance calendar — month view, visit days lit, earlier months reachable, today's cell "at risk" with hours left when a visit today is needed (FR-233 conditions a/b), milestone markers on milestone days.
+- FR-225: A visit day = a gym-local day with ≥1 attendance record; engagement features read existing attendance (no check-in rule change by them); time per FR-061/FR-159; existing history counts at release (badges silent, weekly streak starts first full week after release); all members see the same features whatever their plan.
+
+**prd §6.34 Gym Leaderboard — V1.8 (Step 3)**
+- FR-226: Monthly per-gym leaderboard ranked by visit days in the gym-local month; top 10 plus own row with one neighbour above and below and "N visits behind"; ties share a rank (earliest first); zero-visit members unranked; not on the dashboard in V1.8.
+- FR-227: "Anonymous" choice in Profile; appears as Anonymous until the first-open notice has been seen, then first name + last initial (no photo/phone) unless hidden; still counted and ranked.
+- FR-228: Anonymous enforced on the server (hidden names/identifiers never reach other devices); own-gym board only; rank carries no prize, no leagues, no champion badge; counts change only through attendance records.
+
+**prd §6.35 Milestones, Badges & Sharing — V1.8 (Step 3)**
+- FR-229: Celebration screen once at the 7th, 30th and 100th total visit day at the gym; calendar marks those days; offline milestones shown after sync.
+- FR-230 *(Should)*: Badge shelf — First visit, 7, 30, 100 visits, 4 weeks in a row; earned once, never lost, grant nothing.
+- FR-231 *(Should)*: Share button on the celebration screen and each earned badge makes an on-device image (milestone, optional month calendar, gym name and logo) handed to the OS share sheet; no other member's data; nothing stored by GymOS.
+- FR-232: All goal, celebration, comeback and reminder wording is editable text slots, EN/FR.
+
+**prd §6.36 Streak Reminder, Gym Challenge & Monthly Summary — V1.8 (Step 3)**
+- FR-233 *(Should)*: Push N-08 — on by default, one off-switch, max 1/member/day at 18:00 gym-local, only if no visit today and (a) a daily streak of 3+ would end today or (b) the weekly goal can only be met if the member visits today.
+- FR-234 *(Could)*: Gym-wide monthly challenge — off by default, one per gym per month, Owner/Supervisor set a numeric target (total member visit days) and a free-text reward, fixed once the month starts, cancellable, audit-logged; app shows progress; GymOS grants nothing.
+- FR-235 *(Could)*: "Your month" summary from the 1st of the next month — visit days, best week, change vs previous month; no push.
+
+**prd §6.37 Pay-per-Session Validity — V1.8 (Step 2)**
+- FR-236: Per-gym setting Session validity — Whole day (default, today's FR-159 behavior) or Single use; Owner/Supervisor, audit-logged; only while "Charge guests per session" is on.
+- FR-237: Single use — a check-in consumes one session covering that visit; a visit ends at check-out (manual/auto) or 3 hours after check-in; a scan during an open younger visit is rejected "already checked in" at no cost; after the visit ends or the limit passes the next check-in consumes another session.
+- FR-238 (assumption): In a Single-use gym a class attendance consumes a session unless the member has an open check-in at that gym.
+- FR-239: A setting change applies to later check-ins; open visits finish under the old rule; consumed sessions keep their coverage; lapse windows, loyalty (FR-165), the Guest sessions card and the session audit work as before.
+
+**prd §6.38 Plans — Correction & Annual Clarification — V1.8 (Step 1)**
+- FR-240: Annual plans are paid once, in full, for the plan's duration under the normal lifecycle; renewal is a new payment; monthly and annual are separate plans; no instalments in V1.8; annual plan cards say price, duration and "paid once".
+- FR-241: Correct plan — Owner/Supervisor/Manager replace the plan on a member's current subscription with a mandatory reason; audit records actor, reason, old/new plan, price and expiry.
+- FR-242: Allowed only while no payment stands (awaiting verification, in flight and partly refunded payments stand; voided or fully refunded do not); otherwise refused with a refund-first message; a subscription with no payment record can be corrected; to/from Pay-per-session refused while an unused paid session is held.
+- FR-243: New expiry = original start date + new plan duration, status recalculated; not a renewal (no stamp, no payment notification); attendance, sessions, stamps, streaks and badges never rewritten; start date cannot change.
+
+**prd §6.39 Classes — Per-Day Schedules & Coach Access — V1.8 (Step 2)**
+- FR-244: A recurring class holds schedule slots (weekday + start time, same weekday may repeat), up to 14 (assumption); booking, capacity, cancellation cutoff and reminders work per generated session; one-off classes unchanged.
+- FR-245: Existing recurring classes migrate to one slot per selected day at the old time; slot edits apply to future sessions without bookings; sessions with bookings are left and listed to the editor.
+- FR-246: Coaches create, edit and cancel their own classes inside the Coach Portal's My Classes; they cannot assign another coach or touch another coach's class; the admin Classes page stays closed to Coach; amends FR-104/121/122/145.
+- FR-247: Owner/Supervisor/Manager get a coach picker in the Coach Portal and see that coach's classes and rosters, assigned members with profile, session notes and workout plans, read-only; measurements, photos, progress notes, Overview progress activity and plan completion data stay excluded (FR-095).
+
+**prd §6.40 Staff Check-In — V1.8 (Step 1)**
+- FR-248: Receptionist/Manager/Supervisor/Owner check a member in from the Attendance page by name or phone search; same attendance record marked "checked in by staff" with the actor; time is entry time (no back/future-dating); counts for occupancy, streaks, calendar, leaderboard.
+- FR-249: Same rules as a scan — one open check-in, FR-031 status outcomes (expired rejected with the renewal action offered in place), Pay-per-session session rule (desk payment offered when none); rejected attempts record no attendance; no separate real-time alert for the staff member's own entry (assumption).
+- FR-250: Every staff check-in and rejected attempt is audit-logged; the attendance log marks staff check-ins and shows the actor (support appears as "GymOS Support"); a mistaken staff check-in can be voided by Manager/Supervisor/Owner the same gym-local day with a reason (assumption), after which it stops counting.
+- FR-251: GymOS support gets the V1.8 staff actions (session validity, challenge, Correct plan, staff check-in and void) as a Supervisor would, behind the second factor, shown as "GymOS Support" (amends FR-179).
+
+**prd §6.41 Epic 26 carry-over (recorded, not V1.8 work)**
+- FR-215: A member record carries an optional birth year, profession and neighborhood, entered by staff and shown with the member.
+- FR-216: Birth year shown as approximate age, never as an exact date of birth; existing optional dob unchanged.
+- FR-217: A members-only CSV import (name, phone and the three profile fields, no plan) creates members awaiting the registration fee; amends FR-154 for that import.
+- FR-218: The plan import is unchanged; a gym with a registration fee of 0 can still run the members-only import, with a warning.
+
 ### NonFunctional Requirements
 
 - NFR-001: Multi-tenant data isolation enforced entirely at the PostgreSQL RLS layer; the JWT role-claim injection hook is spiked in week one, before any RLS policy is written — a misconfigured hook defaults to deny-all.
@@ -334,6 +393,9 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - NFR-024 (V1.7): The public site (landing pages, directory) is isolated from tenant data: reads only the published projection (FR-206), runs with no privileged database credential, and a test proves the unauthenticated role has no privilege on any other relation or function. The projection column list is pinned by a snapshot test. A public-site defect cannot expose a member, payment, or unpublished field (extends NFR-001). *As built: `anon` keeps TRUNCATE, REFERENCES and TRIGGER on `public` tables and may execute six pre-auth functions, and `public_site_reader` can read `net._http_response`; all are pinned by `public_site_anon_isolation.test.sql` and the `net` exposure was accepted by the owner (`docs/decisions.md` 2026-11-10). "No privilege on any other relation or function" holds for the project's data schemas except that pinned residue.*
 - NFR-025 (V1.7): Public pages and directory listings are server-rendered; field-measured p75 largest content paint ≤3 s on a mid-range Android phone on 4G, for the launch template and directory pages `[ASSUMPTION — confirm with a measured baseline]`.
 - NFR-026 (V1.7): Because gym-authored pages share a registrable domain with the staff login, `owner.`/`portal.` auth cookies are host-only (never `.gymosapps.com`-scoped) with the `__Host-` prefix; public pages send a strict CSP with no inline script; a security-header test is part of the landing-page gate. A separate domain is the fallback if any of these cannot be met.
+- NFR-027 (V1.8): Leaderboard privacy is enforced and tested on the server — a test per read path proves another member's device never receives a hidden member's name, photo or revealing identifier and a gym's board never contains another gym's members; "Anonymous" is produced by the server.
+- NFR-028 (V1.8): Engagement counts are deterministic — weekly goal, streaks, Shields, milestones, badges, calendar and leaderboard are derived on the server from attendance (plus goal history); recomputing gives the same result; late offline-synced visits correct the counts they belong to; gym-local day/week/month boundaries; a timezone change does not move past days; a goal change mid-week keeps that week's goal; a Shield cannot be used twice for a period, even under retries.
+- NFR-029 (V1.8): Ring, calendar and leaderboard load within 2 s on a mid-range Android phone on 4G at the tier's member cap (assumption, baseline to measure); the N-08 job sends at most one per member per day, is safe to run twice, and never blocks or delays a check-in.
 
 **Performance targets (Section 7.1):** Dashboard page load < 2s on standard broadband; QR scan → front-desk alert end-to-end < 3s; offline check-in sync within 10s of connectivity restore.
 
