@@ -491,6 +491,45 @@ development_status:
   26-2-members-only-csv-import-no-plan-awaiting-the-fee: done
   epic-26-retrospective: optional
 
+  # V1.8 (PRD v1.8, 2026-11-15): Member Engagement & First-Gym Feedback. Epics 27-31, 21 stories.
+  # Delivery order: 27 first (attendance foundation), then 28 and 29 (29 independent), 30 after 27, 31 after 30.
+  # Could items FR-221 (daily streak), FR-234 (gym challenge), FR-235 ("Your month") are deferred: no stories.
+  epic-27: backlog
+  27-1-protected-attendance-counting: backlog
+  27-2-one-check-in-insert-path: backlog
+  27-3-staff-check-in-and-void: backlog
+  27-4-correct-plan-and-annual-plan-wording: backlog
+  epic-27-retrospective: optional
+
+  epic-28: backlog
+  28-1-session-validity-setting-and-session-record-changes: backlog
+  28-2-single-use-consumption-at-check-in: backlog
+  28-3-class-attendance-in-a-single-use-gym-and-setting-change-parity: backlog
+  epic-28-retrospective: optional
+
+  epic-29: backlog
+  29-1-class-schedule-slots-foundation: backlog
+  29-2-per-day-slot-editor-and-cancel-class: backlog
+  29-3-coaches-create-edit-and-cancel-their-own-classes: backlog
+  29-4-coach-picker-for-owner-supervisor-and-manager: backlog
+  epic-29-retrospective: optional
+
+  epic-30: backlog
+  30-1-engagement-configuration-weekly-goal-and-wording-catalog: backlog
+  30-2-engagement-facts-the-fold-and-settle: backlog
+  30-3-settle-triggers-and-the-at-risk-state: backlog
+  30-4-weekly-ring-and-streak-on-home: backlog
+  30-5-attendance-calendar: backlog
+  30-6-gym-leaderboard-and-anonymous-choice: backlog
+  30-7-milestones-and-celebration: backlog
+  epic-30-retrospective: optional
+
+  epic-31: backlog
+  31-1-streak-shields-and-comeback: backlog
+  31-2-streak-reminder-n-08: backlog
+  31-3-badge-shelf-and-share-image: backlog
+  epic-31-retrospective: optional
+
 action_items:
   - epic: 7
     action: "Commit immediately when a story's Status is set to done, before starting
@@ -1640,7 +1679,7 @@ action_items:
     owner: "smartsana"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
-last_updated: 11-13-2026 12:31
+last_updated: 11-15-2026 12:00
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -2111,4 +2150,4 @@ last_updated: 11-13-2026 12:31
 # last_updated: 2026-11-15 (ad-hoc, no story: V1.8 brainstorm run with the owner (Creative Partner); topic = member-app engagement (weekly goal ring + streaks, attendance calendar, gym leaderboard); produced _bmad-output/brainstorming/brainstorm-member-engagement-streaks-calendar-2026-11-14/brainstorm-intent.md and v1.8-gym-feedback.md (5 first-gym feedback items, F1-F5) as input; PRD updated to v1.8 (FR-219..FR-251, NFR-027..029, OQ-32/34/36 resolved same day, OQ-33/35 open, addendum M, reviews reconcile-v18.md and review-rubric-v18.md), status final for a V1.8 PRD layer; app version label V1.8 / mobile 1.8.0 at release; no code changed)
 # last_updated: 2026-11-15 (ad-hoc, no story: V1.8 architecture update at the owner's request (bmad-architecture, Coaching path) -- spine AD-53..AD-61 added after reviewer gate (adversary, code reality-check, PRD reconcile; reports in architecture/.../reviews/*-v18.md), PRD wording synced (FR-222, FR-234, FR-251); bmad-create-epics-and-stories step 1 done (V1.8 FR/NFR inventory in epics.md); pushed as 6f521ce; no code changed)
 # last_updated: 2026-11-15 (ad-hoc, no story: V1.8 UX update (bmad-ux, Fast path, no mock-ups per owner): ux-gym_os-2026-07-04 DESIGN.md/EXPERIENCE.md extended with MA-18..MA-23, AD-30..AD-32, flows 16-18 and 25 in-place amendments; PM decisions logged; PRD FR-220/226/233 and spine AD-53/54 amended from the UX open questions; epics.md V1.8 epic list and FR coverage map saved, story breakdown (34 stories) awaiting owner approval; no code changed)
-# last_updated: 2026-11-15 (ad-hoc, no story: V1.8 stories written at the owner's go-ahead (bmad-create-epics-and-stories steps 3-4, shorter plan): Epics 27-31, 21 stories appended to epics.md (27: 4, 28: 3, 29: 4, 30: 7, 31: 3), Could items FR-221/234/235 deferred with no stories; validation passed (all FR-219..251 and NFR-027..029 covered, no forward dependencies); spine AD-55/57/60 and PRD FR-237 (NFR-021 amendment) corrected from writer findings; sprint-status epic/story entries for Epics 27-31 NOT yet added (pending owner go-ahead to start work); no code changed)
+# last_updated: 2026-11-15 (ad-hoc, no story: V1.8 epics added to development_status at the owner's request: epic-27..epic-31 and 21 stories (27-1..27-4, 28-1..28-3, 29-1..29-4, 30-1..30-7, 31-1..31-3), all backlog; retrospectives optional; no story files created yet; tag v1.7.0 created on 753a68a (merge of PR #129) and pushed; no code changed)
