@@ -2,8 +2,8 @@
 title: '27-1 Protected attendance counting: stored visit day, counting views, reader allowlist'
 type: 'feature'
 created: '2026-11-15'
-status: 'ready-for-dev'
-baseline_commit: ''
+status: 'done'
+baseline_commit: '7fc6d66b0d2336b3301137f5e6e9e7c5881a6bc8'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -58,16 +58,16 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/0173_attendance_counting.sql` -- add `visit_day`, `voided_at`; `private.gym_local_date`; backfill then NOT NULL; BEFORE INSERT and BEFORE UPDATE triggers; views; policy ALTERs; re-create `private.gym_occupancy_band` over the view; partial indexes `(gym_id, visit_day)` and `(member_id, visit_day)` where `voided_at is null`; verify block -- the data foundation
-- [ ] `scripts/rollback-0173-attendance-counting.sql` -- restore policies and the 0056 occupancy body; drop views, triggers, helper, indexes, columns
-- [ ] `supabase/tests/attendance_counting.test.sql` -- backfill zones, offline replay, trigger backstop and immutability, view isolation matrix, voided-row hiding, EXPLAIN index use on a 100,000-row fixture, re-asserted 0111 revokes, enumeration of `pg_proc` bodies and `pg_policies` against a committed list, seeded-offender case
-- [ ] `scripts/check-attendance-readers.mjs` + `scripts/attendance-readers.baseline.json` + `scripts/__tests__/attendance-readers.test.mjs` -- zero-dependency scan of `apps`, `packages`, `supabase/functions`; baseline entries each with a one-line reason; fails a seeded fixture
-- [ ] `package.json`, `scripts/ci-local.sh`, `.github/workflows/ci.yml` -- wire `check:attendance-readers` into the static stage and CI
-- [ ] `apps/dashboard/services/attendance.ts` -- the three reads onto `attendance_counted`; "today" via `getGymLocalPeriodBounds()` day instants; keep return shapes; verify the `members!inner` embeds still resolve through the view (fallback: separate name lookup)
-- [ ] `apps/dashboard/services/attendance.*.test.ts` -- Vitest: clock 23:30 UTC, Douala, 00:10 local check-in counts today; existing tests adjusted only for the table name
-- [ ] `packages/types/src/database.ts` -- regenerate (hand-splice only this story's columns and views if the CLI output carries unrelated drift, per decisions.md precedent)
-- [ ] `docs/decisions.md` -- dated newest-first entry on the timezone-history backfill rationale; then verify cited line numbers
-- [ ] `_bmad-output/implementation-artifacts/sprint-status.yaml` -- status transitions and a `last_updated` line
+- [x] `supabase/migrations/0173_attendance_counting.sql` -- add `visit_day`, `voided_at`; `private.gym_local_date`; backfill then NOT NULL; BEFORE INSERT and BEFORE UPDATE triggers; views; policy ALTERs; re-create `private.gym_occupancy_band` over the view; partial indexes `(gym_id, visit_day)` and `(member_id, visit_day)` where `voided_at is null`; verify block -- the data foundation
+- [x] `scripts/rollback-0173-attendance-counting.sql` -- restore policies and the 0056 occupancy body; drop views, triggers, helper, indexes, columns
+- [x] `supabase/tests/attendance_counting.test.sql` -- backfill zones, offline replay, trigger backstop and immutability, view isolation matrix, voided-row hiding, EXPLAIN index use on a 100,000-row fixture, re-asserted 0111 revokes, enumeration of `pg_proc` bodies and `pg_policies` against a committed list, seeded-offender case
+- [x] `scripts/check-attendance-readers.mjs` + `scripts/attendance-readers.baseline.json` + `scripts/__tests__/attendance-readers.test.mjs` -- zero-dependency scan of `apps`, `packages`, `supabase/functions`; baseline entries each with a one-line reason; fails a seeded fixture
+- [x] `package.json`, `scripts/ci-local.sh`, `.github/workflows/ci.yml` -- wire `check:attendance-readers` into the static stage and CI
+- [x] `apps/dashboard/services/attendance.ts` -- the three reads onto `attendance_counted`; "today" via `getGymLocalPeriodBounds()` day instants; keep return shapes; verify the `members!inner` embeds still resolve through the view (fallback: separate name lookup)
+- [x] `apps/dashboard/services/attendance.*.test.ts` -- Vitest: clock 23:30 UTC, Douala, 00:10 local check-in counts today; existing tests adjusted only for the table name
+- [x] `packages/types/src/database.ts` -- regenerate (hand-splice only this story's columns and views if the CLI output carries unrelated drift, per decisions.md precedent)
+- [x] `docs/decisions.md` -- dated newest-first entry on the timezone-history backfill rationale; then verify cited line numbers
+- [x] `_bmad-output/implementation-artifacts/sprint-status.yaml` -- status transitions and a `last_updated` line
 
 **Acceptance Criteria:**
 - Given the AC set in `epics.md` Story 27.1 (15 criteria), when the story closes, then each is met and pgTAP-proven; the full `scripts/ci-local.sh` gate is green on story/27-1.
@@ -78,6 +78,29 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+Pass 1 (Blind Hunter, Edge Case Hunter, Verification Gap; verdicts by the build session).
+
+| Finding | Verdict | Route | Evidence |
+|---|---|---|---|
+| No test resolves `members!inner(...)` through `attendance_counted` | false | rejected | Checked on the local stack with a minted token: all three dashboard embed forms (inner, left, inner plus `members.name=ilike` filter) return the member name through the view, `member_visit_days` returns the day, and a voided row disappears from the view and the base table. No PGRST200. A durable automated check would need PostgREST in CI; the owner's end-of-epic browser pass covers the pages |
+| Rollback has only a comment against running it after voids exist | medium | patch | Rollback drops `voided_at`, so voided visits would silently count again; 0111's rollback has a guard of this shape |
+| Reader gate: file-granular baseline, whitespace/generic `.from` forms missed | low | patch | A second read inside an allowlisted mobile file passes; fix is a per-file expected count plus a tolerant call regex |
+| Reader gate misses `attendance_events(...)` embeds, constants, `.sql`, dirs named build/dist | low | rejected | Embedded reads still pass through the 27.1 base-table policies, which hide voided rows for member and staff sessions; service-role code in `supabase/functions` is scanned and has no reader; the dir-name case is hypothetical |
+| pgTAP enumeration matches schema.name only and misses `prosqlbody` functions | low | patch | A new `check_in` overload or a `BEGIN ATOMIC` body would pass; fix is `oid::regprocedure` plus `pg_get_functiondef` |
+| Offline-replay comment says 8 Nov, fixture uses 15 Nov | low | patch | Comment-only correction |
+| Offline-replay test inserts directly, not through `check_in()` | low | rejected | `check_in()` is unchanged in 27.1; 27.2's characterisation test and its explicit `visit_day` agreement test cover the scan path |
+| Daily Log filters on the UTC day while "today" count is gym-local | low | defer | Real, 00:00 to 01:00 local only; the frozen Never excludes changing the Daily Log filter. Recorded in deferred-work.md |
+| Backfill is a per-row function call while the migration holds the ADD COLUMN lock | low | rejected | Same transaction holds the lock through the UPDATE, but production holds weeks of data for a handful of gyms (low tens of thousands of rows) at microseconds per call; the AC names the helper as the backfill's single definition. A timing run here was inconclusive (docker output swallowed), so this is an estimate, not a measurement |
+| Voided open row stays in the one-open index and `check_in`'s lookup | false | rejected | 27.1 never writes `voided_at`; 27.2's AC swaps the index to `where voided_at is null` and 27.3 is the first writer |
+| Supplied non-null `visit_day` accepted unchecked | low | rejected | The AC fixes "when not supplied"; 27.2 sets it explicitly and asserts agreement with the trigger |
+| "Today" uses period bounds, not `visit_day`, after a timezone change | false | rejected | The AC names `gym_local_period_bounds()` for the page count |
+| Null `bounds` without error returns 0 | false | rejected | `getGymLocalPeriodBounds()` returns an error whenever there is no row, so null bounds with a null error cannot occur |
+| Vitest clock framing does not exercise the clock | low | rejected | Cosmetic; the real bounds are proven in `gym_local_period_bounds.test.sql` (0097) |
+| EXPLAIN runs as owner, no `enable_seqscan` guard | low | rejected | The AC asks for index use on the page's reads; passed on two full runs |
+| `Insert.visit_day` required in `database.ts` | false | rejected | A NOT NULL column without a default is generated as required; the hand-splice matches the generator |
+| Rollback not tested; verify block weak; identical baseline reasons; `plan(74)` hard-coded; no ci-local stamp recorded | low | rejected | Rollback proven by hand (apply, roll back, re-apply); the others are repo conventions or handled at the merge gate |
+| 0173 applied alone, not after 0160 to 0172 | medium | defer | No migration between 0160 and 0172 touches these objects (grep), but the sequence was not proven locally; closed by a fresh `supabase db reset` followed by the full gate, owner-run |
 
 ## Design Notes
 

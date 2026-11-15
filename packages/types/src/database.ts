@@ -19,6 +19,8 @@ export type Database = {
           gym_id: string
           id: string
           member_id: string
+          visit_day: string
+          voided_at: string | null
         }
         Insert: {
           checked_in_at?: string
@@ -29,6 +31,8 @@ export type Database = {
           gym_id: string
           id?: string
           member_id: string
+          visit_day: string
+          voided_at?: string | null
         }
         Update: {
           checked_in_at?: string
@@ -39,6 +43,8 @@ export type Database = {
           gym_id?: string
           id?: string
           member_id?: string
+          visit_day?: string
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -2573,6 +2579,54 @@ export type Database = {
       }
     }
     Views: {
+      attendance_counted: {
+        Row: {
+          checked_in_at: string | null
+          checked_out_at: string | null
+          checkout_type: string | null
+          client_scan_id: string | null
+          created_at: string | null
+          gym_id: string | null
+          id: string | null
+          member_id: string | null
+          visit_day: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_events_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_events_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_visit_days: {
+        Row: {
+          gym_id: string | null
+          member_id: string | null
+          visit_day: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_events_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_events_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions_current: {
         Row: {
           deactivated_at: string | null

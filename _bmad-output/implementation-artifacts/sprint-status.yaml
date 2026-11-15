@@ -495,7 +495,7 @@ development_status:
   # Delivery order: 27 first (attendance foundation), then 28 and 29 (29 independent), 30 after 27, 31 after 30.
   # Could items FR-221 (daily streak), FR-234 (gym challenge), FR-235 ("Your month") are deferred: no stories.
   epic-27: in-progress
-  27-1-protected-attendance-counting: ready-for-dev
+  27-1-protected-attendance-counting: review
   27-2-one-check-in-insert-path: backlog
   27-3-staff-check-in-and-void: backlog
   27-4-correct-plan-and-annual-plan-wording: backlog
@@ -2153,3 +2153,6 @@ last_updated: 11-15-2026 12:00
 # last_updated: 2026-11-15 (ad-hoc, no story: V1.8 epics added to development_status at the owner's request: epic-27..epic-31 and 21 stories (27-1..27-4, 28-1..28-3, 29-1..29-4, 30-1..30-7, 31-1..31-3), all backlog; retrospectives optional; no story files created yet; tag v1.7.0 created on 753a68a (merge of PR #129) and pushed; no code changed)
 # last_updated: 2026-11-15 (ad-hoc, no story: Epic 27 started at the owner's request: branch epic/27 cut from master (5675246), epic-27-context.md written from epics.md V1.8 stories, epic-27 set backlog -> in-progress; no story files yet, no code changed)
 # last_updated: 2026-11-15 (bmad-build: 27-1 spec written (spec-27-1-protected-attendance-counting.md), approved by the owner, status backlog -> ready-for-dev; investigation found only private.gym_occupancy_band counts (member_occupancy_band delegates), the reader list gains gym_occupancy_band, and the local DB sits at 0159 while migration files reach 0172; no code changed)
+# last_updated: 2026-11-15 (bmad-build: 27-1 status ready-for-dev -> in-progress, baseline_commit 7fc6d66, implementation starting on story/27-1-protected-attendance-counting)
+# last_updated: 2026-11-15 (bmad-build: 27-1 implemented and reviewed, status in-progress -> review; 3 review layers triaged (4 patches applied, 2 deferred to deferred-work.md: Daily Log still on the UTC day, 0173 not yet proven in sequence on a database reset to head), 12 rejected; embeds through attendance_counted verified against real PostgREST on the local stack; migration 0173 provisional; clean full scripts/ci-local.sh still to run on story/27-1 after the owner's supabase db reset, then merge to epic/27)
+# last_updated: 2026-11-15 (bmad-build: 27-1 implemented, status in-progress -> review. Migration 0173 (visit_day, voided_at, private.gym_local_date, insert and immutability triggers, views attendance_counted and member_visit_days, voided-hiding policies, occupancy band over the view, two partial indexes), rollback script, pgTAP attendance_counting.test.sql (74), node reader gate check-attendance-readers.mjs wired into ci-local static and ci.yml, dashboard attendance.ts onto attendance_counted with the gym-local today count, Vitest, hand-spliced database.ts, decisions.md entry. Local DB: 0173 applied alone with psql (migration up stops at 0160); full pgTAP 190 files green, dashboard Vitest 236 files green, typecheck green. ci-local result recorded in the story hand-off)

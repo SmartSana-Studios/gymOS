@@ -4,6 +4,7 @@ import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import type { MemberSubscriptionStatus } from "@/services/members";
+import { getGymLocalPeriodBounds } from "@/services/gym-settings";
 
 // Default rows per page (the user can pick 5/10/25/50).
 export const ATTENDANCE_LOG_PAGE_SIZE = 5;
@@ -159,7 +160,7 @@ export async function getCurrentlyCheckedIn(params: { page?: number; pageSize?: 
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
     return supabase
-      .from("attendance_events")
+      .from("attendance_counted")
       .select(`member_id, checked_in_at, members!inner(name, deactivated_at)`, { count: "exact" })
       .eq("gym_id", gymId)
       .is("checked_out_at", null)
@@ -224,8 +225,12 @@ export async function getCurrentlyCheckedIn(params: { page?: number; pageSize?: 
   return { data: { rows, total, page: effectivePage }, error: null };
 }
 
-/** "Today's attendance count" (AC #2) -- counts every check-in today
- * regardless of open/closed state (Scope Note #4), UTC calendar day. */
+/** "Today's attendance count" (AC #2) -- counts every counted check-in today
+ * regardless of open/closed state (Scope Note #4). Story 27.1: "today" is the
+ * GYM-LOCAL day (the `gym_local_period_bounds()` instants, 0097), no longer the
+ * UTC day -- for a Douala gym (UTC+1) a check-in between 00:00 and 01:00 local
+ * used to count for yesterday. Reads `attendance_counted`, so a voided visit is
+ * never counted. */
 export async function getTodayAttendanceCount(): Promise<{ count: number; error: AppError | null }> {
   const supabase = await createClient();
   const { gymId, error: gymIdError } = await getCallerGymId(supabase);
@@ -233,13 +238,17 @@ export async function getTodayAttendanceCount(): Promise<{ count: number; error:
     return { count: 0, error: gymIdError };
   }
 
-  const today = todayUtcDate();
+  const { data: bounds, error: boundsError } = await getGymLocalPeriodBounds();
+  if (boundsError || !bounds) {
+    return { count: 0, error: boundsError };
+  }
+
   const { count, error } = await supabase
-    .from("attendance_events")
+    .from("attendance_counted")
     .select("id", { count: "exact", head: true })
     .eq("gym_id", gymId)
-    .gte("checked_in_at", dateStartIso(today))
-    .lt("checked_in_at", dateEndExclusiveIso(today));
+    .gte("checked_in_at", bounds.dayStart)
+    .lt("checked_in_at", bounds.nextDayStart);
 
   if (error) {
     return { count: 0, error: await mapAndLog(error) };
@@ -298,7 +307,7 @@ export async function listAttendanceLog(params: {
   function buildQuery(page: number) {
     const membersSelect = params.memberSearch ? "members!inner(name)" : "members(name)";
     let q = supabase
-      .from("attendance_events")
+      .from("attendance_counted")
       .select(`id, member_id, checked_in_at, checked_out_at, ${membersSelect}`, { count: "exact" })
       .eq("gym_id", gymId)
       .gte("checked_in_at", dateStartIso(fromDate))
