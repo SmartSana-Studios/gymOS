@@ -410,6 +410,7 @@ select schema_name, function_name,
        coalesce(least(
          nullif(position('insert into' in body), 0),
          nullif(position('update attendance_events' in body), 0),
+         nullif(position('update public.attendance_events' in body), 0),
          nullif(position('delete from' in body), 0)), 2147483647) as write_at
 from src;
 
@@ -450,6 +451,15 @@ begin
   perform private.record_check_in(gen_random_uuid(), gen_random_uuid(), 'qr', null, null);
 end;
 $f$;
+-- A schema-qualified update with the guard below it: before the (public\.) variant in write_at this passed vacuously (review 2026-11-15).
+create function public.zz_attendance_qualified_update_late_guard() returns void language plpgsql security definer set search_path = public as $f$
+begin
+  update public.attendance_events set checked_out_at = now() where false;
+  if private.current_gym_status() is distinct from 'active' then
+    raise exception 'check_in: gym is not active';
+  end if;
+end;
+$f$;
 create function private.zz_rci_late_guard() returns void language plpgsql security definer set search_path = public as $f$
 begin
   insert into attendance_events (gym_id, member_id) values (gen_random_uuid(), gen_random_uuid());
@@ -471,8 +481,8 @@ select is(
    from attendance_events_functions
    where schema_name = 'public'
      and not ((guard_at > 0 and guard_at < write_at) or (call_at > 0 and call_at < write_at))),
-  'zz_attendance_unguarded, zz_attendance_writes_first',
-  'seeded offenders: an unguarded public writer and a caller that writes before calling record_check_in are named by assertion 9');
+  'zz_attendance_qualified_update_late_guard, zz_attendance_unguarded, zz_attendance_writes_first',
+  'seeded offenders: an unguarded public writer, a caller that writes before calling record_check_in and a schema-qualified update below its guard are named by assertion 9');
 
 select * from finish();
 rollback;

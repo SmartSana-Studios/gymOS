@@ -119,3 +119,27 @@ Gym-status check inside `record_check_in` reads `private.current_gym_status()` (
 - `bash scripts/ci-local.sh` -- expected: every stage PASS, read per stage, after the owner's `supabase db reset`
 - `bash scripts/check-in-member-lock-race.sh` -- expected: last transcript line is the pass verdict
 - `bash scripts/ci-local.selftest.sh` -- only if `ci-local.sh` is touched
+
+### Review Findings
+
+Code review 2026-11-15 (bmad-code-review, branch diff `epic/27...HEAD`, 2313 lines, full mode; Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor, none failed).
+
+- [x] [Review][Patch] `scripts/ci-local.sh` lines 1-2 hold the race-script wiring above the shebang, so `check-in-member-lock-race.sh` never runs in the local merge gate [scripts/ci-local.sh:1] — medium. The comment and `DB_CONTAINER=... bash "$ROOT/scripts/check-in-member-lock-race.sh" || return 1` went in before `#!/usr/bin/env bash`: `$ROOT` is unset there, `return` is outside a function, the shebang is no longer line 1, and `stage_pgtap` (after `session-refund-race.sh`, line 125) has no call. `bash -n` and `ci-local.selftest.sh` cannot see it. The Review Triage Log row "wired into both" is true for `ci.yml` only. Fix: delete the two stray lines, restore the shebang as line 1, add the call inside `stage_pgtap` after the `session-refund-race.sh` line; run `scripts/ci-local.selftest.sh` and the race script once (a gate changed must be shown capable of failing). (blind-hunter+edge-case-hunter+verification-gap+acceptance-auditor)
+- [x] [Review][Patch] `attendance_events_functions.write_at` in `suspension_rpc_coverage.test.sql` matches only unqualified `update attendance_events`, so a writer using `update public.attendance_events` gets `write_at` = max and the "guard precedes first write" check passes vacuously [supabase/tests/suspension_rpc_coverage.test.sql:~399] — low. 27.3 adds a void function, the first new writer these assertions will see. Fix: match `(public\.)?attendance_events` in the insert, update and delete patterns, as `attendance_counting.test.sql` already does. (edge-case-hunter+blind-hunter)
+
+#### Rejected
+
+- Mobile client no longer handles the concurrent-scan outcome (blind) — false: the loser now gets P0001 "already has an open check-in", and `apps/mobile/src/services/checkin.ts:107` matches that text first; the 23505 index-name branch stays as the backstop.
+- Lock-order / deadlock risk of the always-on member lock (blind) — false: member lock then open-row lock is the 0111 canonical order `check_in()` already used at charging gyms; a local `pg_proc` query finds no other function that locks both `attendance_events` and `members`, so there is no cycle.
+- No lower bound on `p_at` for staff entries; no `p_source` / `p_actor` guard (blind) — false / low: `epics.md` 27.3 calls `record_check_in(..., 'staff', private.actor_id(), now())`, so no back-dated time is passed; a bad source or actor pair fails the table CHECK and rolls back (first-pass triage, same verdict).
+- Existing `support_*` and `attendance_counting` tests edited beyond the frozen Always line; spec `status: done` while sprint-status says `review` (acceptance-auditor, blind) — low: disclosed in Implementation Notes, no assertion weakened, the fix edits the spec under review. Surfaced to the owner here instead.
+- `delegates_to_record_check_in` exempts a whole function (blind) — false: the call comes before any write and `record_check_in` raises for a non-active gym, so later writes in the caller already sit behind the guard. The "fooled by a comment" part is low and stays rejected as in the first pass.
+- Writer enumeration misses `delete`, `merge`, dynamic SQL; `decisions.md` wording "any other writer fails" overclaims (blind) — low, rejected as in the first pass (AC enumerates `insert into` and `update`; no case shown).
+- `suspension_rpc_coverage` falsely flags a read-only secdef reader (edge) — low: a read-only public function is also pinned by the `attendance_counting` reader list, no such function exists, and a false failure is loud.
+- Replay lookup has no `voided_at` filter (acceptance-auditor) — low, no violation: unreachable before 27.3, and the 27.3 void touches staff rows, which carry no scan id.
+- `p_gym_id` vs session gym (acceptance-auditor) — already recorded for 27.3 in Design Notes, `deferred-work.md` and `epic-27-context.md`; not a new finding.
+- Migration lock footprint, `NOT VALID` CHECKs, missing prod backup precondition (blind) — low, rejected as in the first pass; the 0173 row-count item in `deferred-work.md` covers it, and the R2 backup precondition is the deploy script's step, not the migration's.
+- Dead `out=$(...)` in the race script, fixed sleeps, `psql -c` output differs by PG version (blind) — low: the variable is unused but harmless, the timing margin was measured (470 ms), and the pinned local stack is one PG version.
+- Untested `record_check_in` paths (offline stale, clamp, staff session gate, replay nulls, rollback script) (blind) — false for offline stale and clamp (covered by `check_in_record_path.test.sql`, which runs through `check_in()`); low for the rest (staff semantics are 27.3; rollback was rehearsed).
+- `database.ts` types `source` as `string`, `Insert.visit_day` required (blind) — low, rejected as in the first pass (hand splice, 27.1 precedent).
+- `sprint-status.yaml` has several 27-2 `last_updated` comments (blind) — false: one entry per pass is the file's append-only convention.
