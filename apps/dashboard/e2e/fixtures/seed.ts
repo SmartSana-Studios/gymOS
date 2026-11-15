@@ -165,9 +165,11 @@ async function createMemberFixture(
   // Story 27.3: a null offset is a Pay-per-session subscription (no expiry); an offset of -3 is an expired membership.
   const offsetDays = options.expiryOffsetDays === undefined ? 30 : options.expiryOffsetDays;
   const expiry = offsetDays === null ? null : new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  // subscriptions_expiry_after_start: an expired membership starts before its (past) expiry.
+  const startDate = offsetDays !== null && offsetDays < 0 ? new Date(Date.now() + (offsetDays - 30) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) : today;
   const { error: subError } = await admin
     .from("subscriptions")
-    .insert({ gym_id: gymId, member_id: memberRow.id, plan_id: planId, status: subscriptionStatus, start_date: today, expiry_date: expiry });
+    .insert({ gym_id: gymId, member_id: memberRow.id, plan_id: planId, status: subscriptionStatus, start_date: startDate, expiry_date: expiry });
   if (subError) {
     throw new Error(`e2e seed: subscription insert (member ${seq}) failed -- ${subError.message}`);
   }
