@@ -10,6 +10,8 @@ type Call = [string, ...unknown[]];
 let calls: Call[];
 let rpcResult: { data: unknown; error: unknown; count?: number | null };
 let fromResult: { data: unknown; error: unknown; count?: number | null };
+// per-table answers for a read that touches several tables; any other table answers fromResult
+let tableResults: Record<string, { data: unknown; error: unknown; count?: number | null }> = {};
 
 function builder(result: () => unknown) {
   const b: Record<string, unknown> = {};
@@ -29,7 +31,7 @@ const rpc = vi.fn((fn: string, args: unknown, opts?: unknown) => {
 });
 const from = vi.fn((table: string) => {
   calls.push(["from", table]);
-  return builder(() => fromResult);
+  return builder(() => tableResults[table] ?? fromResult);
 });
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -47,7 +49,7 @@ vi.mock("@/services/gym-settings", () => ({ getGymLocalPeriodBounds: vi.fn() }))
 let claimRole = "receptionist";
 
 import { accentInsensitivePattern, isSearchTermLongEnough, phoneSearchDigits } from "@/lib/attendance-search";
-import { listAttendanceLog, searchMembersForCheckIn, staffCheckIn, voidStaffCheckIn } from "./attendance";
+import { getCurrentlyCheckedIn, listAttendanceLog, searchMembersForCheckIn, staffCheckIn, voidStaffCheckIn } from "./attendance";
 
 describe("staffCheckIn", () => {
   beforeEach(() => {
@@ -113,6 +115,95 @@ describe("listAttendanceLog (list_attendance_log)", () => {
     expect(rpcCall?.[2]).toEqual({ p_from: "2026-11-15T00:00:00.000Z", p_to: "2026-11-16T00:00:00.000Z" });
     expect(calls.some((c) => c[0] === "from")).toBe(false);
   });
+
+  it("filters the member name on the RPC rows, orders newest first, pages with range, and maps the Void modal's two flags for a voidable row", async () => {
+    rpcResult = {
+      data: [
+        {
+          attendance_id: "a2", member_id: "m2", member_name: "Paul E.", checked_in_at: "2026-11-15T08:00:00Z", checked_out_at: null,
+          checkout_type: null, source: "staff", entered_by_label: "Brice N.", voided_at: null, voided_by_label: null,
+          void_reason: null, voidable: true, consumed_session: true, earned_stamp: false,
+        },
+      ],
+      error: null,
+      count: 12,
+    };
+    const { data } = await listAttendanceLog({ from: "2026-11-15", to: "2026-11-15", page: 2, pageSize: 10, memberSearch: "pau%l" });
+    expect(data?.rows[0]).toMatchObject({ id: "a2", voidable: true, consumedSession: true, earnedStamp: false, voidedAt: null });
+    expect(data?.page).toBe(2);
+    expect(calls).toContainEqual(["ilike", "member_name", "%pau\\%l%"]);
+    expect(calls).toContainEqual(["order", "checked_in_at", { ascending: false }]);
+    expect(calls).toContainEqual(["order", "attendance_id", { ascending: true }]);
+    expect(calls).toContainEqual(["range", 10, 19]);
+    expect(calls.find((c) => c[0] === "rpc")?.[3]).toEqual({ count: "exact" });
+  });
+});
+
+const ATT_STAFF_1 = { id: "a1", member_id: "m1", checked_in_at: "2026-11-15T07:02:00Z", source: "staff", members: { name: "Ange T.", deactivated_at: null } };
+const ATT_SCAN = { id: "a2", member_id: "m2", checked_in_at: "2026-11-15T06:40:00Z", source: "qr", members: { name: "Jean B.", deactivated_at: null } };
+const ATT_STAFF_3 = { id: "a3", member_id: "m3", checked_in_at: "2026-11-15T06:30:00Z", source: "staff", members: { name: "Paul E.", deactivated_at: null } };
+const LOG_A1 = {
+  attendance_id: "a1", member_id: "m1", member_name: "Ange T.", checked_in_at: "2026-11-15T07:02:00Z", checked_out_at: null, checkout_type: null,
+  source: "staff", entered_by_label: "Brice N.", voided_at: null, voided_by_label: null, void_reason: null, voidable: true, consumed_session: true, earned_stamp: true,
+};
+
+describe("getCurrentlyCheckedIn", () => {
+  beforeEach(() => {
+    calls = [];
+    tableResults = {};
+  });
+
+  it("staff: reads attendance_counted, and maps the entry label and the void flags of the staff rows onto the right rows", async () => {
+    claimRole = "manager";
+    tableResults = {
+      attendance_counted: { data: [ATT_STAFF_3, ATT_SCAN, ATT_STAFF_1], error: null, count: 3 },
+      subscriptions: { data: [{ member_id: "m1", status: "active", created_at: "2026-10-01" }], error: null },
+    };
+    rpcResult = { data: [LOG_A1], error: null };
+    const { data } = await getCurrentlyCheckedIn({ page: 1, pageSize: 10 });
+    const byId = Object.fromEntries((data?.rows ?? []).map((r) => [r.attendanceId, r]));
+    expect(byId.a1).toMatchObject({ source: "staff", enteredByLabel: "Brice N.", voidable: true, consumedSession: true, earnedStamp: true, status: "active" });
+    expect(byId.a2).toMatchObject({ source: "qr", enteredByLabel: null, voidable: false, consumedSession: null, earnedStamp: null });
+    // a staff row the log did not return keeps the safe defaults
+    expect(byId.a3).toMatchObject({ source: "staff", enteredByLabel: null, voidable: false });
+    // one enrichment read, from the earliest staff entry on the page
+    const rpcCalls = calls.filter((c) => c[0] === "rpc");
+    expect(rpcCalls).toHaveLength(1);
+    expect(rpcCalls[0][1]).toBe("list_attendance_log");
+    expect((rpcCalls[0][2] as { p_from: string }).p_from).toBe("2026-11-15T06:30:00Z");
+    expect(calls).toContainEqual(["from", "attendance_counted"]);
+  });
+
+  it("staff: a failed enrichment never blocks the page, and leaves [Void] hidden", async () => {
+    claimRole = "owner";
+    tableResults = { attendance_counted: { data: [ATT_STAFF_1], error: null, count: 1 }, subscriptions: { data: [], error: null } };
+    rpcResult = { data: null, error: { message: "boom" } };
+    const { data, error } = await getCurrentlyCheckedIn({ page: 1, pageSize: 10 });
+    expect(error).toBeNull();
+    expect(data?.rows[0]).toMatchObject({ attendanceId: "a1", source: "staff", enteredByLabel: null, voidable: false });
+  });
+
+  it("staff: a page of scans asks nothing of the log", async () => {
+    claimRole = "receptionist";
+    tableResults = { attendance_counted: { data: [ATT_SCAN], error: null, count: 1 }, subscriptions: { data: [], error: null } };
+    await getCurrentlyCheckedIn({ page: 1, pageSize: 10 });
+    expect(calls.some((c) => c[0] === "rpc")).toBe(false);
+  });
+
+  it("support: reads the open rows from list_attendance_log (never attendance_counted), clamping a page past the end", async () => {
+    claimRole = "support";
+    tableResults = { subscriptions: { data: [], error: null } };
+    rpcResult = { data: [LOG_A1], error: null, count: 1 };
+    const { data } = await getCurrentlyCheckedIn({ page: 5, pageSize: 10 });
+    expect(calls.some((c) => c[0] === "from" && c[1] === "attendance_counted")).toBe(false);
+    expect(calls).toContainEqual(["is", "checked_out_at", null]);
+    expect(calls).toContainEqual(["is", "voided_at", null]);
+    expect(calls.filter((c) => c[0] === "rpc")).toHaveLength(2);
+    expect(calls.filter((c) => c[0] === "range")).toEqual([["range", 40, 49], ["range", 0, 9]]);
+    expect(data?.page).toBe(1);
+    expect(data?.total).toBe(1);
+    expect(data?.rows[0]).toMatchObject({ attendanceId: "a1", enteredByLabel: "Brice N.", voidable: true, status: "no_active_plan" });
+  });
 });
 
 describe("member search for the check-in modal", () => {
@@ -120,6 +211,7 @@ describe("member search for the check-in modal", () => {
     calls = [];
     claimRole = "receptionist";
     fromResult = { data: [], error: null };
+    tableResults = {};
   });
 
   it("needs 2 letters or 3 digits", () => {
