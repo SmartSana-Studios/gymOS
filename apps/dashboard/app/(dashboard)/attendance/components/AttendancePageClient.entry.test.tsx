@@ -90,11 +90,15 @@ describe("AttendancePageClient staff entry (27.3)", () => {
     expect(screen.getAllByRole("columnheader", { name: "attendance.log.entry" })).toHaveLength(1);
     expect(within(rowOf("Jean B.")).getByText("attendance.log.entryScan")).toBeInTheDocument();
     const ange = rowOf("Ange T.");
-    expect(within(ange).getByText("attendance.log.byStaff")).toBeInTheDocument();
     expect(within(ange).getByText("· Brice N.")).toHaveClass("hidden", "lg:inline");
+    // the UX aria text is a real screen-reader node (sr-only); the visible pill and name are aria-hidden
+    expect(within(ange).getByText('attendance.log.entryAria {"name":"Brice N."}')).toHaveClass("sr-only");
+    expect(within(ange).getByText("· Brice N.")).toHaveAttribute("aria-hidden", "true");
+    expect(within(ange).getAllByText("attendance.log.byStaff").some((n) => n.closest("[aria-hidden='true']") !== null)).toBe(true);
     const paul = rowOf("Paul E.");
-    expect(within(paul).getByText("attendance.log.byStaff")).toBeInTheDocument();
+    expect(within(paul).getAllByText("attendance.log.byStaff").length).toBeGreaterThan(0);
     expect(within(paul).queryByText(/·/)).toBeNull();
+    expect(within(paul).queryByText((c) => c.startsWith("attendance.log.entryAria"))).toBeNull();
     expect(within(rowOf("Sup M.")).getByText("· GymOS Support")).toBeInTheDocument();
   });
 

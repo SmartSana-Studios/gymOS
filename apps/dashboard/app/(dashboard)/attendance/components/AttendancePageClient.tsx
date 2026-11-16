@@ -206,12 +206,18 @@ export function AttendancePageClient({
   function entryCell(entry: AttendanceEntryInfo) {
     if (entry.source !== "staff") return t("attendance.log.entryScan");
     return (
-      <span className="inline-flex items-center gap-1" aria-label={t("attendance.log.entryAria", { name: entry.enteredByLabel ?? "" })}>
-        <Badge variant="outline" className="border-gray-200 bg-gray-100 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+      <span className="inline-flex items-center gap-1">
+        {/* The screen-reader text is a real node: the visible name is display:none under 1024 px, and aria-label on a plain span is ignored. */}
+        <span className="sr-only">{entry.enteredByLabel ? t("attendance.log.entryAria", { name: entry.enteredByLabel }) : t("attendance.log.byStaff")}</span>
+        <Badge aria-hidden="true" variant="outline" className="border-gray-200 bg-gray-100 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
           <UserCheck size={12} className="mr-1" aria-hidden="true" />
           {t("attendance.log.byStaff")}
         </Badge>
-        {entry.enteredByLabel && <span className="hidden lg:inline">· {entry.enteredByLabel}</span>}
+        {entry.enteredByLabel && (
+          <span aria-hidden="true" className="hidden lg:inline">
+            · {entry.enteredByLabel}
+          </span>
+        )}
       </span>
     );
   }
