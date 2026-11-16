@@ -2,7 +2,7 @@
 title: '27-3 Staff check-in and void: check a member in at the entrance, undo a mistake the same day'
 type: 'feature'
 created: '2026-11-15'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 baseline_commit: 'bcaddf05d5ce2889a0b8449f5c56eb962656dcd3'
 review_loop_iteration: 0
@@ -86,6 +86,37 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+Review 2026-11-16 (bmad-build step 4, first pass: Blind Hunter, Edge Case Hunter, Verification Gap; diff `bcaddf0..HEAD`, 7478 lines).
+
+| Finding | Verdict | Route | Evidence |
+|---------|---------|-------|----------|
+| `RenewalPanel` never clears its busy flag on success; the panel unmounts inside `CheckInMemberModal` and `panelBusy` stays true (edge) | medium | patch | `RenewalModal.tsx:427,451`: `setSubmitting(false)` only on the error and catch paths; the success path calls `onRenewed()` with `submitting` still true, `onBusyChange(true)` already sent, no unmount cleanup. `CheckInMemberModal.tsx:153,675,692`: `busy = submitting \|\| panelBusy` disables the close X and swallows Escape for the rest of the modal session after R4 renew then R6. |
+| `later_visit_relies` orders by `(checked_in_at, id)`; an offline scan synced after the staff entry can carry an earlier `checked_in_at`, so the void releases the session while a covered visit stays counted (edge, matrix claim) | medium | patch | 0175:830-837: `(l.checked_in_at, l.id) > (ae.checked_in_at, ae.id)`. A covered scan synced later keeps a time bounded only by `>= session_created_at` (record_check_in 288-296), so it can sort before the staff entry that consumed the session. `created_at` is the insertion order and cannot be backdated. |
+| `stamp_removed` is `exists(stamp_reversed for the session)`, true on a second void cycle when the hook did nothing (blind, edge) | medium | patch | 0175:862: the unique key `(origin_id, event_type)` makes the hook a no-op on cycle two while the earlier row still exists, so `stamp_removed` is true and is written into the `staff_check_in_voided` audit metadata. Fix: read the existence before the hook call, `stamp_removed` = exists after and not before; add a double-cycle pgTAP case. |
+| `onRenewed` is a fresh arrow every render and sits in the Mobile Money watch effect deps; the modal re-renders every 60 s and on `panelBusy`, tearing down the channel, poll and still-waiting timer (edge) | low | patch | `RenewalModal.tsx:328` deps include `onRenewed`; `CheckInMemberModal.tsx:161` ticks every 60 s and passes an inline arrow. Hold it in a ref in the panel. |
+| Entry cell puts `aria-label` on a plain `<span>`; below 1024 px the name is `display:none`, so the UX aria text is ignored by assistive technology (blind) | low | patch | `AttendancePageClient.tsx:209`. UX AD-11 requires "Checked in by staff, [Name]". Replace with an `sr-only` text node and hide the visual copy from the tree. |
+| No test of `staffCheckInAction` / `voidStaffCheckInAction` and `requireSupportGrant` (verification-gap) | medium | patch | The three modal tests mock `../actions`; pgTAP builds its own grant. Wrong subject binding or a dropped grant would ship green. Add `attendance/actions.supportStepUp.test.ts` after `payments/actions.supportStepUp.test.ts`. |
+| `getCurrentlyCheckedIn` support branch and staff enrichment untested (verification-gap) | medium | patch | `attendance.staffCheckIn.test.ts` never calls it; dropping `.is("voided_at", null)` or swapping `consumedSession`/`earnedStamp` fails nothing. |
+| `listAttendanceLog` search (`ilike member_name`), order, range and consumed/earned mapping unasserted (verification-gap) | low | patch | Only the no-search call is tested (`attendance.staffCheckIn.test.ts:92-111`). |
+| Guest-sessions `staff` -> `guestSessions.source.desk` mapping never rendered by a test (verification-gap) | low | patch | `GuestSessionsPageClient.test.tsx:140` has only `check_in` and `class`. |
+| Support renew-then-check-in goes to the retry panel; no test (verification-gap, filed defer) | low | patch | `CheckInMemberModal.tsx:280-287`; every renew and pay test runs as `receptionist`. A test is a direct fix, so it is patched rather than deferred. |
+| Step-up is consumed before reason, member and attendance validation, so a refusal burns a code (blind, edge) | low | rejected | The AC says `staff_check_in` / `void_staff_check_in` call `support_stepup_require` first (epics 27.3 lines 6675, 6683 area); the single-use grant is bound to the subject and a refusal path is rare. Fix edits the AC order. |
+| Stamp key means a void then re-consume earns no second stamp (blind) | false | rejected | Required by the AC, which says to record this in `docs/decisions.md`; it is recorded. |
+| `earned_stamp` and the Void modal over-promise when the reversal hook returns early (reset, reward, zero counter) (edge, blind) | low | rejected | Accepted in Design Notes; the fix mirrors three early-return conditions of a private hook inside a read function, more complexity than the harm. |
+| Void gives back a session whose `usable_until` has since passed (blind, edge) | low | rejected | The void is limited to the same gym-local day and the session was usable when consumed; a lapse inside that day needs a short validity window. The AC says "original `usable_until`, no marker". |
+| Constraint adds and function re-creates rescan under ACCESS EXCLUSIVE; not online-safe (blind) | low | rejected | Same verdict as 27.2: tens of thousands of rows at most, `lock_timeout` 5 s, the R2 backup is the deploy script's step. |
+| `list_attendance_log` unbounded, per-call full compute, staff enrichment reads the gym log since the earliest open staff row and could hit `max_rows` 1000 (blind, edge) | low | rejected | Open rows are at most `checkin_timeout_hours` old (default 8); truncation fails safe (label and [Void] hidden); the fix adds parameters to a public function. |
+| Support roster reads a fixed 7-day window (edge) | low | rejected | A visit older than 168 h is closed by the auto-timeout job; the timeout would need to exceed a week. |
+| Support rows hard-code `deactivatedAt: null` so the badge is wrong for a deactivated member inside (blind, edge) | low | rejected | Support-only, cosmetic; the fix adds a column to the public function's result. |
+| Rollback script pastes full function bodies and verifies little (blind) | low | rejected | Same shape as `rollback-0174` and earlier rollbacks; header states the precondition; rehearsed per decisions.md. |
+| Times render in the browser timezone while "same day" is gym-local (blind) | low | rejected | The existing Attendance page already renders with `toLocaleTimeString`; a refusal returns `not_same_day` with its own copy. |
+| Toast `role="status"` mounted with its text (blind) | low | rejected | Same toast pattern as the existing page and dialogs. |
+| `voidStaffCheckInAction` maps any schema failure to `invalid_reason`; `requireSupportGrant` copied from payments; `searchMembers` term unbounded; non-Latin letters widen the pattern; NBSP / code-point length of the reason; search catch keeps old rows; focus not restored when the payment panel closes (blind, edge) | low | rejected | Each is unreachable from the UI as built or cosmetic, and each fix adds a branch or a shared helper for a case no one has shown. The duplicated step-up helper is a developer-only concern with no named divergence yet. |
+| Member search phone and name matching brittle (blind) | low | rejected | Phones are stored normalised and the helper handles `00` and country-code forms (spec: "any country-code form"); word order matching was not in the UX contract. |
+| Daily Log count includes voided rows; "GymOS Support" label English only (blind) | false | rejected | UX AD-11 shows voided rows by default with no toggle; "GymOS Support" is a fixed brand label in both locales. |
+| No concurrency test for void racing a scan; ci-local not yet run; e2e limited to happy paths (blind) | low | rejected | The spec asked for none; the member lock is first by construction and pinned in pgTAP; the owner-run `ci-local.sh` is the stated precondition for merge. |
+| Fee-due claim: `refused_registration_fee_due` only when no subscription (edge) | false | rejected | Matches the spec Design Notes and what a scan does; a member with a plan and an unsettled fee is let in by a scan today. |
 
 ## Design Notes
 
