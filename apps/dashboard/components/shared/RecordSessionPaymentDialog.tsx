@@ -146,6 +146,12 @@ export function RecordSessionPaymentPanel({
     onBusyChange?.(submitting);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submitting]);
+  // A host that unmounts the panel mid-flight must not stay "busy".
+  const onBusyChangeRef = useRef(onBusyChange);
+  useEffect(() => {
+    onBusyChangeRef.current = onBusyChange;
+  });
+  useEffect(() => () => onBusyChangeRef.current?.(false), []);
 
   const canBankTransfer = role !== undefined && BANK_TRANSFER_ROLES.includes(role);
   const methods: SessionPaymentMethod[] = canBankTransfer

@@ -433,6 +433,62 @@ describe("CheckInMemberModal results R1 to R12 (AD-30)", () => {
     await screen.findByText((c) => c.startsWith("attendance.checkIn.ok "));
     expect(staffCheckInAction).toHaveBeenCalledWith({ memberId: ANGE.id, authCode: "123456" });
   });
+
+  it("after renew then complete the modal is not left busy: the close button is enabled", async () => {
+    const { user } = setup();
+    await openAndChoose(user);
+    staffCheckInAction.mockResolvedValueOnce({ data: result({ outcome: "rejected_expired", daysSinceExpiry: 3 }), error: null });
+    await user.click(buttonOf("attendance.checkIn.confirm"));
+    await user.click(await screen.findByRole("button", { name: "attendance.checkIn.renewNow" }));
+    const confirmRenewal = await screen.findByRole("button", { name: "renewalPanel.confirmButton" });
+    await waitFor(() => expect(confirmRenewal).toBeEnabled());
+    staffCheckInAction.mockResolvedValueOnce({ data: result({ outcome: "checked_in" }), error: null });
+    await user.click(confirmRenewal);
+    await screen.findByText((c) => c.startsWith("attendance.checkIn.renewedDone "));
+    expect(screen.getByRole("button", { name: "attendance.checkIn.close" })).toBeEnabled();
+  });
+
+  it("support: after a renewal the grant is spent, so it lands on R10 with a code field and does not check in by itself", async () => {
+    const { user } = setup({ role: "support" });
+    await openAndChoose(user);
+    await user.type(screen.getByLabelText("supportStepUp.codeLabel"), "123456");
+    staffCheckInAction.mockResolvedValueOnce({ data: result({ outcome: "rejected_expired", daysSinceExpiry: 3 }), error: null });
+    await user.click(buttonOf("attendance.checkIn.confirm"));
+    await user.click(await screen.findByRole("button", { name: "attendance.checkIn.renewNow" }));
+    const confirmRenewal = await screen.findByRole("button", { name: "renewalPanel.confirmButton" });
+    await waitFor(() => expect(confirmRenewal).toBeEnabled());
+    await user.click(confirmRenewal);
+    expect(await screen.findByText((c) => c.startsWith("attendance.checkIn.partialRenewal "))).toBeInTheDocument();
+    expect(staffCheckInAction).toHaveBeenCalledTimes(1);
+    expect(buttonOf("attendance.checkIn.confirm")).toBeDisabled();
+    await user.type(screen.getByLabelText("supportStepUp.codeLabel"), "654321");
+    staffCheckInAction.mockResolvedValueOnce({ data: result({ outcome: "checked_in" }), error: null });
+    await user.click(buttonOf("attendance.checkIn.confirm"));
+    expect(await screen.findByText((c) => c.startsWith("attendance.checkIn.renewedDone "))).toBeInTheDocument();
+    expect(staffCheckInAction).toHaveBeenCalledTimes(2);
+    expect(staffCheckInAction).toHaveBeenLastCalledWith({ memberId: ANGE.id, authCode: "654321" });
+  });
+
+  it("support: after a desk payment the same holds (R10 with a code field, no automatic check-in)", async () => {
+    const { user } = setup({ role: "support" });
+    await openAndChoose(user);
+    await user.type(screen.getByLabelText("supportStepUp.codeLabel"), "123456");
+    staffCheckInAction.mockResolvedValueOnce({ data: result({ outcome: "session_required", sessionAmount: 2000 }), error: null });
+    await user.click(buttonOf("attendance.checkIn.confirm"));
+    await user.click(await screen.findByRole("button", { name: "attendance.checkIn.recordAndCheckIn" }));
+    const record = await screen.findByRole("button", { name: "sessionPayment.recordButton" });
+    await waitFor(() => expect(record).toBeEnabled());
+    recordSessionPaymentAction.mockResolvedValue({ data: {}, error: null });
+    await user.click(record);
+    expect(await screen.findByText((c) => c.startsWith("attendance.checkIn.partialSession "))).toBeInTheDocument();
+    expect(staffCheckInAction).toHaveBeenCalledTimes(1);
+    await user.type(screen.getByLabelText("supportStepUp.codeLabel"), "654321");
+    staffCheckInAction.mockResolvedValueOnce({ data: result({ outcome: "checked_in" }), error: null });
+    await user.click(buttonOf("attendance.checkIn.confirm"));
+    expect(await screen.findByText((c) => c.startsWith("attendance.checkIn.sessionDone "))).toBeInTheDocument();
+    expect(staffCheckInAction).toHaveBeenLastCalledWith({ memberId: ANGE.id, authCode: "654321" });
+    expect(recordSessionPaymentAction).toHaveBeenCalledTimes(1);
+  });
 });
 
 afterEach(() => setOnline(true));

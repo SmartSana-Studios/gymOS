@@ -145,6 +145,11 @@ export function RenewalPanel({
 }: RenewalPanelProps & { onBusyChange?: (busy: boolean) => void }) {
   const { t, i18n } = useTranslation();
   const domIdSuffix = alertId ?? memberId;
+  // The Mobile Money watch below must not be torn down when a host re-renders with a fresh inline callback: hold the latest in a ref.
+  const onRenewedRef = useRef(onRenewed);
+  useEffect(() => {
+    onRenewedRef.current = onRenewed;
+  });
 
   const [preview, setPreview] = useState<RenewalPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -278,7 +283,7 @@ export function RenewalPanel({
             );
           }
         }
-        if (active) onRenewed();
+        if (active) onRenewedRef.current();
       } else if (row.status === "flagged") {
         stopPolling();
         setMobileMoneyPhase("failed");
@@ -325,7 +330,7 @@ export function RenewalPanel({
       clearTimeout(stillWaitingTimer);
       void supabase.removeChannel(channel);
     };
-  }, [initiatedPaymentId, alertId, memberId, onRenewed]);
+  }, [initiatedPaymentId, alertId, memberId]);
 
   // UX: "pre-filled 'Paid at desk' for Cash; cleared when method changes".
   // `mobile_money` (Story 4.12) has no note/reason field at all (
@@ -466,6 +471,12 @@ export function RenewalPanel({
     onBusyChange?.(blockClose);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blockClose]);
+  // A host that unmounts the panel mid-flight (the Check in a member modal does, once the renewal completes) must not stay "busy".
+  const onBusyChangeRef = useRef(onBusyChange);
+  useEffect(() => {
+    onBusyChangeRef.current = onBusyChange;
+  });
+  useEffect(() => () => onBusyChangeRef.current?.(false), []);
   const methodOptions: { value: RenewalMethod }[] = mobileMoneyEnabled
     ? [...MANUAL_METHOD_OPTIONS, { value: "mobile_money" }]
     : MANUAL_METHOD_OPTIONS;
