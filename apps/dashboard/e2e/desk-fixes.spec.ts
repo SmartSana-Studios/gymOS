@@ -33,7 +33,7 @@ test.describe.serial("Epic 27 staff check-in and void", () => {
 
     const row = page.getByRole("row", { name: new RegExp(fixtures.desk.active.name, "i") });
     await expect(row).toBeVisible();
-    await expect(row.getByText("By staff")).toBeVisible();
+    await expect(row.getByText("By staff", { exact: true })).toBeVisible();
   });
 
   test("an Expired member is refused (R4), renews in place and is checked in (R6)", async ({ page }) => {
