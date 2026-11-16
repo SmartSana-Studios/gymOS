@@ -125,6 +125,7 @@ export interface AttendanceEntryInfo {
   voidable: boolean;
   /** For a voidable row: the entry consumed a paid or free session (the Void modal says it is given back). Null otherwise. */
   consumedSession: boolean | null;
+  consumedSessionPaid: boolean | null;
   /** For a voidable row: the entry earned a loyalty stamp that is still counted (the Void modal says it is removed). Null otherwise. */
   earnedStamp: boolean | null;
 }
@@ -161,6 +162,7 @@ interface AttendanceLogRpcRow {
   void_reason: string | null;
   voidable: boolean;
   consumed_session: boolean | null;
+  consumed_session_paid: boolean | null;
   earned_stamp: boolean | null;
 }
 
@@ -220,6 +222,7 @@ export async function getCurrentlyCheckedIn(params: { page?: number; pageSize?: 
     enteredByLabel: string | null;
     voidable: boolean;
     consumedSession: boolean | null;
+    consumedSessionPaid: boolean | null;
     earnedStamp: boolean | null;
   };
 
@@ -265,6 +268,7 @@ export async function getCurrentlyCheckedIn(params: { page?: number; pageSize?: 
       enteredByLabel: row.entered_by_label,
       voidable: row.voidable,
       consumedSession: row.consumed_session,
+      consumedSessionPaid: row.consumed_session_paid,
       earnedStamp: row.earned_stamp,
     }));
   } else {
@@ -303,7 +307,7 @@ export async function getCurrentlyCheckedIn(params: { page?: number; pageSize?: 
     }
 
     // Entry labels and the voidable flag of the staff entries on this page, in one read.
-    const detail = new Map<string, { enteredByLabel: string | null; voidable: boolean; consumedSession: boolean | null; earnedStamp: boolean | null }>();
+    const detail = new Map<string, { enteredByLabel: string | null; voidable: boolean; consumedSession: boolean | null; consumedSessionPaid: boolean | null; earnedStamp: boolean | null }>();
     const staffRows = dbRows.filter((row) => row.source === "staff");
     if (staffRows.length > 0) {
       const earliest = staffRows.reduce((min, row) => (row.checked_in_at < min ? row.checked_in_at : min), staffRows[0].checked_in_at);
@@ -318,6 +322,7 @@ export async function getCurrentlyCheckedIn(params: { page?: number; pageSize?: 
             enteredByLabel: row.entered_by_label,
             voidable: row.voidable,
             consumedSession: row.consumed_session,
+            consumedSessionPaid: row.consumed_session_paid,
             earnedStamp: row.earned_stamp,
           });
         }
@@ -334,6 +339,7 @@ export async function getCurrentlyCheckedIn(params: { page?: number; pageSize?: 
       enteredByLabel: detail.get(row.id)?.enteredByLabel ?? null,
       voidable: detail.get(row.id)?.voidable ?? false,
       consumedSession: detail.get(row.id)?.consumedSession ?? null,
+      consumedSessionPaid: detail.get(row.id)?.consumedSessionPaid ?? null,
       earnedStamp: detail.get(row.id)?.earnedStamp ?? null,
     }));
   }
@@ -372,6 +378,7 @@ export async function getCurrentlyCheckedIn(params: { page?: number; pageSize?: 
     enteredByLabel: row.enteredByLabel,
     voidable: row.voidable,
     consumedSession: row.consumedSession,
+    consumedSessionPaid: row.consumedSessionPaid,
     earnedStamp: row.earnedStamp,
   }));
 
@@ -486,6 +493,7 @@ export async function listAttendanceLog(params: {
       enteredByLabel: row.entered_by_label,
       voidable: row.voidable,
       consumedSession: row.consumed_session,
+      consumedSessionPaid: row.consumed_session_paid,
       earnedStamp: row.earned_stamp,
       voidedAt: row.voided_at,
       voidedByLabel: row.voided_by_label,

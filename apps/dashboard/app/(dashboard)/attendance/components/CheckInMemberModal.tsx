@@ -277,8 +277,14 @@ export function CheckInMemberModal({
     }
   }
 
-  function completeAfter(member: CheckInSearchRow, by: "renewal" | "session") {
+  function completeAfter(member: CheckInSearchRow, by: "renewal" | "session", previous?: StaffCheckInResult) {
     onChanged();
+    // Renewing from R2 or R3: the member is already checked in (the result being shown), so there is nothing to complete. Showing R6 from
+    // that result avoids a second staff_check_in, which would answer already_checked_in (R7, or R10 for support whose single-use grant is spent).
+    if (previous && previous.checkedInAt && (previous.outcome === "checked_in_expiring_soon" || previous.outcome === "checked_in_grace_period")) {
+      setView({ kind: "completed", member, by, at: previous.checkedInAt });
+      return;
+    }
     if (isSupport) {
       // The single-use grant is spent: support types a fresh code and completes through R10.
       setView({ kind: "partial", member, by });
@@ -462,7 +468,7 @@ export function CheckInMemberModal({
               memberName={name}
               mobileMoneyEnabled={mobileMoneyEnabled}
               onClose={() => setPanel(null)}
-              onRenewed={() => completeAfter(member, "renewal")}
+              onRenewed={() => completeAfter(member, "renewal", result)}
               onBusyChange={setPanelBusy}
             />
           </div>

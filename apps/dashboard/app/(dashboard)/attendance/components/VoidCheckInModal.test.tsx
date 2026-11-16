@@ -118,6 +118,7 @@ describe("VoidCheckInModal (AD-11 V1.8)", () => {
     ["not_same_day", "attendance.void.refused.notToday", false],
     ["already_voided", "attendance.void.refused.already", true],
     ["not_staff_entry", "attendance.void.refused.notStaff", false],
+    ["attendance_not_found", "attendance.void.refused.notFound", true],
   ])("%s is an inline alert with [Close]; the list refreshes only for already voided", async (code, key, stale) => {
     const { user, onStale, onVoided } = setup();
     voidStaffCheckInAction.mockResolvedValue(outcome(code));
@@ -127,6 +128,30 @@ describe("VoidCheckInModal (AD-11 V1.8)", () => {
     expect(screen.getByRole("button", { name: "common.close" })).toBeInTheDocument();
     expect(onStale).toHaveBeenCalledTimes(stale ? 1 : 0);
     expect(onVoided).not.toHaveBeenCalled();
+  });
+
+  it("the server rejecting the reason keeps the modal open with the reason error and no refusal", async () => {
+    const { user, onVoided, onStale } = setup();
+    voidStaffCheckInAction.mockResolvedValue(outcome("invalid_reason"));
+    await user.type(screen.getByRole("textbox"), "wrong member selected");
+    await user.click(voidButton());
+    expect(await screen.findByRole("alert")).toHaveTextContent("attendance.void.reason.error");
+    expect(voidButton()).toBeInTheDocument();
+    expect(onVoided).not.toHaveBeenCalled();
+    expect(onStale).not.toHaveBeenCalled();
+  });
+
+  it("a free (loyalty) session is worded as free and has no payment line; a paid one keeps both", () => {
+    setup({ target: { consumedSession: true, consumedSessionPaid: false } });
+    expect(screen.getByText((c) => c.startsWith("attendance.void.sessionBackFree "))).toBeInTheDocument();
+    expect(screen.queryByText("attendance.void.paymentStays")).toBeNull();
+  });
+
+  it("a paid session is worded as paid with the payment line", () => {
+    setup({ target: { consumedSession: true, consumedSessionPaid: true } });
+    expect(screen.getByText((c) => c.startsWith("attendance.void.sessionBack "))).toBeInTheDocument();
+    expect(screen.queryByText((c) => c.startsWith("attendance.void.sessionBackFree"))).toBeNull();
+    expect(screen.getByText("attendance.void.paymentStays")).toBeInTheDocument();
   });
 
   it("keeps [Void check-in] enabled after a network failure", async () => {

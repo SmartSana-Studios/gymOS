@@ -1628,6 +1628,7 @@
       "close": "Close",
       "body": "{{name}}'s check-in at {{time}} was entered by staff. Voiding it removes the visit: it stops counting for occupancy, streaks, rank and the gym challenge.",
       "sessionBack": "The paid session this check-in used is given back to {{name}}.",
+      "sessionBackFree": "The free session this check-in used is given back to {{name}}.",
       "paymentStays": "The payment stays on record. Refund it in Payments if you need to.",
       "stampRemoved": "The loyalty stamp it earned is removed.",
       "reason": {

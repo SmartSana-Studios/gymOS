@@ -236,7 +236,7 @@ export function AttendancePageClient({
     return new Date(iso).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit", hour12: false });
   }
 
-  function voidButton(row: { id: string; memberName: string; checkedInAt: string; consumedSession: boolean | null; earnedStamp: boolean | null }) {
+  function voidButton(row: { id: string; memberName: string; checkedInAt: string; consumedSession: boolean | null; consumedSessionPaid: boolean | null; earnedStamp: boolean | null }) {
     const name = memberDisplayName(row.memberName);
     return (
       <Button
@@ -249,6 +249,7 @@ export function AttendancePageClient({
             memberName: name,
             checkedInAt: row.checkedInAt,
             consumedSession: row.consumedSession,
+            consumedSessionPaid: row.consumedSessionPaid,
             earnedStamp: row.earnedStamp,
           })
         }
@@ -371,6 +372,7 @@ export function AttendancePageClient({
                               memberName: row.name,
                               checkedInAt: row.checkedInAt,
                               consumedSession: row.consumedSession,
+                              consumedSessionPaid: row.consumedSessionPaid,
                               earnedStamp: row.earnedStamp,
                             })}
                         </div>
@@ -484,6 +486,7 @@ export function AttendancePageClient({
                               memberName: row.memberName,
                               checkedInAt: row.checkedInAt,
                               consumedSession: row.consumedSession,
+                              consumedSessionPaid: row.consumedSessionPaid,
                               earnedStamp: row.earnedStamp,
                             })}
                         </td>

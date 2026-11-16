@@ -469,6 +469,40 @@ describe("CheckInMemberModal results R1 to R12 (AD-30)", () => {
     expect(staffCheckInAction).toHaveBeenLastCalledWith({ memberId: ANGE.id, authCode: "654321" });
   });
 
+  it.each([
+    ["R2", { outcome: "checked_in_expiring_soon", expiryDate: "2026-11-17" }],
+    ["R3", { outcome: "checked_in_grace_period", expiryDate: "2026-11-13", graceEndsOn: "2026-11-16" }],
+  ])("%s: renewing a member who is already inside ends on R6 with one check-in call (no second staff_check_in)", async (_label, partial) => {
+    const { user, onChanged } = setup();
+    await openAndChoose(user);
+    staffCheckInAction.mockResolvedValueOnce({ data: result(partial), error: null });
+    await user.click(buttonOf("attendance.checkIn.confirm"));
+    await user.click(await screen.findByRole("button", { name: "attendance.checkIn.renewNow" }));
+    const confirmRenewal = await screen.findByRole("button", { name: "renewalPanel.confirmButton" });
+    await waitFor(() => expect(confirmRenewal).toBeEnabled());
+    await user.click(confirmRenewal);
+    expect(await screen.findByText((c) => c.startsWith("attendance.checkIn.renewedDone "))).toBeInTheDocument();
+    expect(confirmRenewalAction).toHaveBeenCalledTimes(1);
+    expect(staffCheckInAction).toHaveBeenCalledTimes(1);
+    expect(queryTextOf("attendance.checkIn.alreadyIn")).not.toBeInTheDocument();
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it("support: renewing from R2 ends on R6 without a second code (the member is already inside)", async () => {
+    const { user } = setup({ role: "support" });
+    await openAndChoose(user);
+    await user.type(screen.getByLabelText("supportStepUp.codeLabel"), "123456");
+    staffCheckInAction.mockResolvedValueOnce({ data: result({ outcome: "checked_in_expiring_soon", expiryDate: "2026-11-17" }), error: null });
+    await user.click(buttonOf("attendance.checkIn.confirm"));
+    await user.click(await screen.findByRole("button", { name: "attendance.checkIn.renewNow" }));
+    const confirmRenewal = await screen.findByRole("button", { name: "renewalPanel.confirmButton" });
+    await waitFor(() => expect(confirmRenewal).toBeEnabled());
+    await user.click(confirmRenewal);
+    expect(await screen.findByText((c) => c.startsWith("attendance.checkIn.renewedDone "))).toBeInTheDocument();
+    expect(staffCheckInAction).toHaveBeenCalledTimes(1);
+    expect(queryTextOf("attendance.checkIn.partialRenewal")).not.toBeInTheDocument();
+  });
+
   it("support: after a desk payment the same holds (R10 with a code field, no automatic check-in)", async () => {
     const { user } = setup({ role: "support" });
     await openAndChoose(user);

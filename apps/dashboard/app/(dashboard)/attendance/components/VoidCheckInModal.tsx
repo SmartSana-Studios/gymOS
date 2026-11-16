@@ -15,6 +15,8 @@ export interface VoidTarget {
   memberName: string;
   checkedInAt: string;
   consumedSession: boolean | null;
+  /** Paid (true) or free loyalty (false) session, for the wording; absent or null is read as paid. */
+  consumedSessionPaid?: boolean | null;
   earnedStamp: boolean | null;
 }
 
@@ -158,8 +160,8 @@ export function VoidCheckInModal({
 
         {target.consumedSession && (
           <div className="space-y-1 text-sm">
-            <p>{t("attendance.void.sessionBack", { name: target.memberName })}</p>
-            <p className="text-muted-foreground">{t("attendance.void.paymentStays")}</p>
+            <p>{t(target.consumedSessionPaid === false ? "attendance.void.sessionBackFree" : "attendance.void.sessionBack", { name: target.memberName })}</p>
+            {target.consumedSessionPaid !== false && <p className="text-muted-foreground">{t("attendance.void.paymentStays")}</p>}
           </div>
         )}
         {target.earnedStamp && <p className="text-sm">{t("attendance.void.stampRemoved")}</p>}

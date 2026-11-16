@@ -1628,6 +1628,7 @@
       "close": "Fermer",
       "body": "L'arrivée de {{name}} à {{time}} a été saisie par le personnel. L'annuler supprime la visite : elle ne compte plus pour la fréquentation, les séries, le classement et le défi de la salle.",
       "sessionBack": "La séance payée utilisée par cette arrivée est restituée à {{name}}.",
+      "sessionBackFree": "La séance gratuite utilisée par cette arrivée est restituée à {{name}}.",
       "paymentStays": "Le paiement reste enregistré. Remboursez-le dans Paiements si nécessaire.",
       "stampRemoved": "Le tampon de fidélité gagné est retiré.",
       "reason": {

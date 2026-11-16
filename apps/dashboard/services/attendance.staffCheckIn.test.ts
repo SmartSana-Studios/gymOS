@@ -122,14 +122,14 @@ describe("listAttendanceLog (list_attendance_log)", () => {
         {
           attendance_id: "a2", member_id: "m2", member_name: "Paul E.", checked_in_at: "2026-11-15T08:00:00Z", checked_out_at: null,
           checkout_type: null, source: "staff", entered_by_label: "Brice N.", voided_at: null, voided_by_label: null,
-          void_reason: null, voidable: true, consumed_session: true, earned_stamp: false,
+          void_reason: null, voidable: true, consumed_session: true, consumed_session_paid: false, earned_stamp: false,
         },
       ],
       error: null,
       count: 12,
     };
     const { data } = await listAttendanceLog({ from: "2026-11-15", to: "2026-11-15", page: 2, pageSize: 10, memberSearch: "pau%l" });
-    expect(data?.rows[0]).toMatchObject({ id: "a2", voidable: true, consumedSession: true, earnedStamp: false, voidedAt: null });
+    expect(data?.rows[0]).toMatchObject({ id: "a2", voidable: true, consumedSession: true, consumedSessionPaid: false, earnedStamp: false, voidedAt: null });
     expect(data?.page).toBe(2);
     expect(calls).toContainEqual(["ilike", "member_name", "%pau\\%l%"]);
     expect(calls).toContainEqual(["order", "checked_in_at", { ascending: false }]);
@@ -144,7 +144,7 @@ const ATT_SCAN = { id: "a2", member_id: "m2", checked_in_at: "2026-11-15T06:40:0
 const ATT_STAFF_3 = { id: "a3", member_id: "m3", checked_in_at: "2026-11-15T06:30:00Z", source: "staff", members: { name: "Paul E.", deactivated_at: null } };
 const LOG_A1 = {
   attendance_id: "a1", member_id: "m1", member_name: "Ange T.", checked_in_at: "2026-11-15T07:02:00Z", checked_out_at: null, checkout_type: null,
-  source: "staff", entered_by_label: "Brice N.", voided_at: null, voided_by_label: null, void_reason: null, voidable: true, consumed_session: true, earned_stamp: true,
+  source: "staff", entered_by_label: "Brice N.", voided_at: null, voided_by_label: null, void_reason: null, voidable: true, consumed_session: true, consumed_session_paid: true, earned_stamp: true,
 };
 
 describe("getCurrentlyCheckedIn", () => {
@@ -162,7 +162,7 @@ describe("getCurrentlyCheckedIn", () => {
     rpcResult = { data: [LOG_A1], error: null };
     const { data } = await getCurrentlyCheckedIn({ page: 1, pageSize: 10 });
     const byId = Object.fromEntries((data?.rows ?? []).map((r) => [r.attendanceId, r]));
-    expect(byId.a1).toMatchObject({ source: "staff", enteredByLabel: "Brice N.", voidable: true, consumedSession: true, earnedStamp: true, status: "active" });
+    expect(byId.a1).toMatchObject({ source: "staff", enteredByLabel: "Brice N.", voidable: true, consumedSession: true, consumedSessionPaid: true, earnedStamp: true, status: "active" });
     expect(byId.a2).toMatchObject({ source: "qr", enteredByLabel: null, voidable: false, consumedSession: null, earnedStamp: null });
     // a staff row the log did not return keeps the safe defaults
     expect(byId.a3).toMatchObject({ source: "staff", enteredByLabel: null, voidable: false });
