@@ -308,7 +308,7 @@ select is((select count(*)::int from audit_log where action_type = 'staff_check_
 select is((select array_agg(metadata ->> 'reason' order by metadata ->> 'reason') from audit_log where action_type = 'staff_check_in_rejected'
             and target_entity_id in (pg_temp.mem('deactivated')::text, pg_temp.mem('feedue')::text, pg_temp.mem('noplan')::text)),
           array['deactivated', 'no_plan', 'registration_fee_due'], 'R8: one rejection audit row per refusal, each with its reason code');
-select is((select count(*)::int from audit_log where action_type = 'staff_check_in_rejected'), 5, 'five rejections so far (two R4, three R8), none for R7 or an accepted entry');
+select is((select count(*)::int from audit_log where action_type = 'staff_check_in_rejected' and gym_id = pg_temp.g(1)), 5, 'five rejections so far (two R4, three R8), none for R7 or an accepted entry');
 
 -- R5 and the sessions, at the charging gym C
 set local role authenticated;

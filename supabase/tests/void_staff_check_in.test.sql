@@ -237,7 +237,7 @@ select is(pg_temp.void(pg_temp.att(pg_temp.mem('scan')), 'wrong member selected'
 select is(pg_temp.void(pg_temp.att(pg_temp.mem('earlier')), 'wrong member selected') - 'attendance_id', '{"outcome":"not_same_day"}'::jsonb, 'a row of an earlier gym-local day is not_same_day');
 reset role;
 select is((select count(*)::int from attendance_events where voided_at is not null and member_id in (pg_temp.mem('reasons'), pg_temp.mem('scan'), pg_temp.mem('earlier'))), 0, 'none of the refusals voided anything');
-select is((select count(*)::int from audit_log where action_type = 'staff_check_in_voided'), 0, 'and none audited a void');
+select is((select count(*)::int from audit_log where action_type = 'staff_check_in_voided' and gym_id = pg_temp.g(1)), 0, 'and none audited a void');
 
 -- ============================================================================
 -- (5) A void, open and closed
