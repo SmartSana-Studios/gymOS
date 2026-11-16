@@ -206,7 +206,7 @@ select is((select array_agg(l.attendance_id order by l.checked_in_at desc, l.att
 select is((select count(*)::int from list_attendance_log(now() - interval '3 days', now() + interval '1 day') l where l.attendance_id = '00000000-0000-0000-0000-000000275c09'), 0, 'another gym''s row is never returned');
 select is((select to_jsonb(l) - 'member_id' - 'attendance_id' - 'checked_in_at' - 'checked_out_at' - 'visit_day' - 'voided_at' from list_attendance_log(now() - interval '3 days', now() + interval '1 day', pg_temp.mem('scan')) l),
           jsonb_build_object('member_name', 'LAL MEMBER 32', 'checkout_type', 'manual', 'source', 'qr', 'entered_by_label', null, 'voided_by_label', null, 'void_reason', null,
-                             'voidable', false, 'consumed_session', null, 'earned_stamp', null),
+                             'voidable', false, 'consumed_session', null, 'earned_stamp', null, 'consumed_session_paid', null),
           'a scan: source qr, no Entry label, not voidable, no session flags');
 select is((select (to_jsonb(l) ->> 'entered_by_label') || '|' || (to_jsonb(l) ->> 'voidable') || '|' || coalesce(to_jsonb(l) ->> 'consumed_session', '-') || '|' || coalesce(to_jsonb(l) ->> 'earned_stamp', '-')
            from list_attendance_log(now() - interval '3 days', now() + interval '1 day', pg_temp.mem('open')) l),

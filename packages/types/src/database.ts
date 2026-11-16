@@ -3315,6 +3315,7 @@ export type Database = {
           checked_out_at: string | null
           checkout_type: string | null
           consumed_session: boolean | null
+          consumed_session_paid: boolean | null
           earned_stamp: boolean | null
           entered_by_label: string | null
           member_id: string

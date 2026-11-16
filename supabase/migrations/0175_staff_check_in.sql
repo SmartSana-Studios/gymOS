@@ -171,7 +171,6 @@ declare
   v_gate_outcome text;
   v_session_created_at timestamptz;
   v_session_id uuid;
-  v_new_id uuid;
 begin
   -- The member lock comes first, at every gym (NFR-021, AD-29 lock order). It serialises two entries for one member, whatever the
   -- gym charges, and it is the same row consume_guest_session() locks again below (harmless, same transaction).
@@ -307,11 +306,11 @@ begin
   returning * into event;
 
   -- Unconsume link (27.3): the session this entry consumed knows which entry consumed it, in the same transaction. A 'covered' entry
-  -- consumed nothing, so it links nothing. Lock order: the guest_sessions row was locked by the gate above, after the attendance row.
+  -- consumed nothing, so it links nothing. Lock order here: the gate above locked the session before this attendance row exists, so the
+  -- member, attendance row, session order of AD-29 holds on the void path only; this path is serialised by the member lock.
   if v_gate_outcome = 'consumed' then
-    v_new_id := event.id;
     update guest_sessions gs
-    set covered_attendance_id = v_new_id
+    set covered_attendance_id = event.id
     where gs.id = v_session_id;
   end if;
 
@@ -818,10 +817,12 @@ begin
     return;
   end if;
 
-  -- The session this entry consumed, if any. A voided (refunded) session is not given back: the refund already ended it.
+  -- The session this entry consumed, if any. A refunded session is not given back: the refund already ended it. A refund of a CONSUMED
+  -- session keeps it consumed (0113 kept_consumed, voided_at stays null), so the refund row is the test, not voided_at alone.
   select gs.id into v_session_id
   from guest_sessions gs
   where gs.covered_attendance_id = ae.id and gs.consumed_at is not null and gs.voided_at is null
+    and not exists (select 1 from refunds rf where rf.payment_id = gs.payment_id)
   for update;
 
   if v_session_id is not null then
@@ -898,7 +899,7 @@ $$;
 
 -- ----------------------------------------------------------------------------
 -- public.list_attendance_log: the Daily Log read, voided rows included. Role and gym resolved live; any other caller gets an empty result
--- (uniform, no oracle). The consumed_session and earned_stamp booleans are only computed for a row that can still be voided.
+-- (uniform, no oracle). The consumed_session, earned_stamp and consumed_session_paid booleans are only computed for a row that can still be voided.
 -- ----------------------------------------------------------------------------
 create function public.list_attendance_log(p_from timestamptz, p_to timestamptz, p_member_id uuid default null)
 returns table (
@@ -916,7 +917,8 @@ returns table (
   void_reason text,
   voidable boolean,
   consumed_session boolean,
-  earned_stamp boolean
+  earned_stamp boolean,
+  consumed_session_paid boolean
 )
 language plpgsql
 stable
@@ -962,13 +964,21 @@ begin
     (ae.source = 'staff' and ae.voided_at is null and ae.visit_day = v_today),
     case when ae.source = 'staff' and ae.voided_at is null and ae.visit_day = v_today then
       exists (select 1 from guest_sessions gs
-              where gs.covered_attendance_id = ae.id and gs.consumed_at is not null and gs.voided_at is null)
+              where gs.covered_attendance_id = ae.id and gs.consumed_at is not null and gs.voided_at is null
+                and not exists (select 1 from refunds rf where rf.payment_id = gs.payment_id))
     end,
     case when ae.source = 'staff' and ae.voided_at is null and ae.visit_day = v_today then
       exists (select 1 from guest_sessions gs
               join loyalty_events e on e.origin_id = gs.id and e.event_type = 'stamp_earned'
               where gs.covered_attendance_id = ae.id and gs.consumed_at is not null and gs.voided_at is null
+                and not exists (select 1 from refunds rf where rf.payment_id = gs.payment_id)
                 and not exists (select 1 from loyalty_events r where r.origin_id = gs.id and r.event_type = 'stamp_reversed'))
+    end,
+    case when ae.source = 'staff' and ae.voided_at is null and ae.visit_day = v_today then
+      exists (select 1 from guest_sessions gs
+              where gs.covered_attendance_id = ae.id and gs.consumed_at is not null and gs.voided_at is null
+                and gs.payment_id is not null
+                and not exists (select 1 from refunds rf where rf.payment_id = gs.payment_id))
     end
   from attendance_events ae
   join members m on m.id = ae.member_id

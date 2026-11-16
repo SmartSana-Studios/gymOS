@@ -11,7 +11,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-00000027[55-58]xx. Gyms 2755nn: 01 A (non-charging), 02 C (charging, loyalty on), 03 B.
 
 begin;
-select plan(123);
+select plan(139);
 
 create function pg_temp.g(n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0000-0000002755' || lpad(to_hex(n), 2, '0'))::uuid $f$;
 create function pg_temp.u(n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0000-0000002756' || lpad(to_hex(n), 2, '0'))::uuid $f$;
@@ -95,7 +95,7 @@ create function pg_temp.mem(label text) returns uuid language sql immutable as $
     when 'supv' then 38 when 'own' then 39 when 'recep' then 40 when 'other' then 41 when 'rescan' then 42
     when 'co1' then 43 when 'co2' then 44 when 'co3' then 45 when 'counts' then 46 when 'hist' then 47 when 'deactm' then 48
     when 'sup_ok' then 49 when 'sup_nostep' then 50 when 'sup_bound' then 51 when 'o1' then 52 when 'o2' then 53 when 'o3' then 54
-    when 'paid' then 64 when 'free' then 66 when 'covered' then 67 when 'later_staff' then 68 when 'later_scan' then 69 when 'cycle' then 70 when 'backdated' then 71
+    when 'paid' then 64 when 'free' then 66 when 'covered' then 67 when 'later_staff' then 68 when 'later_scan' then 69 when 'cycle' then 70 when 'backdated' then 71 when 'refunded' then 72
     end) $f$;
 
 insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days) values
@@ -133,6 +133,7 @@ insert into sess select 'later_staff', pg_temp.mk_paid(pg_temp.g(2), pg_temp.mem
 insert into sess select 'later_scan', pg_temp.mk_paid(pg_temp.g(2), pg_temp.mem('later_scan'));
 insert into sess select 'cycle', pg_temp.mk_paid(pg_temp.g(2), pg_temp.mem('cycle'));
 insert into sess select 'backdated', pg_temp.mk_paid(pg_temp.g(2), pg_temp.mem('backdated'));
+insert into sess select 'refunded', pg_temp.mk_paid(pg_temp.g(2), pg_temp.mem('refunded'));
 update guest_sessions set usable_until = timestamptz '2099-01-01 12:00:00+00' where id = (select id from sess where label = 'paid');
 
 -- Support (live for gym A) as in the other support suites.
@@ -318,6 +319,15 @@ reset role;
 select is((select count(*)::int from loyalty_events where member_id = pg_temp.mem('paid') and event_type = 'stamp_earned'), 1, 'paid: the entry earned its stamp');
 select is((select guest_stamps from loyalty_progress where member_id = pg_temp.mem('paid')), 1, 'paid: one stamp on the counter');
 
+-- The paid/free flag of the Daily Log (the Void modal words the give-back by it): a paid entry reads paid, a free (loyalty) entry reads free.
+set local role authenticated;
+select pg_temp.claims(pg_temp.u(9), pg_temp.g(2), 'manager');
+select is((select consumed_session and consumed_session_paid from public.list_attendance_log(now() - interval '1 day', now() + interval '1 day', pg_temp.mem('paid'))),
+          true, 'list: a paid session reads consumed and paid');
+select is((select consumed_session and consumed_session_paid is false from public.list_attendance_log(now() - interval '1 day', now() + interval '1 day', pg_temp.mem('free'))),
+          true, 'list: a free (loyalty) session reads consumed and not paid');
+reset role;
+
 set local role authenticated;
 select pg_temp.claims(pg_temp.u(9), pg_temp.g(2), 'manager');
 select is(pg_temp.void(pg_temp.att(pg_temp.mem('paid')), 'wrong member selected') - 'attendance_id' - 'voided_at',
@@ -435,6 +445,70 @@ reset role;
 select is((select count(*)::int from audit_log where action_type = 'staff_check_in_voided' and target_entity_id = pg_temp.mem('cycle')::text
             and (metadata ->> 'stamp_removed')::boolean = false and (metadata ->> 'session_released')::boolean), 1, 'cycle: the second audit row says stamp_removed false');
 select is((select count(*)::int from loyalty_events where member_id = pg_temp.mem('cycle') and event_type = 'stamp_reversed'), 1, 'cycle: one stamp_reversed in all');
+
+
+-- ============================================================================
+-- (6b) A session refunded after it was used is not given back (0113 kept_consumed leaves guest_sessions.voided_at null)
+-- ============================================================================
+set local role authenticated;
+select pg_temp.claims(pg_temp.u(8), pg_temp.g(2), 'receptionist');
+select is(pg_temp.sci(pg_temp.mem('refunded')) ->> 'outcome', 'checked_in', 'refunded: the staff entry consumes the paid session');
+reset role;
+insert into refunds (gym_id, payment_id, amount, reason, actor_id)
+select pg_temp.g(2), gs.payment_id, 2000, 'refunded after use', pg_temp.u(9) from guest_sessions gs where gs.id = (select id from sess where label = 'refunded');
+select is((select consumed_at is not null and voided_at is null from guest_sessions where id = (select id from sess where label = 'refunded')), true,
+          'refunded: the refund leaves the session consumed and not voided (kept_consumed)');
+set local role authenticated;
+select pg_temp.claims(pg_temp.u(9), pg_temp.g(2), 'manager');
+select is((select to_jsonb(l) - array['attendance_id','member_id','member_name','checked_in_at','checked_out_at','checkout_type','visit_day','source','entered_by_label',
+                                       'voided_at','voided_by_label','void_reason','voidable']
+           from public.list_attendance_log(now() - interval '1 day', now() + interval '1 day', pg_temp.mem('refunded')) l),
+          '{"consumed_session":false,"earned_stamp":false,"consumed_session_paid":false}'::jsonb, 'refunded: the Daily Log promises no give-back and no stamp removal');
+select is(pg_temp.void(pg_temp.att(pg_temp.mem('refunded')), 'wrong member selected') - 'attendance_id' - 'voided_at',
+          '{"outcome":"voided","session_released":false,"stamp_removed":false}'::jsonb, 'refunded: the void releases nothing');
+reset role;
+select is((select consumed_at is not null and covered_attendance_id is not null from guest_sessions where id = (select id from sess where label = 'refunded')), true,
+          'refunded: the refunded session stays consumed (not given back after the money went back)');
+select is((select count(*)::int from audit_log where action_type = 'staff_check_in_voided' and target_entity_id = pg_temp.mem('refunded')::text
+            and (metadata ->> 'session_released')::boolean = false), 1, 'refunded: the audit row says session_released false');
+select is((select voided_at is not null from attendance_events where member_id = pg_temp.mem('refunded')), true, 'refunded: the entry itself is voided');
+
+-- ============================================================================
+-- (6c) "Same gym-local day" in zones far from UTC (UTC+14 and UTC-11, never both on the UTC date)
+-- ============================================================================
+insert into gyms (id, name, tier_id, status, charge_guests_per_session, registration_fee, timezone, capacity) values
+  (pg_temp.g(4), 'VSC Gym Kiritimati', '00000000-0000-0000-0000-000000275501', 'active', false, 0, 'Pacific/Kiritimati', 30),
+  (pg_temp.g(5), 'VSC Gym PagoPago',   '00000000-0000-0000-0000-000000275501', 'active', false, 0, 'Pacific/Pago_Pago', 30);
+insert into members (id, gym_id, user_id, role, name, phone) values
+  (pg_temp.m(11), pg_temp.g(4), pg_temp.u(11), 'receptionist', 'VSC Staff 11', '+237600275511'),
+  (pg_temp.m(12), pg_temp.g(4), pg_temp.u(12), 'manager',      'VSC Staff 12', '+237600275512'),
+  (pg_temp.m(13), pg_temp.g(5), pg_temp.u(13), 'receptionist', 'VSC Staff 13', '+237600275513'),
+  (pg_temp.m(14), pg_temp.g(5), pg_temp.u(14), 'manager',      'VSC Staff 14', '+237600275514'),
+  (pg_temp.m(81), pg_temp.g(4), pg_temp.u(81), 'member',       'VSC Member 81', '+237601275581'),
+  (pg_temp.m(82), pg_temp.g(5), pg_temp.u(82), 'member',       'VSC Member 82', '+237601275582');
+insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days) values
+  ('00000000-0000-0000-0000-000000275803', pg_temp.g(4), 'VSC Monthly K', 'monthly', 15000, 'XAF', 'monthly', 30),
+  ('00000000-0000-0000-0000-000000275804', pg_temp.g(5), 'VSC Monthly P', 'monthly', 15000, 'XAF', 'monthly', 30);
+insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expiry_date) values
+  (pg_temp.g(4), pg_temp.m(81), '00000000-0000-0000-0000-000000275803', 'active', private.gym_today(pg_temp.g(4)) - 5, private.gym_today(pg_temp.g(4)) + 25),
+  (pg_temp.g(5), pg_temp.m(82), '00000000-0000-0000-0000-000000275804', 'active', private.gym_today(pg_temp.g(5)) - 5, private.gym_today(pg_temp.g(5)) + 25);
+select isnt(pg_temp.gt(4), pg_temp.gt(5), 'far zones: the two gyms are on different local dates, so at most one can match the UTC date');
+
+set local role authenticated;
+select pg_temp.claims(pg_temp.u(11), pg_temp.g(4), 'receptionist');
+select is(pg_temp.sci(pg_temp.m(81)) ->> 'outcome', 'checked_in', 'far zones: UTC+14 staff entry');
+select pg_temp.claims(pg_temp.u(13), pg_temp.g(5), 'receptionist');
+select is(pg_temp.sci(pg_temp.m(82)) ->> 'outcome', 'checked_in', 'far zones: UTC-11 staff entry');
+select pg_temp.claims(pg_temp.u(12), pg_temp.g(4), 'manager');
+select is((select voidable from public.list_attendance_log(now() - interval '1 day', now() + interval '1 day', pg_temp.m(81))), true, 'far zones: UTC+14 entry is voidable the same local day');
+select pg_temp.claims(pg_temp.u(14), pg_temp.g(5), 'manager');
+select is((select voidable from public.list_attendance_log(now() - interval '1 day', now() + interval '1 day', pg_temp.m(82))), true, 'far zones: UTC-11 entry is voidable the same local day');
+select pg_temp.claims(pg_temp.u(12), pg_temp.g(4), 'manager');
+select is(pg_temp.void(pg_temp.att(pg_temp.m(81)), 'wrong member selected') ->> 'outcome', 'voided', 'far zones: UTC+14 same-day void');
+select pg_temp.claims(pg_temp.u(14), pg_temp.g(5), 'manager');
+select is(pg_temp.void(pg_temp.att(pg_temp.m(82)), 'wrong member selected') ->> 'outcome', 'voided', 'far zones: UTC-11 same-day void');
+reset role;
+
 
 -- ============================================================================
 -- (7) The three updaters read the open row with voided_at is null (the 27.2 deferral)
