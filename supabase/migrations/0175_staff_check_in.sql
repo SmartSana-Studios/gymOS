@@ -746,7 +746,7 @@ declare
   v_member_id uuid;
   ae attendance_events;
   v_session_id uuid;
-  v_had_stamp_reversal boolean;
+  v_had_reversal boolean;
   v_now timestamptz := now();
 begin
   v_role := private.support_rpc_role('void_staff_check_in');
@@ -825,16 +825,18 @@ begin
   for update;
 
   if v_session_id is not null then
-    -- A later same-day visit of the member that is still counted relies on the covered day this session gave.
+    -- A later same-day visit of the member that is still counted relies on the covered day this session gave. "Later" is later INSERTED
+    -- (created_at), not later checked_in_at: an offline covered scan synced after this entry can carry an earlier checked_in_at and still
+    -- relies on the session.
     if exists (
       select 1 from attendance_events l
       where l.member_id = ae.member_id and l.visit_day = ae.visit_day and l.voided_at is null and l.id <> ae.id
-        and (l.checked_in_at, l.id) > (ae.checked_in_at, ae.id)
+        and (l.created_at, l.id) > (ae.created_at, ae.id)
     ) then
       select bool_and(l.source = 'staff') into later_is_staff_entry
       from attendance_events l
       where l.member_id = ae.member_id and l.visit_day = ae.visit_day and l.voided_at is null and l.id <> ae.id
-        and (l.checked_in_at, l.id) > (ae.checked_in_at, ae.id);
+        and (l.created_at, l.id) > (ae.created_at, ae.id);
       outcome := 'later_visit_relies';
       return next;
       return;
@@ -857,9 +859,14 @@ begin
   if v_session_id is not null then
     -- Unconsume: the stamp reversal returns early unless consumed_at is still set, so it runs BEFORE the columns are cleared. The
     -- counter floors at 0 and a granted free session is never revoked (AD-30). The desk payment is not reversed.
+    -- stamp_removed says THIS void reversed the stamp: a stamp_reversed that already existed (an earlier void cycle of the same session)
+    -- is not this void's, and the hook then does nothing.
+    select exists (select 1 from loyalty_events e where e.origin_id = v_session_id and e.event_type = 'stamp_reversed')
+      into v_had_reversal;
+
     perform private.on_session_refunded_after_consumption(v_session_id, ae.member_id, v_gym_id);
 
-    select exists (select 1 from loyalty_events e where e.origin_id = v_session_id and e.event_type = 'stamp_reversed')
+    select exists (select 1 from loyalty_events e where e.origin_id = v_session_id and e.event_type = 'stamp_reversed') and not v_had_reversal
       into stamp_removed;
 
     update guest_sessions gs

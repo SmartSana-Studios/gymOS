@@ -11,7 +11,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-00000027[55-58]xx. Gyms 2755nn: 01 A (non-charging), 02 C (charging, loyalty on), 03 B.
 
 begin;
-select plan(114);
+select plan(123);
 
 create function pg_temp.g(n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0000-0000002755' || lpad(to_hex(n), 2, '0'))::uuid $f$;
 create function pg_temp.u(n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0000-0000002756' || lpad(to_hex(n), 2, '0'))::uuid $f$;
@@ -51,6 +51,8 @@ declare v text;
 begin execute stmt into v; return v; exception when others then return sqlstate || ':' || sqlerrm; end $f$;
 create function pg_temp.run(stmt text) returns void language plpgsql as $f$
 begin execute stmt; exception when others then null; end $f$;
+create function pg_temp.first_staff_of(p_member uuid) returns uuid language sql security definer as $f$
+  select id from attendance_events where member_id = p_member and source = 'staff' order by created_at asc limit 1 $f$;
 create function pg_temp.first_of(p_member uuid) returns uuid language sql security definer as $f$
   select id from attendance_events where member_id = p_member order by checked_in_at asc, created_at asc limit 1 $f$;
 -- the latest attendance row of a member (as postgres)
@@ -93,7 +95,7 @@ create function pg_temp.mem(label text) returns uuid language sql immutable as $
     when 'supv' then 38 when 'own' then 39 when 'recep' then 40 when 'other' then 41 when 'rescan' then 42
     when 'co1' then 43 when 'co2' then 44 when 'co3' then 45 when 'counts' then 46 when 'hist' then 47 when 'deactm' then 48
     when 'sup_ok' then 49 when 'sup_nostep' then 50 when 'sup_bound' then 51 when 'o1' then 52 when 'o2' then 53 when 'o3' then 54
-    when 'paid' then 64 when 'free' then 66 when 'covered' then 67 when 'later_staff' then 68 when 'later_scan' then 69 
+    when 'paid' then 64 when 'free' then 66 when 'covered' then 67 when 'later_staff' then 68 when 'later_scan' then 69 when 'cycle' then 70 when 'backdated' then 71
     end) $f$;
 
 insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days) values
@@ -129,6 +131,8 @@ insert into sess select 'free', pg_temp.mk_free(pg_temp.g(2), pg_temp.mem('free'
 insert into sess select 'covered', pg_temp.mk_paid(pg_temp.g(2), pg_temp.mem('covered'));
 insert into sess select 'later_staff', pg_temp.mk_paid(pg_temp.g(2), pg_temp.mem('later_staff'));
 insert into sess select 'later_scan', pg_temp.mk_paid(pg_temp.g(2), pg_temp.mem('later_scan'));
+insert into sess select 'cycle', pg_temp.mk_paid(pg_temp.g(2), pg_temp.mem('cycle'));
+insert into sess select 'backdated', pg_temp.mk_paid(pg_temp.g(2), pg_temp.mem('backdated'));
 update guest_sessions set usable_until = timestamptz '2099-01-01 12:00:00+00' where id = (select id from sess where label = 'paid');
 
 -- Support (live for gym A) as in the other support suites.
@@ -356,7 +360,8 @@ select pg_temp.run($$select check_out_member('00000000-0000-0000-0000-0000002757
 select pg_temp.run($$select check_out_member('00000000-0000-0000-0000-000000275744')$$);
 select pg_temp.run($$select check_out_member('00000000-0000-0000-0000-000000275745')$$);
 reset role;
-update attendance_events set checked_in_at = checked_in_at - interval '3 hours', checked_out_at = checked_out_at - interval '2 hours'
+update attendance_events set checked_in_at = checked_in_at - interval '3 hours', checked_out_at = checked_out_at - interval '2 hours',
+  created_at = created_at - interval '3 hours'
 where member_id in (pg_temp.mem('covered'), pg_temp.mem('later_staff'), pg_temp.mem('later_scan')) and source = 'staff';
 
 -- an entry that consumed nothing: the second visit of the day is covered by the first
@@ -393,6 +398,43 @@ select pg_temp.claims(pg_temp.u(9), pg_temp.g(2), 'manager');
 select is(pg_temp.void(pg_temp.att(pg_temp.mem('later_staff')), 'wrong member selected') ->> 'outcome', 'voided', 'later_staff: voiding the later check-in first works (it released nothing)');
 select is(pg_temp.void(pg_temp.first_of(pg_temp.mem('later_staff')), 'wrong member selected again') ->> 'session_released', 'true', 'later_staff: then the first entry can be voided and gives the session back');
 reset role;
+
+-- An offline covered scan synced AFTER the staff entry can carry an EARLIER checked_in_at: "later" is later inserted (created_at).
+set local role authenticated;
+select pg_temp.claims(pg_temp.u(8), pg_temp.g(2), 'receptionist');
+select is(pg_temp.sci(pg_temp.mem('backdated')) ->> 'outcome', 'checked_in', 'backdated: the staff entry consumes the session');
+reset role;
+insert into attendance_events (gym_id, member_id, checked_in_at, checked_out_at, checkout_type, source, visit_day, created_at)
+select ae.gym_id, ae.member_id, ae.checked_in_at - interval '1 hour', ae.checked_in_at - interval '30 minutes', 'manual', 'qr', ae.visit_day, ae.created_at + interval '1 second'
+from attendance_events ae where ae.member_id = pg_temp.mem('backdated');
+set local role authenticated;
+select pg_temp.claims(pg_temp.u(9), pg_temp.g(2), 'manager');
+select is(pg_temp.void(pg_temp.first_staff_of(pg_temp.mem('backdated')), 'wrong member selected') - 'attendance_id',
+          '{"outcome":"later_visit_relies","later_is_staff_entry":false}'::jsonb,
+          'backdated: a covered scan inserted later but dated earlier still relies on the session, so the void is refused');
+reset role;
+select is((select consumed_at is not null and covered_attendance_id is not null from guest_sessions where member_id = pg_temp.mem('backdated')), true, 'backdated: the session was not released');
+
+-- A second void cycle of one session: the hook does nothing the second time, and the result and the audit row say so.
+set local role authenticated;
+select pg_temp.claims(pg_temp.u(8), pg_temp.g(2), 'receptionist');
+select is(pg_temp.sci(pg_temp.mem('cycle')) ->> 'outcome', 'checked_in', 'cycle: the staff entry consumes the session and earns the stamp');
+select pg_temp.claims(pg_temp.u(9), pg_temp.g(2), 'manager');
+select is(pg_temp.void(pg_temp.att(pg_temp.mem('cycle')), 'wrong member selected') - 'attendance_id' - 'voided_at',
+          '{"outcome":"voided","session_released":true,"stamp_removed":true}'::jsonb, 'cycle: the first void removes the stamp');
+reset role;
+-- the member is checked in again by staff the same day, consuming the same (released) session; no second stamp is earned
+update attendance_events set created_at = created_at - interval '1 hour', checked_in_at = checked_in_at - interval '1 hour' where member_id = pg_temp.mem('cycle');
+set local role authenticated;
+select pg_temp.claims(pg_temp.u(8), pg_temp.g(2), 'receptionist');
+select is(pg_temp.sci(pg_temp.mem('cycle')) ->> 'outcome', 'checked_in', 'cycle: checked in again, consuming the same session');
+select pg_temp.claims(pg_temp.u(9), pg_temp.g(2), 'manager');
+select is(pg_temp.void(pg_temp.att(pg_temp.mem('cycle')), 'wrong member selected again') - 'attendance_id' - 'voided_at',
+          '{"outcome":"voided","session_released":true,"stamp_removed":false}'::jsonb, 'cycle: the second void gives the session back but removes no stamp (the hook did nothing)');
+reset role;
+select is((select count(*)::int from audit_log where action_type = 'staff_check_in_voided' and target_entity_id = pg_temp.mem('cycle')::text
+            and (metadata ->> 'stamp_removed')::boolean = false and (metadata ->> 'session_released')::boolean), 1, 'cycle: the second audit row says stamp_removed false');
+select is((select count(*)::int from loyalty_events where member_id = pg_temp.mem('cycle') and event_type = 'stamp_reversed'), 1, 'cycle: one stamp_reversed in all');
 
 -- ============================================================================
 -- (7) The three updaters read the open row with voided_at is null (the 27.2 deferral)
