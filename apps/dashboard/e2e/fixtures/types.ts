@@ -51,8 +51,8 @@ export interface FixtureData {
   desk: { active: MemberFixture; expired: MemberFixture; pps: MemberFixture; ppsPlanId: string };
   /** Story 27.4: the plan group of the desk-fixes spec. An Annual plan (250,000 XAF, 365 days, annual interval, 15% discount) and two members
    * on it: `unpaid` (no payment record, the correction is allowed; `startDate` is the subscription's start) and `paid` (a verified cash
-   * payment linked to the subscription, so the correction is refused with F1). */
-  plan: { annualPlanId: string; unpaid: MemberFixture & { startDate: string }; paid: MemberFixture };
+   * payment linked to the subscription, so the correction is refused with F1); `stale` is a third, unpaid member whose payment the refusal test inserts AFTER the modal opened. */
+  plan: { annualPlanId: string; unpaid: MemberFixture & { startDate: string }; paid: MemberFixture; stale: MemberFixture };
   /** Optional real, gym-connectable TaraMoney sandbox credentials for Flow
    * 2 (Task 5) -- see docs/decisions.md's Story 13.5 entry. Never committed;
    * absent by default (including in CI), in which case the payment-cutover

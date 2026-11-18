@@ -589,8 +589,9 @@ export function MemberModal({
     editingMember?.deactivatedAt == null;
   const showSessionsSection =
     canSeeSessions && ((memberIsPayPerSession && chargeGuestsPerSession) || memberSessionRows.length > 0);
-  // Story 27.4: [Correct plan] is gated like Edit (the page passes the handler only to Manager and above) and needs a current subscription.
-  const showCorrectPlan = readOnly && Boolean(onCorrectPlan) && Boolean(editingMember?.subscriptionId ?? editingMember?.planId);
+  // Story 27.4: [Correct plan] is gated like Edit (the page passes the handler only to Manager and above), needs a current subscription, and is never offered for a deactivated member (the database refuses it too).
+  const showCorrectPlan = readOnly && Boolean(onCorrectPlan) && Boolean(editingMember?.subscriptionId ?? editingMember?.planId) &&
+    editingMember?.deactivatedAt == null;
 
   const selectedPlan = plans.find((p) => p.id === form.planId) ?? null;
   const isPayPerSession = selectedPlan?.planType === "pay_per_session";

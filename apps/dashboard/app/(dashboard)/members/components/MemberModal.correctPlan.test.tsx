@@ -70,6 +70,12 @@ describe("MemberModal view: plan summary, Subscription started, [Correct plan] (
     expect(screen.queryByRole("button", { name: "Correct plan" })).not.toBeInTheDocument();
   });
 
+  it("is absent for a deactivated member (27-4 review: the database refuses it too)", async () => {
+    await renderView({ ...MEMBER, deactivatedAt: "2026-11-10T09:00:00Z" }, vi.fn());
+    await screen.findByText("Subscription started");
+    expect(screen.queryByRole("button", { name: "Correct plan" })).not.toBeInTheDocument();
+  });
+
   it("is absent when the member has no current subscription", async () => {
     await renderView({ ...MEMBER, planId: null, planName: null, planType: null, status: "no_active_plan", expiryDate: null, subscriptionId: null, subscriptionStartDate: null }, vi.fn());
     await screen.findByText("Phone");

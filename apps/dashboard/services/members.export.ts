@@ -72,6 +72,7 @@ export async function exportMembersCsv(params: {
     .eq("role", "member")
     .order("name", { ascending: true })
     .order("created_at", { referencedTable: "subscriptions", ascending: false })
+    .order("id", { referencedTable: "subscriptions", ascending: false })
     .limit(1, { referencedTable: "subscriptions" });
   dataQuery = applyMemberFilters(dataQuery, params);
   dataQuery = dataQuery.range(0, EXPORT_ROW_LIMIT - 1);

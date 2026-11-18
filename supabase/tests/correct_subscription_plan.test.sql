@@ -12,7 +12,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-00000027[6c-6f]nn. Gyms 276cnn (01 A, 02 B, 03 suspended), users 276dnn, members 276enn, plans 276fnm.
 
 begin;
-select plan(121);
+select plan(122);
 
 create function pg_temp.g(n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0000-000000276c' || lpad(to_hex(n), 2, '0'))::uuid $f$;
 create function pg_temp.u(n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0000-000000276d' || lpad(to_hex(n), 2, '0'))::uuid $f$;
@@ -260,7 +260,8 @@ select pg_temp.claims(pg_temp.u(2), pg_temp.g(1), 'supervisor');
 select is(pg_temp.ccp(pg_temp.m(41), pg_temp.p(1)) -> 'ok' ->> 'plan_name', 'CCP MONTHLY', 'a Supervisor corrects a plan');
 select pg_temp.claims(pg_temp.u(3), pg_temp.g(1), 'manager');
 select is(pg_temp.ccp(pg_temp.m(42), pg_temp.p(1)) -> 'ok' ->> 'plan_name', 'CCP MONTHLY', 'a Manager corrects a plan');
-select is(pg_temp.ccp(pg_temp.m(19), pg_temp.p(1)) -> 'ok' ->> 'plan_name', 'CCP MONTHLY', 'a deactivated member is correctable (as the UX states)');
+select is(pg_temp.code(pg_temp.ccp(pg_temp.m(19), pg_temp.p(1))), 'P0001:no_current_subscription', 'a deactivated member is refused (27-4 review: a correction would revive the row deactivation expired)');
+select isnt((select plan_id from subscriptions where member_id = pg_temp.m(19)), pg_temp.p(1), 'the deactivated member''s subscription is unchanged');
 reset role;
 
 -- ============================================================================

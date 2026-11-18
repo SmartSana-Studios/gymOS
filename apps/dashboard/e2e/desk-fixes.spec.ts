@@ -150,6 +150,39 @@ test.describe.serial("Epic 27 correct plan and annual plan wording", () => {
     await expect(modal.getByRole("link", { name: "Open payments" })).toHaveAttribute("href", new RegExp(`/payments\\?memberId=${fixtures.plan.paid.memberId}`));
   });
 
+  // 27-4 review: the refusal reaches the modal through the REAL action, service and PostgREST error shape (code P0001, the refusal as the
+  // message, JSON in `details`). The unit tests build that error by hand; if PostgREST moved a field, every refusal would read as
+  // "Check your connection" and only this test would notice.
+  test("a payment that appears after the modal opened is refused with F1, not a network error", async ({ page }) => {
+    const fixtures = loadFixtures();
+    await loginViaUi(page, fixtures.manager.email);
+    const modal = await openCorrectPlan(page, "Plan Stale", fixtures.plan.stale.name);
+
+    await expect(modal.getByText("Current plan")).toBeVisible();
+    await modal.getByLabel(/New plan/).selectOption({ label: "E2E MONTHLY · 15,000 XAF · 30 days" });
+    await modal.getByLabel(/Reason/).fill("Wrong plan chosen at sign-up");
+
+    // behind the modal's back: a verified payment linked to the subscription
+    const admin = createClient(supabaseUrl(), supabaseServiceRoleKey(), { auth: { autoRefreshToken: false, persistSession: false } });
+    const { data: sub, error: subError } = await admin.from("subscriptions").select("id").eq("member_id", fixtures.plan.stale.memberId).single();
+    expect(subError).toBeNull();
+    const { error: payError } = await admin.from("payments").insert({
+      gym_id: fixtures.gymId,
+      member_id: fixtures.plan.stale.memberId,
+      subscription_id: sub?.id,
+      amount: 250000,
+      currency: "XAF",
+      method: "cash",
+      status: "verified",
+      purpose: "subscription",
+    });
+    expect(payError).toBeNull();
+
+    await modal.getByRole("button", { name: "Correct plan" }).click();
+    await expect(modal.getByRole("alert")).toContainText("Can't correct the plan yet. The payment of 250,000 XAF on");
+    await expect(modal.getByText("Check your connection")).toHaveCount(0);
+  });
+
   test("a Receptionist's row menu has no [Correct plan]", async ({ page }) => {
     const fixtures = loadFixtures();
     await loginViaUi(page, fixtures.receptionist.email);

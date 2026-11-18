@@ -146,6 +146,8 @@ export function MembersPageClient({
   // Story 27.4: the member whose plan is being corrected, and the element focus returns to when the modal closes.
   const [correctingMember, setCorrectingMember] = useState<MemberListRow | null>(null);
   const correctTriggerRef = useRef<HTMLElement | null>(null);
+  // The member whose plan was just corrected: if the refreshed list no longer holds them (a status or search filter drops them), the open View modal closes instead of keeping the old plan.
+  const correctedMemberIdRef = useRef<string | null>(null);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -161,12 +163,16 @@ export function MembersPageClient({
   // Story 27.4: after a correction `router.refresh()` re-reads the list; the open View modal follows its member's fresh row, so the plan,
   // expiry and status badge change in place (no "corrected" marker). Only a read-only view follows: an open Edit form is never reset.
   useEffect(() => {
+    // Read and clear the marker outside the updater: React may run an updater twice (StrictMode), and the second run must see the same answer.
+    const correctedId = correctedMemberIdRef.current;
+    correctedMemberIdRef.current = null;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setModalState((current) => {
       if (!current || !current.readOnly || !current.member) return current;
       const fresh =
         initialMembers.find((row) => row.id === current.member?.id) ??
         (deepLinkMember && deepLinkMember.id === current.member.id ? deepLinkMember : null);
+      if (!fresh && correctedId === current.member.id) return null;
       return fresh && fresh !== current.member ? { ...current, member: fresh } : current;
     });
   }, [initialMembers, deepLinkMember]);
@@ -214,9 +220,9 @@ export function MembersPageClient({
     setModalState({ member: null, readOnly: false });
   }
 
-  // Story 27.4: [Correct plan] is gated like Edit (Manager and above, GymOS Support) and needs a current subscription.
+  // Story 27.4: [Correct plan] is gated like Edit (Manager and above, GymOS Support), needs a current subscription, and is not offered for a deactivated member.
   function canCorrectPlan(member: MemberListRow): boolean {
-    return canManage && Boolean(member.subscriptionId ?? member.planId);
+    return canManage && !member.deactivatedAt && Boolean(member.subscriptionId ?? member.planId);
   }
 
   function openCorrectPlan(member: MemberListRow, trigger: HTMLElement | null) {
@@ -653,6 +659,7 @@ export function MembersPageClient({
           onClose={closeCorrectPlan}
           onCorrected={(result) => {
             const member = correctingMember;
+            correctedMemberIdRef.current = member.id;
             showToast(correctedToast(member, result));
             closeCorrectPlan();
             router.refresh();

@@ -18,13 +18,13 @@
 --     the current subscription row (cash recorded, then the plan assigned or renewed) is not counted, because it cannot be told from the
 --     previous period's payment. Registration-fee and session payments (purpose) never count.
 --   * public.correct_plan_eligibility(member)  -- read-only: the current subscription and the most recent standing payment, if any.
---   * public.correct_subscription_plan(member, new plan, reason, subscription_id default null)  -- the correction. The optional
+--   * public.correct_subscription_plan(member, new plan, reason, subscription_id default null)  -- the correction. A deactivated member is refused (no_current_subscription): deactivation expired the row and a correction would revive it. The optional
 --     p_subscription_id (the id the modal showed) is how a renewal that landed while the modal was open is told apart (refusal
 --     subscription_changed); it is the one parameter spine AD-59 did not list. Lock order (AD-29): the member row (FOR NO KEY UPDATE), then
 --     the current subscription row (FOR UPDATE); the standing-payment rule is re-checked under both. Refusals raise P0001 with the code as
 --     the message and a JSON detail (the epic's choice; 0175 returned coded rows instead).
 --   * public.renew_subscription is re-created as the 0157 body plus one statement: the member lock (FOR NO KEY UPDATE) after the member
---     lookup and before the plan read. It took no lock, so a correction committing between its plan read and its insert would leave a
+--     lookup and before the plan read. It also picks the latest row by (created_at, id), as the correction does, so both name the same current subscription on a created_at tie. It took no lock, so a correction committing between its plan read and its insert would leave a
 --     renewal row on the pre-correction plan.
 --
 -- Expiry arithmetic: new expiry = the current row's start_date + the new plan's duration_days + the loyalty reward days already granted on
@@ -161,7 +161,7 @@ begin
   -- "Current" is the row subscriptions_current and the member page show: the newest by (created_at, id).
   select s.* into v_sub
   from subscriptions s
-  join members m on m.id = s.member_id and m.gym_id = v_gym_id
+  join members m on m.id = s.member_id and m.gym_id = v_gym_id and m.deactivated_at is null
   where s.member_id = p_member_id and s.gym_id = v_gym_id
   order by s.created_at desc, s.id desc
   limit 1;
@@ -208,6 +208,7 @@ declare
   v_role member_role;
   v_gym_id uuid;
   v_member_gym uuid;
+  v_deactivated_at timestamptz;
   v_sub subscriptions;
   v_latest uuid;
   v_old_plan plans;
@@ -235,13 +236,19 @@ begin
   perform private.support_stepup_require('support_correct_plan', p_member_id::text);
 
   -- AD-29: the member row first. Another gym's member and a missing id are the same answer.
-  select m.gym_id into v_member_gym
+  select m.gym_id, m.deactivated_at into v_member_gym, v_deactivated_at
   from members m
   where m.id = p_member_id and m.gym_id = v_gym_id
   for no key update;
 
   if not found then
     raise exception 'permission denied';
+  end if;
+
+  -- A deactivated member has no correctable subscription (owner decision 2026-11-18, review of 27-4): deactivation set the current row to
+  -- expired, and a correction would move it back to a live status. The same refusal as a member without a subscription, so no new code.
+  if v_deactivated_at is not null then
+    raise exception 'no_current_subscription' using errcode = 'P0001', detail = '{}';
   end if;
 
   -- Then the current subscription row (the newest by created_at, id, as subscriptions_current), FOR UPDATE.
@@ -368,7 +375,7 @@ end;
 $$;
 
 -- ----------------------------------------------------------------------------
--- public.renew_subscription: the 0157 body (live; no later migration redefines it) plus ONE statement, the member lock (FOR NO KEY UPDATE)
+-- public.renew_subscription: the 0157 body (live; no later migration redefines it) plus the member lock and the id tie-break in the plan pick; the lock (FOR NO KEY UPDATE)
 -- right after the member lookup and before the plan read. Signature, grants and the support_rpc_role / support_rpc_gym_id calls are
 -- unchanged. confirm_renewal and complete_verified_payment already take that lock, so with this every renewal path that reads the
 -- current plan serialises against a correction (rollback restores the 0157 body).
@@ -415,9 +422,9 @@ begin
     raise exception 'renew_subscription: member % not found', p_member_id;
   end if;
 
-  -- Story 27.4 (AD-29, member first): the one addition to the 0157 body. correct_subscription_plan locks the member row and then the
+  -- Story 27.4 (AD-29, member first): one of the two changes to the 0157 body (the other is the id tie-break in the plan pick below). correct_subscription_plan locks the member row and then the
   -- current subscription; without this lock a correction could commit between the plan_id read below and the insert, leaving a renewal
-  -- row on the pre-correction plan. Taken after the lookup and before the plan read; nothing else in the body changed.
+  -- row on the pre-correction plan. Taken after the lookup and before the plan read; nothing else in the body changed beyond the tie-break.
   perform 1 from members where id = p_member_id and gym_id = v_caller_gym_id for no key update;
 
   if v_deactivated_at is not null then
@@ -431,7 +438,7 @@ begin
   select s.plan_id into v_plan_id
   from subscriptions s
   where s.member_id = p_member_id
-  order by s.created_at desc
+  order by s.created_at desc, s.id desc
   limit 1;
 
   if v_plan_id is null then
@@ -576,6 +583,10 @@ begin
   end if;
   if (select provolatile from pg_proc where oid = 'private.subscription_status_for(date, integer, date)'::regprocedure) <> 'i' then
     raise exception '0176: subscription_status_for must be IMMUTABLE';
+  end if;
+  select prosrc into v_src from pg_proc where oid = 'public.renew_subscription(uuid, text)'::regprocedure;
+  if position('for no key update' in v_src) = 0 or v_src !~ 'order by s\.created_at desc, s\.id desc' then
+    raise exception '0176: renew_subscription lost its member lock or its (created_at, id) current-subscription order';
   end if;
   if position('run_subscription_lifecycle_job' in (select prosrc from pg_proc where proname = 'correct_subscription_plan')) <> 0 then
     raise exception '0176: the correction must not call the lifecycle job';

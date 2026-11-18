@@ -280,6 +280,7 @@ export default async function globalSetup(): Promise<void> {
   const annualPlanId = annualPlanRow.id as string;
   const planUnpaid = await createMemberFixture(admin, gymId, annualPlanId, "+237680000211", 211, "active", { name: "E2E Plan Unpaid", expiryOffsetDays: 365 });
   const planPaid = await createMemberFixture(admin, gymId, annualPlanId, "+237680000212", 212, "active", { name: "E2E Plan Paid", expiryOffsetDays: 365 });
+  const planStale = await createMemberFixture(admin, gymId, annualPlanId, "+237680000213", 213, "active", { name: "E2E Plan Stale", expiryOffsetDays: 365 });
   const { data: unpaidSub, error: unpaidSubError } = await admin.from("subscriptions").select("start_date").eq("member_id", planUnpaid.memberId).single();
   if (unpaidSubError || !unpaidSub) {
     throw new Error(`e2e seed: reading the unpaid member's subscription failed -- ${unpaidSubError?.message}`);
@@ -391,7 +392,7 @@ export default async function globalSetup(): Promise<void> {
     secondCoach,
     receptionist,
     desk: { active: deskActive, expired: deskExpired, pps: deskPps, ppsPlanId },
-    plan: { annualPlanId, unpaid: { ...planUnpaid, startDate: unpaidSub.start_date as string }, paid: planPaid },
+    plan: { annualPlanId, unpaid: { ...planUnpaid, startDate: unpaidSub.start_date as string }, paid: planPaid, stale: planStale },
     member,
     classFillerMembers: [fillerA, fillerB, fillerC, fillerD],
     classId,

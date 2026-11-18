@@ -185,6 +185,7 @@ export async function getMemberListRow(
     .eq("role", "member")
     .eq("id", memberId)
     .order("created_at", { referencedTable: "subscriptions", ascending: false })
+    .order("id", { referencedTable: "subscriptions", ascending: false })
     .limit(1, { referencedTable: "subscriptions" })
     .maybeSingle();
 

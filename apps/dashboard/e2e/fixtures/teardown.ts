@@ -67,6 +67,7 @@ export default async function globalTeardown(): Promise<void> {
     fixtures.desk.pps.memberId,
     fixtures.plan.unpaid.memberId,
     fixtures.plan.paid.memberId,
+    fixtures.plan.stale.memberId,
   ];
   const userIds = [
     fixtures.member.userId,
@@ -82,6 +83,7 @@ export default async function globalTeardown(): Promise<void> {
     fixtures.desk.pps.userId,
     fixtures.plan.unpaid.userId,
     fixtures.plan.paid.userId,
+    fixtures.plan.stale.userId,
   ];
 
   // Every step logs rather than throws on error -- a single failed delete

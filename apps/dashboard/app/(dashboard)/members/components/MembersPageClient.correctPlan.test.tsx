@@ -111,6 +111,12 @@ describe("[Correct plan] on the members page (Story 27.4)", () => {
     expect(screen.queryByRole("menuitem", { name: /members.correctPlan.action/ })).toBeNull();
   });
 
+  it("a deactivated member: absent for a Manager (27-4 review)", async () => {
+    await renderPage("manager", [{ ...withPlan, deactivatedAt: "2026-11-10T09:00:00Z" }]);
+    await openMenu();
+    expect(screen.queryByRole("menuitem", { name: /members.correctPlan.action/ })).toBeNull();
+  });
+
   it("the member modal gets the handler only for roles that may edit", async () => {
     // The modal is mounted by the page only when a row is opened.
     await renderPage("manager");
@@ -168,6 +174,28 @@ describe("[Correct plan] on the members page (Story 27.4)", () => {
     // router.refresh() re-reads the list: a new object for the same member
     rerender(<MembersPageClient {...props} initialMembers={[{ ...withPlan, planName: "MONTHLY" }] as never} />);
     await waitFor(() => expect(modalProps()?.editingMember?.planName).toBe("MONTHLY"));
+  });
+
+  it("when the corrected member leaves the refreshed list (a filter drops them), the open View modal closes instead of showing the old plan (27-4 review)", async () => {
+    const { MembersPageClient } = await import("./MembersPageClient");
+    const props = { total: 1, page: 1, pageSize: 25, search: "", status: "expired", role: "manager" as never, plans: [], coaches: [], gymName: "Iron Gym" };
+    const { rerender } = render(<MembersPageClient {...props} initialMembers={[withPlan] as never} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Ange T."));
+    await user.click(screen.getByRole("button", { name: "view-correct" }));
+    corrected?.({ planName: "MONTHLY", planType: "monthly", expiryDate: "2026-12-02", status: "active" });
+    rerender(<MembersPageClient {...props} total={0} initialMembers={[] as never} />);
+    await waitFor(() => expect(screen.queryByRole("button", { name: "view-correct" })).toBeNull());
+  });
+
+  it("a View modal that was NOT just corrected stays open when its member leaves the list", async () => {
+    const { MembersPageClient } = await import("./MembersPageClient");
+    const props = { total: 1, page: 1, pageSize: 25, search: "", status: "", role: "manager" as never, plans: [], coaches: [], gymName: "Iron Gym" };
+    const { rerender } = render(<MembersPageClient {...props} initialMembers={[withPlan] as never} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Ange T."));
+    rerender(<MembersPageClient {...props} total={0} initialMembers={[] as never} />);
+    expect(screen.getByRole("button", { name: "view-correct" })).toBeInTheDocument();
   });
 
   it("focus returns to the row's Actions button after the modal closes", async () => {

@@ -179,7 +179,7 @@ select is(pg_temp.elig('00000000-0000-0000-0000-000000000000'), '"none"'::jsonb,
 select pg_temp.claims(pg_temp.u(1), pg_temp.g(1), 'owner');
 select is(pg_temp.elig(pg_temp.mem('b_member')), '"none"'::jsonb, 'an Owner asking about another gym''s member gets the empty result');
 select is(pg_temp.elig(pg_temp.mem('nosub')), '"none"'::jsonb, 'a member with no subscription gives the empty result');
-select is(pg_temp.elig(pg_temp.mem('deact')) ->> 'subscription_id', pg_temp.sub('deact')::text, 'a deactivated member is correctable (the row is returned)');
+select is(pg_temp.elig(pg_temp.mem('deact')), '"none"'::jsonb, 'a deactivated member gives the empty result (27-4 review: not correctable)');
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 reset role;
 set local role anon;

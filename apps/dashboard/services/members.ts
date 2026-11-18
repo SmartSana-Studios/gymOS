@@ -45,6 +45,7 @@ export async function listMembers(params: {
     .eq("role", "member")
     .order("name", { ascending: true })
     .order("created_at", { referencedTable: "subscriptions", ascending: false })
+    .order("id", { referencedTable: "subscriptions", ascending: false })
     .limit(1, { referencedTable: "subscriptions" });
 
   query = applyMemberFilters(query, params);
