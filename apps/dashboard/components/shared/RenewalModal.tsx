@@ -19,6 +19,7 @@ import { confirmRenewalAction, getRenewalPreviewAction } from "@/app/(dashboard)
 import { getPendingMobileMoneyPaymentAction, initiatePaymentAction } from "@/app/(dashboard)/payments/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { RenewalPreview } from "@/services/subscriptions";
+import { planNameWithSummary } from "@/lib/planSummary";
 
 interface FieldErrors {
   reason?: string;
@@ -510,7 +511,19 @@ export function RenewalPanel({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("renewalPanel.plan")}</span>
-              <span>{preview.planName}</span>
+              <span>
+                {planNameWithSummary(
+                  t,
+                  {
+                    name: preview.planName,
+                    planType: preview.planType,
+                    price: preview.price,
+                    durationDays: preview.durationDays ?? null,
+                    billingInterval: preview.billingInterval,
+                  },
+                  i18n.language,
+                )}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("renewalPanel.startDate")}</span>

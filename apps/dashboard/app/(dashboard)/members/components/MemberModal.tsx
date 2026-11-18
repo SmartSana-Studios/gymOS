@@ -23,6 +23,7 @@ import type { MemberGuestSession } from "@/services/guestSessions";
 import type { MemberLoyalty } from "@/services/loyalty";
 import { PAYMENT_METHOD_LABEL_KEY } from "@/app/(dashboard)/payments/paymentLabels";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
+import { planNameWithSummary, planOptionLabel } from "@/lib/planSummary";
 
 interface FieldErrors {
   name?: string;
@@ -362,6 +363,7 @@ export function MemberModal({
   role,
   chargeGuestsPerSession = false,
   onSessionRecorded,
+  onCorrectPlan,
   onClose,
   onSaved,
 }: {
@@ -383,6 +385,9 @@ export function MemberModal({
   chargeGuestsPerSession?: boolean;
   /** Story 19.9b: a session payment was recorded from this modal. */
   onSessionRecorded?: (memberName: string) => void;
+  /** Story 27.4 (UX AD-31): opens the Correct plan modal for this member. Passed only to roles that may edit (Manager and above, GymOS
+   * Support); the button also needs a current subscription. The page owns the modal so it can refresh in place after a correction. */
+  onCorrectPlan?: (member: MemberListRow, trigger: HTMLButtonElement | null) => void;
   onClose: () => void;
   /** `invite` is set only when creation itself tried to send the WhatsApp invite (fee-0 gym). */
   onSaved: (warning?: string, invite?: "sent" | "failed") => void;
@@ -584,6 +589,8 @@ export function MemberModal({
     editingMember?.deactivatedAt == null;
   const showSessionsSection =
     canSeeSessions && ((memberIsPayPerSession && chargeGuestsPerSession) || memberSessionRows.length > 0);
+  // Story 27.4: [Correct plan] is gated like Edit (the page passes the handler only to Manager and above) and needs a current subscription.
+  const showCorrectPlan = readOnly && Boolean(onCorrectPlan) && Boolean(editingMember?.subscriptionId ?? editingMember?.planId);
 
   const selectedPlan = plans.find((p) => p.id === form.planId) ?? null;
   const isPayPerSession = selectedPlan?.planType === "pay_per_session";
@@ -845,10 +852,24 @@ export function MemberModal({
                   );
                 })()}
               </div>
-              {showRecordSession && (
-                <Button type="button" variant="outline" size="sm" onClick={() => setRecordingSession(true)}>
-                  {t("members.modal.recordSessionPayment")}
-                </Button>
+              {(showRecordSession || showCorrectPlan) && (
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {showRecordSession && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setRecordingSession(true)}>
+                      {t("members.modal.recordSessionPayment")}
+                    </Button>
+                  )}
+                  {showCorrectPlan && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => onCorrectPlan?.(editingMember, e.currentTarget)}
+                    >
+                      {t("members.correctPlan.action")}
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
 
@@ -875,7 +896,24 @@ export function MemberModal({
               {editingMember.neighborhood && (
                 <DetailField label={t("members.modal.neighborhood")} value={editingMember.neighborhood} />
               )}
-              <DetailField label={t("members.modal.view.plan")} value={editingMember.planName ?? "—"} />
+              <DetailField
+                label={t("members.modal.view.plan")}
+                value={
+                  editingMember.planName
+                    ? planNameWithSummary(
+                        t,
+                        {
+                          name: editingMember.planName,
+                          planType: editingMember.planType ?? undefined,
+                          price: editingMember.planPrice ?? undefined,
+                          durationDays: editingMember.planDurationDays ?? null,
+                          billingInterval: editingMember.planBillingInterval ?? undefined,
+                        },
+                        i18n.language,
+                      )
+                    : "—"
+                }
+              />
               <DetailField
                 label={t("members.modal.view.joinDate")}
                 value={formatLocalDate(editingMember.joinDate, i18n.language)}
@@ -892,6 +930,14 @@ export function MemberModal({
                 <DetailField
                   label={t("members.modal.view.expiryDate")}
                   value={editingMember.expiryDate ? formatLocalDate(editingMember.expiryDate, i18n.language) : "—"}
+                />
+              )}
+              {/* Story 27.4 (UX AD-04): the date Correct plan counts the new expiry from; read-only, shown to every role that opens the modal,
+                  omitted for Pay-per-session (no expiry) and when there is no current subscription. */}
+              {!memberIsPayPerSession && editingMember.subscriptionStartDate && (
+                <DetailField
+                  label={t("members.subscriptionStarted")}
+                  value={formatLocalDate(editingMember.subscriptionStartDate, i18n.language)}
                 />
               )}
               <DetailField
@@ -1056,7 +1102,7 @@ export function MemberModal({
                     <option value="">{t("members.modal.selectPlan")}</option>
                     {plans.map((plan) => (
                       <option key={plan.id} value={plan.id}>
-                        {plan.name}
+                        {planOptionLabel(t, plan, i18n.language)}
                       </option>
                     ))}
                   </select>

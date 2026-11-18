@@ -259,6 +259,49 @@ export default async function globalSetup(): Promise<void> {
   const deskExpired = await createMemberFixture(admin, gymId, planId, "+237680000202", 202, "expired", { name: "E2E Desk Expired", expiryOffsetDays: -3 });
   const deskPps = await createMemberFixture(admin, gymId, ppsPlanId, "+237680000203", 203, "active", { name: "E2E Desk Session", expiryOffsetDays: null });
 
+  // Story 27.4: the plan group. An Annual plan and two members on it; the second has a verified payment on its subscription.
+  const { data: annualPlanRow, error: annualPlanError } = await admin
+    .from("plans")
+    .insert({
+      gym_id: gymId,
+      name: "E2E Annual",
+      plan_type: "monthly",
+      price: 250000,
+      currency: "XAF",
+      billing_interval: "annual",
+      annual_discount_percent: 15,
+      duration_days: 365,
+    })
+    .select("id")
+    .single();
+  if (annualPlanError || !annualPlanRow) {
+    throw new Error(`e2e seed: annual plan insert failed -- ${annualPlanError?.message}`);
+  }
+  const annualPlanId = annualPlanRow.id as string;
+  const planUnpaid = await createMemberFixture(admin, gymId, annualPlanId, "+237680000211", 211, "active", { name: "E2E Plan Unpaid", expiryOffsetDays: 365 });
+  const planPaid = await createMemberFixture(admin, gymId, annualPlanId, "+237680000212", 212, "active", { name: "E2E Plan Paid", expiryOffsetDays: 365 });
+  const { data: unpaidSub, error: unpaidSubError } = await admin.from("subscriptions").select("start_date").eq("member_id", planUnpaid.memberId).single();
+  if (unpaidSubError || !unpaidSub) {
+    throw new Error(`e2e seed: reading the unpaid member's subscription failed -- ${unpaidSubError?.message}`);
+  }
+  const { data: paidSub, error: paidSubError } = await admin.from("subscriptions").select("id").eq("member_id", planPaid.memberId).single();
+  if (paidSubError || !paidSub) {
+    throw new Error(`e2e seed: reading the paid member's subscription failed -- ${paidSubError?.message}`);
+  }
+  const { error: paidPaymentError } = await admin.from("payments").insert({
+    gym_id: gymId,
+    member_id: planPaid.memberId,
+    subscription_id: paidSub.id,
+    amount: 250000,
+    currency: "XAF",
+    method: "cash",
+    status: "verified",
+    purpose: "subscription",
+  });
+  if (paidPaymentError) {
+    throw new Error(`e2e seed: verified payment insert failed -- ${paidPaymentError.message}`);
+  }
+
   // 6. coach_assignments, via the real assign_coach() RPC under the
   // Owner's own session (Subtask 3.4).
   const ownerClient = await signInAs(owner.email);
@@ -348,6 +391,7 @@ export default async function globalSetup(): Promise<void> {
     secondCoach,
     receptionist,
     desk: { active: deskActive, expired: deskExpired, pps: deskPps, ppsPlanId },
+    plan: { annualPlanId, unpaid: { ...planUnpaid, startDate: unpaidSub.start_date as string }, paid: planPaid },
     member,
     classFillerMembers: [fillerA, fillerB, fillerC, fillerD],
     classId,

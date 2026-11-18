@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import type { MemberListRow } from "@/services/members";
 import type { PlanRow } from "@/services/plans";
 import { assignInitialPlan } from "../actions";
+import { planOptionLabel } from "@/lib/planSummary";
 
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
@@ -42,7 +43,7 @@ export function AssignInitialPlanDialog({
   onClose: () => void;
   onDone: (warning?: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [planId, setPlanId] = useState("");
   const [startDate, setStartDate] = useState(todayLocalDateString);
@@ -120,7 +121,7 @@ export function AssignInitialPlanDialog({
             <option value="">{t("members.assignPlan.planPlaceholder")}</option>
             {plans.map((plan) => (
               <option key={plan.id} value={plan.id}>
-                {plan.name}
+                {planOptionLabel(t, plan, i18n?.language)}
               </option>
             ))}
           </select>

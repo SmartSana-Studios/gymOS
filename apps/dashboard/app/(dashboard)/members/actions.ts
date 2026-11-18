@@ -9,6 +9,8 @@ import {
   createMemberSchema,
   editMemberSchema,
   deactivateMemberSchema,
+  correctPlanEligibilitySchema,
+  correctPlanSchema,
   mapSupabaseError,
   memberIdSchema,
   type AppError,
@@ -25,6 +27,20 @@ import {
   provisionMemberRow,
   updateMember,
 } from "@/services/members";
+import {
+  correctSubscriptionPlan as correctSubscriptionPlanRow,
+  getCorrectPlanEligibility as getCorrectPlanEligibilityRow,
+  type CorrectedPlan,
+  type CorrectPlanEligibility,
+  type CorrectPlanRefusal,
+} from "@/services/members.correctPlan";
+import {
+  isLiveSupportSession,
+  isWellFormedSupportCode,
+  issueSupportStepUp,
+  supportStepUpError,
+  type SupportGrantAction,
+} from "@/services/support-stepup";
 import { getGymSettings } from "@/services/gym-settings";
 import { getMemberLoyalty, type MemberLoyalty } from "@/services/loyalty";
 import {
@@ -569,4 +585,71 @@ export async function confirmCsvImport(
   // Story 26.2: only the literal `true` acknowledges a fee-0 gym's rows without
   // a plan; the service enforces it, this keeps a truthy non-boolean out.
   return confirmCsvImportRows(validation.rows, { acknowledgeNoFee: acknowledgeNoFee === true });
+}
+
+/**
+ * Story 27.4 (UX AD-31, FR-251): a live GymOS Support session must present a fresh authenticator code before a plan correction. The code is
+ * verified server side and turned into a single-use grant bound to (action, member); the database function consumes it
+ * (`support_stepup_require`). Same pattern as `requireSupportGrant` in attendance/actions.ts and payments/actions.ts (copied per actions
+ * file). Returns the error to show, or null when nothing is needed or the grant was issued.
+ */
+async function requireSupportGrant(
+  action: SupportGrantAction,
+  subjectId: string,
+  input: unknown,
+  t: (key: string) => string,
+): Promise<AppError | null> {
+  if (!(await isLiveSupportSession())) return null;
+  const code = (input as { authCode?: unknown } | null)?.authCode;
+  if (!isWellFormedSupportCode(code)) return supportStepUpError("code_required", t);
+  const result = await issueSupportStepUp({ action, subjectId, code: code as string });
+  return result === "issued" ? null : supportStepUpError(result, t);
+}
+
+/** The Correct plan modal's opening check: the current subscription and the most recent standing payment, if any. `data` is null with no
+ * error when there is nothing to correct (the modal shows F8). */
+export async function getCorrectPlanEligibilityAction(
+  input: unknown,
+): Promise<{ data: CorrectPlanEligibility | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = correctPlanEligibilitySchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  return getCorrectPlanEligibilityRow(parsed.data.memberId);
+}
+
+export interface CorrectPlanActionResult {
+  data: CorrectedPlan | null;
+  /** A refusal of the rules (F1 to F10): the modal renders the matching state. */
+  refusal: CorrectPlanRefusal | null;
+  /** F12: the role changed or support access ended. */
+  permissionDenied: boolean;
+  error: AppError | null;
+}
+
+/**
+ * Correct a plan assigned by mistake (FR-241). The new plan, the reason and the subscription the modal showed go to
+ * `correct_subscription_plan`; the database re-checks every rule under its locks. No other write happens here: the database writes the one
+ * audit row, so there is no second audit call (and no `audit_log_failed` path).
+ */
+export async function correctPlanAction(input: unknown): Promise<CorrectPlanActionResult> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = correctPlanSchema.safeParse(input);
+  if (!parsed.success) {
+    // A reason outside 5 to 300 characters is the one input the modal can produce that fails here; it is coded like the database's.
+    const reasonIssue = parsed.error.issues.some((issue) => issue.path[0] === "reason");
+    if (reasonIssue) return { data: null, refusal: { code: "invalid_reason" }, permissionDenied: false, error: null };
+    return { data: null, refusal: null, permissionDenied: false, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  const stepUpError = await requireSupportGrant("support_correct_plan", parsed.data.memberId, input, t);
+  if (stepUpError) return { data: null, refusal: null, permissionDenied: false, error: stepUpError };
+
+  return correctSubscriptionPlanRow({
+    memberId: parsed.data.memberId,
+    newPlanId: parsed.data.newPlanId,
+    reason: parsed.data.reason,
+    subscriptionId: parsed.data.subscriptionId,
+  });
 }

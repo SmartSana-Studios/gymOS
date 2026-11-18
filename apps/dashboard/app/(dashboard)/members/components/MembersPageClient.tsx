@@ -14,6 +14,7 @@ import {
   Gift,
   Undo2,
   UserPlus,
+  Replace,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,8 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import type { MemberListRow } from "@/services/members";
+import { formatDayMonthYear } from "@/lib/dayMonth";
+import { CorrectPlanModal, type CorrectedPlanResult } from "./CorrectPlanModal";
 import type { PlanRow } from "@/services/plans";
 import type { CoachRow } from "@/services/coaches";
 import type { MemberRole } from "@/services/session";
@@ -140,6 +143,9 @@ export function MembersPageClient({
   const [waivingMember, setWaivingMember] = useState<MemberListRow | null>(null);
   const [voidingMember, setVoidingMember] = useState<MemberListRow | null>(null);
   const [assigningMember, setAssigningMember] = useState<MemberListRow | null>(null);
+  // Story 27.4: the member whose plan is being corrected, and the element focus returns to when the modal closes.
+  const [correctingMember, setCorrectingMember] = useState<MemberListRow | null>(null);
+  const correctTriggerRef = useRef<HTMLElement | null>(null);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -151,6 +157,19 @@ export function MembersPageClient({
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, []);
+
+  // Story 27.4: after a correction `router.refresh()` re-reads the list; the open View modal follows its member's fresh row, so the plan,
+  // expiry and status badge change in place (no "corrected" marker). Only a read-only view follows: an open Edit form is never reset.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setModalState((current) => {
+      if (!current || !current.readOnly || !current.member) return current;
+      const fresh =
+        initialMembers.find((row) => row.id === current.member?.id) ??
+        (deepLinkMember && deepLinkMember.id === current.member.id ? deepLinkMember : null);
+      return fresh && fresh !== current.member ? { ...current, member: fresh } : current;
+    });
+  }, [initialMembers, deepLinkMember]);
 
   // Resync when the URL's `search` param changes externally (browser
   // back/forward) -- matches GymsPageClient's established precedent.
@@ -193,6 +212,36 @@ export function MembersPageClient({
 
   function openCreate() {
     setModalState({ member: null, readOnly: false });
+  }
+
+  // Story 27.4: [Correct plan] is gated like Edit (Manager and above, GymOS Support) and needs a current subscription.
+  function canCorrectPlan(member: MemberListRow): boolean {
+    return canManage && Boolean(member.subscriptionId ?? member.planId);
+  }
+
+  function openCorrectPlan(member: MemberListRow, trigger: HTMLElement | null) {
+    correctTriggerRef.current = trigger;
+    setCorrectingMember(member);
+  }
+
+  function closeCorrectPlan() {
+    setCorrectingMember(null);
+    const trigger = correctTriggerRef.current;
+    correctTriggerRef.current = null;
+    // Focus returns to the control that opened the modal, once the dialog has left the top layer.
+    setTimeout(() => {
+      if (trigger?.isConnected) trigger.focus();
+    }, 0);
+  }
+
+  function correctedToast(member: MemberListRow, result: CorrectedPlanResult): string {
+    const name = member.name;
+    const plan = result.planName;
+    if (result.expiryDate === null) return t("members.correctPlan.successPps", { name, plan });
+    const date = formatDayMonthYear(result.expiryDate, i18n.language);
+    if (result.status === "expired") return t("members.correctPlan.successExpired", { name, plan, date });
+    const statusKey = STATUS_LABEL_KEY[result.status as keyof typeof STATUS_LABEL_KEY] ?? "members.status.active";
+    return t("members.correctPlan.success", { name, plan, date, status: t(statusKey) });
   }
 
   // Always read-only -- View's own label must match its behavior for every
@@ -445,6 +494,7 @@ export function MembersPageClient({
                             <Button
                               variant="outline"
                               size="sm"
+                              data-member-actions={member.id}
                               aria-label={t("members.actions.menu", { name: member.name })}
                             >
                               {t("members.actions.button")}
@@ -466,6 +516,20 @@ export function MembersPageClient({
                               >
                                 <Pencil size={14} />
                                 {t("members.actions.edit")}
+                              </DropdownMenuItem>
+                            )}
+                            {canCorrectPlan(member) && (
+                              <DropdownMenuItem
+                                className="text-indigo-700 focus:text-indigo-800"
+                                onClick={() =>
+                                  openCorrectPlan(
+                                    member,
+                                    document.querySelector<HTMLElement>(`[data-member-actions="${member.id}"]`),
+                                  )
+                                }
+                              >
+                                <Replace size={14} />
+                                {t("members.correctPlan.action")}
                               </DropdownMenuItem>
                             )}
                             {canManage && !member.deactivatedAt && member.phone && (
@@ -556,6 +620,7 @@ export function MembersPageClient({
           registrationFee={registrationFee}
           role={role}
           chargeGuestsPerSession={chargeGuestsPerSession}
+          onCorrectPlan={canManage ? (member, trigger) => openCorrectPlan(member, trigger) : undefined}
           onSessionRecorded={(name) => {
             showToast(t("sessionPayment.recordedToast", { name }));
             router.refresh();
@@ -575,6 +640,21 @@ export function MembersPageClient({
             if (warning) showToast(warning);
             else if (invite === "sent") showToast(t("members.invite.createdSentToast"));
             else if (invite === "failed") showToast(t("members.invite.createdFailedToast"));
+            router.refresh();
+          }}
+        />
+      )}
+
+      {correctingMember && (
+        <CorrectPlanModal
+          member={correctingMember}
+          plans={plans}
+          isSupport={role === "support"}
+          onClose={closeCorrectPlan}
+          onCorrected={(result) => {
+            const member = correctingMember;
+            showToast(correctedToast(member, result));
+            closeCorrectPlan();
             router.refresh();
           }}
         />

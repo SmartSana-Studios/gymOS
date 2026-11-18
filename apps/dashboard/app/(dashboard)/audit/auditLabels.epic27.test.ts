@@ -8,7 +8,7 @@ import en from "@/locales/en.json";
 import fr from "@/locales/fr.json";
 import { AUDIT_ACTION_TYPE_LABEL_KEY } from "./auditLabels";
 
-const EPIC_27_ACTION_TYPES = ["staff_check_in", "staff_check_in_rejected", "staff_check_in_voided"];
+const EPIC_27_ACTION_TYPES = ["staff_check_in", "staff_check_in_rejected", "staff_check_in_voided", "subscription_plan_corrected"];
 
 function resolve(locale: unknown, key: string): unknown {
   return key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], locale);
@@ -32,6 +32,16 @@ describe("audit labels for Epic 27 action types", () => {
     expect(resolve(en, AUDIT_ACTION_TYPE_LABEL_KEY.staff_check_in_rejected)).toBe("Staff check-in not accepted");
     expect(resolve(en, AUDIT_ACTION_TYPE_LABEL_KEY.staff_check_in_voided)).toBe("Staff check-in voided");
     expect(resolve(fr, AUDIT_ACTION_TYPE_LABEL_KEY.staff_check_in_rejected)).toBe("Arrivée par le personnel refusée");
+    // Story 27.4
+    expect(resolve(en, AUDIT_ACTION_TYPE_LABEL_KEY.subscription_plan_corrected)).toBe("Plan corrected");
+    expect(resolve(fr, AUDIT_ACTION_TYPE_LABEL_KEY.subscription_plan_corrected)).toBe("Formule corrigée");
+  });
+
+  it("has the plan-correction Details wording in both locales", () => {
+    for (const key of ["audit.planCorrection.details", "audit.planCorrection.expiry", "audit.planCorrection.noExpiry"]) {
+      expect(typeof resolve(en, key), key).toBe("string");
+      expect(typeof resolve(fr, key), key).toBe("string");
+    }
   });
 
   it("has the Details wording in both locales, one reason per code the database writes", () => {

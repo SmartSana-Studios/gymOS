@@ -143,4 +143,9 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   staff_check_in: "audit.actionTypes.staffCheckIn",
   staff_check_in_rejected: "audit.actionTypes.staffCheckInRejected",
   staff_check_in_voided: "audit.actionTypes.staffCheckInVoided",
+  // Story 27.4 (0176, UX AD-12 V1.8). Written by correct_subscription_plan(): ONE gym-scoped row, target = the member, the actor the staff
+  // member or "GymOS Support". Metadata { member_id, subscription_id, old_plan_id, new_plan_id, old_plan_name, new_plan_name, old_price,
+  // new_price, old_expiry_date, new_expiry_date, old_status, new_status, basis_start_date, loyalty_days_added, reason }. The Details cell
+  // carries both plans, both prices, both expiries and the reason (AuditLogPageClient).
+  subscription_plan_corrected: "audit.actionTypes.planCorrected",
 };

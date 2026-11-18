@@ -20,6 +20,7 @@ export * from "./schemas/messagingProviderConfig";
 export * from "./schemas/payment";
 export * from "./schemas/frontDeskAlert";
 export * from "./schemas/attendance";
+export * from "./schemas/correctPlan";
 export * from "./schemas/sessionNote";
 export * from "./schemas/devicePushToken";
 export * from "./schemas/memberPreferences";

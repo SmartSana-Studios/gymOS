@@ -2887,6 +2887,39 @@ export type Database = {
         }
         Returns: undefined
       }
+      correct_plan_eligibility: {
+        Args: { p_member_id: string }
+        Returns: {
+          block_amount: number | null
+          block_at: string | null
+          block_method: string | null
+          block_more: number | null
+          block_payment_id: string | null
+          block_refunded_amount: number | null
+          block_state: string | null
+          billing_interval: Database["public"]["Enums"]["billing_interval"]
+          duration_days: number | null
+          expiry_date: string | null
+          plan_id: string
+          plan_name: string
+          plan_type: Database["public"]["Enums"]["plan_type"]
+          price: number
+          start_date: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          subscription_id: string
+        }[]
+      }
+      correct_subscription_plan: {
+        Args: { p_member_id: string; p_new_plan_id: string; p_reason: string; p_subscription_id?: string }
+        Returns: {
+          expiry_date: string | null
+          plan_id: string
+          plan_name: string
+          plan_type: Database["public"]["Enums"]["plan_type"]
+          status: Database["public"]["Enums"]["subscription_status"]
+          subscription_id: string
+        }[]
+      }
       create_class: {
         Args: {
           p_capacity: number

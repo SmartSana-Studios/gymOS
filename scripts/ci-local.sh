@@ -123,6 +123,8 @@ stage_pgtap() {
   bash "$ROOT/scripts/session-refund-race.sh" || return 1
   # Member lock on every check-in, charging or not; a second scan must wait behind it (two real sessions; Story 27.2, NFR-021).
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/check-in-member-lock-race.sh" || return 1
+  # The plan correction against complete_verified_payment, confirm_renewal, the Tara initiation and the lifecycle job, both orders (two real sessions; Story 27.4, NFR-021).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/correct-plan-race.sh" || return 1
   # job-runs-alert.sql against fixtures (Epic 20 R-4).
   bash "$ROOT/scripts/job-runs-alert.test.sh" || return 1
   # Super Admin aal2 enable/reset operator scripts against fixtures on the local DB (Story 22.6).
