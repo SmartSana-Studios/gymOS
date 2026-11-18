@@ -15,6 +15,7 @@ import { AUDIT_ACTION_TYPE_LABEL_KEY } from "../auditLabels";
 import { exportAuditLogCsvAction } from "../actions";
 import { DisclosureRequestDialog } from "./DisclosureRequestDialog";
 import { DisclosureRequestsPanel } from "./DisclosureRequestsPanel";
+import { formatDayMonthYear } from "@/lib/dayMonth";
 
 function actionLabel(
   t: (key: string) => string,
@@ -75,6 +76,31 @@ function staffCheckInDetails(
     return at && typeof metadata.reason === "string" ? t("audit.staffCheckIn.voided", { time: at, reason: metadata.reason }) : null;
   }
   return null;
+}
+
+// Story 27.4 (UX AD-12 V1.8): "Annual → Monthly · 250,000 → 25,000 XAF · expires 02 Nov 2027 → 02 Dec 2026 · Reason: ..." -- both plans,
+// both prices, both expiries and the reason in the one row. A Pay-per-session side has no expiry ("no expiry"). Anything unexpected falls
+// back to the generic cell.
+function planCorrectionDetails(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  metadata: Record<string, unknown>,
+  locale: string,
+): string | null {
+  const { old_plan_name, new_plan_name, old_price, new_price, old_expiry_date, new_expiry_date, reason } = metadata;
+  if (typeof old_plan_name !== "string" || typeof new_plan_name !== "string" || typeof reason !== "string") return null;
+  if (typeof old_price !== "number" || typeof new_price !== "number") return null;
+  const date = (value: unknown): string => {
+    if (typeof value !== "string") return t("audit.planCorrection.noExpiry");
+    return formatDayMonthYear(value, locale);
+  };
+  return t("audit.planCorrection.details", {
+    oldPlan: old_plan_name,
+    newPlan: new_plan_name,
+    oldPrice: old_price.toLocaleString(locale),
+    newPrice: new_price.toLocaleString(locale),
+    expiry: t("audit.planCorrection.expiry", { old: date(old_expiry_date), new: date(new_expiry_date) }),
+    reason,
+  });
 }
 
 function formatTimestamp(iso: string, locale: string): string {
@@ -275,7 +301,9 @@ export function AuditLogPageClient({
                   <td className="p-3">{row.actorDisplayName}</td>
                   <td className="p-3">{actionLabel(t, row.actionType, row.metadata)}</td>
                   <td className="p-3">{targetLabel(row)}</td>
-                  <td className="p-3">{staffCheckInDetails(t, row.actionType, row.metadata, i18n.language) ?? detailsLabel(row.metadata)}</td>
+                  <td className="p-3">{staffCheckInDetails(t, row.actionType, row.metadata, i18n.language) ??
+                      (row.actionType === "subscription_plan_corrected" ? planCorrectionDetails(t, row.metadata, i18n.language) : null) ??
+                      detailsLabel(row.metadata)}</td>
                   {role === "owner" && (
                     <td className="p-3">
                       <Button variant="outline" size="sm" onClick={() => setAskAbout(row.id)}>

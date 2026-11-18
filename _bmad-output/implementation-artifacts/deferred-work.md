@@ -2146,3 +2146,15 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-27-2-one-check-in-insert-path.md`
   summary: `private.record_check_in` checks `private.current_gym_status()`, which resolves the gym from the session or the support proxy, not from `p_gym_id`; story 27.3 must prove or enforce that a support caller's resolved gym is the `p_gym_id` it passes.
   evidence: identical for a scan (the gym comes from the same session). Only the 27.3 `staff_check_in` support path can differ. Flagged in the spec Design Notes and `docs/decisions.md`; belongs in 27.3's acceptance criteria.
+
+## Deferred from: code review of spec-27-4-correct-plan-and-annual-plan-wording (2026-11-18)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-4-correct-plan-and-annual-plan-wording.md`
+  summary: A full `scripts/ci-local.sh` GREEN after the 27-4 review patches and an owner-run `supabase db reset` are still owed before epic/27 goes to master.
+  evidence: migration 0176 was applied by hand to the local DB; the implementer's green run predates the review patches that changed the migration, race script, tests and locales. Read the per-stage lines, not only the final GREEN.
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-4-correct-plan-and-annual-plan-wording.md`
+  summary: `renew_subscription` reads `deactivated_at` in its unlocked member lookup and takes the member lock afterwards, so a deactivation committed in between is not seen.
+  evidence: pre-existing shape from 0157 (no lock at all); 0176 adds the lock after the lookup. Fix when the function is next touched: one `select gym_id, deactivated_at ... for no key update`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-4-correct-plan-and-annual-plan-wording.md`
+  summary: `scripts/correct-plan-race.sh` uses fixed sleeps (0.6 s, 0.8 s against a 2 s hold, an `elapsed >= 1000` ms assert), a `pg_stat_activity` LIKE on query text, and greps `ERROR:  <code>`; medium, unverified.
+  evidence: not read in this review; older race scripts share the shape. Would settle it: run it ten times under CPU load and see whether a case flakes; if so poll for the blocked waiter and match SQLSTATE/detail.

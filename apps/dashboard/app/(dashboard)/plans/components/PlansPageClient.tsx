@@ -16,6 +16,7 @@ import type { PlanRow } from "@/services/plans";
 import { PlanModal } from "./PlanModal";
 import { deletePlan } from "../actions";
 import { PLAN_TYPE_LABEL_KEY } from "../planLabels";
+import { annualListLine } from "@/lib/planSummary";
 
 export function PlansPageClient({ initialPlans }: { initialPlans: PlanRow[] }) {
   const { t, i18n } = useTranslation();
@@ -95,28 +96,28 @@ export function PlansPageClient({ initialPlans }: { initialPlans: PlanRow[] }) {
     }
   }
 
-  // AC #2: the annual discount is "reflected," not just stored -- previously
-  // annualDiscountPercent was captured and persisted but never surfaced
-  // anywhere in the UI (Review finding). Appends the discount alongside the
-  // stored annual price rather than inventing an unspecified computed
-  // "effective monthly rate" -- the schema has no separate monthly-price
-  // field to derive one from (see this story's own Scope Note on `price`
-  // being the single stored amount for whichever billing interval is set).
+  // AD-23 (Story 27.4, FR-240): an annual plan reads "XAF 250,000 · 365 days · Paid once" -- the member pays the whole price once --
+  // with a muted second line when an annual discount is set. The monthly row keeps "XAF 25,000 / monthly" and the Pay-per-session row
+  // "XAF 2,000 / session" as shipped. Both numbers and "Paid once" come from the one plan summary helper (lib/planSummary.ts).
   function priceLabel(plan: PlanRow): string {
     const priceText = plan.price.toLocaleString(i18n.language);
     if (plan.planType === "pay_per_session") {
       return t("plans.pricePerSessionLabel", { price: priceText });
     }
-    const intervalLabel =
-      plan.billingInterval === "annual" ? t("plans.intervalAnnual") : t("plans.intervalMonthly");
-    const base = t("plans.priceLabel", {
+    return t("plans.priceLabel", {
       price: priceText,
-      interval: intervalLabel,
+      interval: t("plans.intervalMonthly"),
     });
-    if (plan.billingInterval === "annual" && plan.annualDiscountPercent !== null) {
-      return `${base} ${t("plans.discountSuffix", { percent: plan.annualDiscountPercent })}`;
-    }
-    return base;
+  }
+
+  function rowLine(plan: PlanRow): string {
+    return annualListLine(t, plan, i18n.language) ?? `${priceLabel(plan)} · ${durationLabel(plan)}`;
+  }
+
+  function discountLine(plan: PlanRow): string | null {
+    if (plan.planType === "pay_per_session" || plan.billingInterval !== "annual" || plan.annualDiscountPercent === null) return null;
+    if (plan.annualDiscountPercent <= 0) return null;
+    return t("plans.annual.discount", { percent: plan.annualDiscountPercent });
   }
 
   function durationLabel(plan: PlanRow): string {
@@ -148,9 +149,8 @@ export function PlansPageClient({ initialPlans }: { initialPlans: PlanRow[] }) {
                     {t(PLAN_TYPE_LABEL_KEY[plan.planType])}
                   </span>
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {priceLabel(plan)} · {durationLabel(plan)}
-                </p>
+                <p className="text-sm text-muted-foreground">{rowLine(plan)}</p>
+                {discountLine(plan) && <p className="text-xs text-muted-foreground">{discountLine(plan)}</p>}
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

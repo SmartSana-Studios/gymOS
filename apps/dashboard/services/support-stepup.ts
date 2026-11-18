@@ -24,7 +24,8 @@ export type SupportGrantAction =
   | "support_waive_registration_fee"
   | "support_create_staff"
   | "support_staff_check_in"
-  | "support_void_staff_check_in";
+  | "support_void_staff_check_in"
+  | "support_correct_plan";
 
 export type SupportCodeResult = { status: "verified"; userId: string } | { status: "invalid_code" | "unavailable" | "locked" };
 

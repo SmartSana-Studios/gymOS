@@ -12,26 +12,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let claimsResult: { data: { claims: Record<string, unknown> | null } | null; error: unknown };
-let subscriptionRow: { plans: { name: string; price: number; currency: string } | null; members: { phone: string | null } | null } | null;
+let selectArg = "";
+let subscriptionRow: { plans: { name: string; price: number; currency: string; plan_type?: string; duration_days?: number | null; billing_interval?: string } | null; members: { phone: string | null } | null } | null;
 let queryError: unknown;
 
 function makeSupabaseStub() {
+  const tail = {
+    order: vi.fn(() => ({
+      limit: vi.fn(() => ({
+        maybeSingle: vi.fn(async () => ({ data: subscriptionRow, error: queryError })),
+      })),
+    })),
+  };
   return {
     auth: {
       getClaims: vi.fn(async () => claimsResult),
     },
     from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(() => ({
-              limit: vi.fn(() => ({
-                maybeSingle: vi.fn(async () => ({ data: subscriptionRow, error: queryError })),
-              })),
-            })),
-          })),
-        })),
-      })),
+      select: vi.fn((columns: string) => {
+        selectArg = columns;
+        return { eq: vi.fn(() => ({ eq: vi.fn(() => tail) })) };
+      }),
     })),
   };
 }
@@ -100,5 +101,20 @@ describe("getRenewalPreview", () => {
 
     expect(result.data).toBeNull();
     expect(result.error?.code).toBe("not_found");
+  });
+
+  it("Story 27.4: the plan's type, duration and billing interval are selected and come out for the plan summary line", async () => {
+    subscriptionRow = {
+      plans: { name: "Annual", price: 250000, currency: "XAF", plan_type: "monthly", duration_days: 365, billing_interval: "annual" },
+      members: { phone: null },
+    };
+    const { getRenewalPreview } = await import("./subscriptions");
+
+    const result = await getRenewalPreview("member-1");
+
+    expect(selectArg).toContain("plan_type");
+    expect(selectArg).toContain("duration_days");
+    expect(selectArg).toContain("billing_interval");
+    expect(result.data).toMatchObject({ planName: "Annual", price: 250000, planType: "monthly", durationDays: 365, billingInterval: "annual" });
   });
 });

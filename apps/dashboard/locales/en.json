@@ -881,7 +881,6 @@
     "typeLocked": {
       "reason": "This plan has members, so its type can't be changed. Create a new plan instead."
     },
-    "discountSuffix": "({{percent}}% discount)",
     "intervalMonthly": "monthly",
     "intervalAnnual": "annual",
     "durationDaysLabel": "{{days}} days",
@@ -935,7 +934,21 @@
       "auditLogFailedEdit": "The plan was updated, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedDelete": "The plan was deleted, but the audit log entry failed to write. Please contact support."
     },
-    "actionsButton": "Action :"
+    "actionsButton": "Action :",
+    "annual": {
+      "summary": "{{price}} XAF · {{days}} days · Paid once",
+      "listLine": "XAF {{price}} · {{days}} days · Paid once",
+      "discount": "Includes {{percent}}% annual discount",
+      "modalHelp": "Members pay the full price once. The plan then runs for {{days}} days. Renewing is a new payment.",
+      "modalHelpNoDuration": "Members pay the full price once. The plan then runs for the duration below. Renewing is a new payment.",
+      "noInstalments": "To let members pay monthly, create a separate monthly plan. Paying an annual plan in instalments isn't available."
+    },
+    "summary": {
+      "monthly": "{{price}} XAF · {{days}} days",
+      "perSession": "{{price}} XAF / session",
+      "option": "{{name}} · {{summary}}",
+      "withName": "{{name}} ({{summary}})"
+    }
   },
   "classes": {
     "title": "Classes",
@@ -1303,6 +1316,58 @@
         "startDateInvalid": "Enter a valid start date",
         "assignFailed": "Could not assign the plan. Check your connection and try again."
       }
+    },
+    "subscriptionStarted": "Subscription started",
+    "correctPlan": {
+      "action": "Correct plan",
+      "title": "Correct plan",
+      "intro": "Use this when the wrong plan was chosen. It isn't a renewal: no payment is recorded, no notification is sent and no loyalty stamp is earned.",
+      "current": "Current plan",
+      "currentDetail": "Started {{start}} · Expires {{expiry}}",
+      "currentDetailNoExpiry": "Started {{start}}",
+      "checking": "Checking payments…",
+      "loadError": "Couldn't check this member's payments. Try again.",
+      "retry": "Retry",
+      "newPlan": {
+        "label": "New plan",
+        "placeholder": "Choose a plan"
+      },
+      "noOtherPlan": "There is no other plan to choose. Add a plan in Plans first.",
+      "noOtherPlanLink": "Open Plans",
+      "reason": {
+        "label": "Reason",
+        "placeholder": "For example: wrong plan chosen at sign-up",
+        "error": "Enter a reason (at least 5 characters).",
+        "count": "{{count}} / 300"
+      },
+      "rule": "The new expiry is counted from the start date ({{date}}), not from today.",
+      "appNote": "{{name}}'s app shows the new plan the next time it opens.",
+      "feeNote": "The registration fee is not affected.",
+      "confirm": "Correct plan",
+      "confirming": "Correcting…",
+      "success": "Plan corrected. {{name}} is now on {{plan}}; expires {{date}} · {{status}}.",
+      "successExpired": "Plan corrected. {{name}} is now on {{plan}}. The new expiry, {{date}}, is already past: the membership is expired.",
+      "successPps": "Plan corrected. {{name}} is now on {{plan}}.",
+      "blocked": {
+        "lead": "Can't correct the plan yet.",
+        "verified": "The payment of {{amount}} XAF on {{date}} ({{method}}) is still recorded. Refund it fully first, then correct the plan.",
+        "pending": "The payment of {{amount}} XAF on {{date}} ({{method}}) is awaiting verification. Refund it fully first, or wait until it settles, then correct the plan.",
+        "inFlight": "The mobile money payment of {{amount}} XAF started on {{date}} is still in progress. Wait for it to settle. If it goes through, refund it fully, then correct the plan.",
+        "partlyRefunded": "The payment of {{amount}} XAF on {{date}} ({{method}}) is only partly refunded ({{refunded}} XAF of {{amount}} XAF). Refund the rest first, then correct the plan.",
+        "more_one": "+ {{count}} more payment on this plan is still recorded.",
+        "more_other": "+ {{count}} more payments on this plan are still recorded.",
+        "open": "Open payments"
+      },
+      "refused": {
+        "sessionHeld": "Can't move {{name}} to or from Pay-per-session while an unused paid session is held. Refund it first, or wait until it is used or lapses ({{date}}).",
+        "samePlan": "{{name}} is already on this plan.",
+        "noSubscription": "{{name}} has no current plan to correct.",
+        "planGone": "That plan is no longer available. Choose another.",
+        "changed": "This member's plan changed while you were working. Close this window and open the member again."
+      },
+      "network": "Couldn't correct the plan. Check your connection and try again.",
+      "permissionDenied": "You don't have permission to do that.",
+      "supportAbout": "You're about to: Correct plan for {{name}}"
     }
   },
   "subscriptions": {
@@ -1972,7 +2037,8 @@
       "auditDisclosureAnswered": "Disclosure request answered",
       "staffCheckIn": "Member checked in by staff",
       "staffCheckInRejected": "Staff check-in not accepted",
-      "staffCheckInVoided": "Staff check-in voided"
+      "staffCheckInVoided": "Staff check-in voided",
+      "planCorrected": "Plan corrected"
     },
     "disclosure": {
       "title": "Questions about this log",
@@ -2005,6 +2071,11 @@
         "no_plan": "No plan assigned"
       },
       "voided": "Entry at {{time}} · Reason: {{reason}}"
+    },
+    "planCorrection": {
+      "details": "{{oldPlan}} → {{newPlan}} · {{oldPrice}} → {{newPrice}} XAF · {{expiry}} · Reason: {{reason}}",
+      "expiry": "expires {{old}} → {{new}}",
+      "noExpiry": "no expiry"
     }
   },
   "saasBilling": {

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { type AppError } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
-import { type MemberListRow, type MemberRowFromDb, getCallerGymId, memberNotFoundError, toMemberListRow } from "./members.shared";
+import { MEMBER_SUBSCRIPTION_EMBED, type MemberListRow, type MemberRowFromDb, getCallerGymId, memberNotFoundError, toMemberListRow } from "./members.shared";
 
 // Read-only member detail: the registration-fee state and the single list row (split out of members.ts,
 // Epic 20 retro G-2). members.ts re-exports the public names.
@@ -179,12 +179,13 @@ export async function getMemberListRow(
   const { data, error } = await supabase
     .from("members")
     .select(
-      "id, name, phone, email, dob, photo_url, emergency_contact, birth_year, profession, neighborhood, join_date, deactivated_at, registration_fee_settled_at, subscriptions(status, expiry_date, plan_id, created_at, plans(name, plan_type))",
+      `id, name, phone, email, dob, photo_url, emergency_contact, birth_year, profession, neighborhood, join_date, deactivated_at, registration_fee_settled_at, subscriptions(${MEMBER_SUBSCRIPTION_EMBED})`,
     )
     .eq("gym_id", gymId)
     .eq("role", "member")
     .eq("id", memberId)
     .order("created_at", { referencedTable: "subscriptions", ascending: false })
+    .order("id", { referencedTable: "subscriptions", ascending: false })
     .limit(1, { referencedTable: "subscriptions" })
     .maybeSingle();
 

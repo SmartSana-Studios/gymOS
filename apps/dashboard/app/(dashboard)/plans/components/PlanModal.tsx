@@ -133,6 +133,9 @@ export function PlanModal({
     form.price.trim() !== "" &&
     Number(form.price) !== editingPlan.price;
   const isAnnual = form.billingInterval === "annual";
+  // FR-240: the helper under an annual interval names the duration the owner typed ("runs for [D] days"); until it is a positive whole
+  // number it says "for the duration below". Switching the interval never touches the Duration field.
+  const annualDays = /^\d+$/.test(form.durationDays.trim()) && Number(form.durationDays) > 0 ? Number(form.durationDays) : null;
 
   function resetAndClose() {
     onClose();
@@ -403,6 +406,16 @@ export function PlanModal({
           </select>
           {fieldErrors.billingInterval && (
             <p className="text-sm text-red-600">{fieldErrors.billingInterval}</p>
+          )}
+          {isAnnual && (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>
+                {annualDays !== null
+                  ? t("plans.annual.modalHelp", { days: annualDays })
+                  : t("plans.annual.modalHelpNoDuration")}
+              </p>
+              <p>{t("plans.annual.noInstalments")}</p>
+            </div>
           )}
         </div>
 

@@ -71,15 +71,29 @@ export interface MemberListRow {
   /** Story 18.5: `members.registration_fee_settled_at`. Null on a role=member
    * row means the registration fee is still owed (awaiting). */
   registrationFeeSettledAt: string | null;
+  // Story 27.4 (Correct plan, the plan summary line, "Subscription started"): the current subscription's own id and start date and the
+  // plan's price, duration and billing interval. Optional so a row built without them (a test fixture, a caller that never read the
+  // embed) stays valid; `toMemberListRow` always sets them, null when the member has no current subscription.
+  subscriptionId?: string | null;
+  subscriptionStartDate?: string | null;
+  planPrice?: number | null;
+  planDurationDays?: number | null;
+  planBillingInterval?: string | null;
 }
 
 interface MemberSubscriptionEmbed {
+  id?: string;
   status: MemberSubscriptionStatus;
   expiry_date: string | null;
+  start_date?: string;
   plan_id: string;
   created_at: string;
-  plans: { name: string; plan_type: string } | null;
+  plans: { name: string; plan_type: string; price?: number; duration_days?: number | null; billing_interval?: string } | null;
 }
+
+/** The subscriptions embed of every member read that builds a `MemberListRow` (the newest row only is kept by the caller's ordering). */
+export const MEMBER_SUBSCRIPTION_EMBED =
+  "id, status, expiry_date, start_date, plan_id, created_at, plans(name, plan_type, price, duration_days, billing_interval)";
 
 export interface MemberRowFromDb {
   id: string;
@@ -124,6 +138,11 @@ export function toMemberListRow(row: MemberRowFromDb): MemberListRow {
     joinDate: row.join_date,
     deactivatedAt: row.deactivated_at,
     registrationFeeSettledAt: row.registration_fee_settled_at ?? null,
+    subscriptionId: sub?.id ?? null,
+    subscriptionStartDate: sub?.start_date ?? null,
+    planPrice: sub?.plans?.price ?? null,
+    planDurationDays: sub?.plans?.duration_days ?? null,
+    planBillingInterval: sub?.plans?.billing_interval ?? null,
   };
 }
 

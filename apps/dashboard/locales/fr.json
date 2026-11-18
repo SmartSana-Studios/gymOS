@@ -881,7 +881,6 @@
     "typeLocked": {
       "reason": "Cette formule a des membres : son type ne peut pas être modifié. Créez plutôt une nouvelle formule."
     },
-    "discountSuffix": "(remise de {{percent}} %)",
     "intervalMonthly": "mensuel",
     "intervalAnnual": "annuel",
     "durationDaysLabel": "{{days}} jours",
@@ -935,7 +934,21 @@
       "auditLogFailedEdit": "La formule a été modifiée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedDelete": "La formule a été supprimée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
     },
-    "actionsButton": "Action :"
+    "actionsButton": "Action :",
+    "annual": {
+      "summary": "{{price}} XAF · {{days}} jours · Payé en une fois",
+      "listLine": "{{price}} XAF · {{days}} jours · Payé en une fois",
+      "discount": "Dont {{percent}} % de remise annuelle",
+      "modalHelp": "Les membres paient le prix complet en une fois. La formule dure ensuite {{days}} jours. Le renouvellement est un nouveau paiement.",
+      "modalHelpNoDuration": "Les membres paient le prix complet en une fois. La formule dure ensuite la durée indiquée ci-dessous. Le renouvellement est un nouveau paiement.",
+      "noInstalments": "Pour un paiement mensuel, créez une formule mensuelle distincte. Le paiement d'une formule annuelle en plusieurs fois n'est pas disponible."
+    },
+    "summary": {
+      "monthly": "{{price}} XAF · {{days}} jours",
+      "perSession": "{{price}} XAF / séance",
+      "option": "{{name}} · {{summary}}",
+      "withName": "{{name}} ({{summary}})"
+    }
   },
   "classes": {
     "title": "Cours",
@@ -1303,6 +1316,58 @@
         "startDateInvalid": "Saisissez une date de début valide",
         "assignFailed": "Impossible d'attribuer la formule. Vérifiez votre connexion et réessayez."
       }
+    },
+    "subscriptionStarted": "Abonnement débuté le",
+    "correctPlan": {
+      "action": "Corriger la formule",
+      "title": "Corriger la formule",
+      "intro": "À utiliser lorsque la mauvaise formule a été choisie. Ce n'est pas un renouvellement : aucun paiement n'est enregistré, aucune notification n'est envoyée et aucun tampon de fidélité n'est gagné.",
+      "current": "Formule actuelle",
+      "currentDetail": "Débutée le {{start}} · Expire le {{expiry}}",
+      "currentDetailNoExpiry": "Débutée le {{start}}",
+      "checking": "Vérification des paiements…",
+      "loadError": "Impossible de vérifier les paiements de ce membre. Réessayez.",
+      "retry": "Réessayer",
+      "newPlan": {
+        "label": "Nouvelle formule",
+        "placeholder": "Choisissez une formule"
+      },
+      "noOtherPlan": "Il n'y a pas d'autre formule à choisir. Ajoutez d'abord une formule dans Formules.",
+      "noOtherPlanLink": "Ouvrir Formules",
+      "reason": {
+        "label": "Motif",
+        "placeholder": "Par exemple : mauvaise formule choisie à l'inscription",
+        "error": "Saisissez un motif (au moins 5 caractères).",
+        "count": "{{count}} / 300"
+      },
+      "rule": "La nouvelle date d'expiration est calculée à partir de la date de début ({{date}}), pas d'aujourd'hui.",
+      "appNote": "L'application de {{name}} affichera la nouvelle formule à sa prochaine ouverture.",
+      "feeNote": "Les frais d'inscription ne sont pas modifiés.",
+      "confirm": "Corriger la formule",
+      "confirming": "Correction…",
+      "success": "Formule corrigée. {{name}} est maintenant sur {{plan}} ; expire le {{date}} · {{status}}.",
+      "successExpired": "Formule corrigée. {{name}} est maintenant sur {{plan}}. La nouvelle date d'expiration, le {{date}}, est déjà passée : l'adhésion est expirée.",
+      "successPps": "Formule corrigée. {{name}} est maintenant sur {{plan}}.",
+      "blocked": {
+        "lead": "Impossible de corriger la formule pour le moment.",
+        "verified": "Le paiement de {{amount}} XAF du {{date}} ({{method}}) est toujours enregistré. Remboursez-le intégralement d'abord, puis corrigez la formule.",
+        "pending": "Le paiement de {{amount}} XAF du {{date}} ({{method}}) attend sa vérification. Remboursez-le intégralement d'abord, ou attendez son règlement, puis corrigez la formule.",
+        "inFlight": "Le paiement mobile money de {{amount}} XAF commencé le {{date}} est en cours. Attendez son règlement. S'il aboutit, remboursez-le intégralement, puis corrigez la formule.",
+        "partlyRefunded": "Le paiement de {{amount}} XAF du {{date}} ({{method}}) n'est remboursé qu'en partie ({{refunded}} XAF sur {{amount}} XAF). Remboursez le reste d'abord, puis corrigez la formule.",
+        "more_one": "+ {{count}} autre paiement de cette formule est encore enregistré.",
+        "more_other": "+ {{count}} autres paiements de cette formule sont encore enregistrés.",
+        "open": "Ouvrir les paiements"
+      },
+      "refused": {
+        "sessionHeld": "Impossible de faire passer {{name}} vers ou depuis Paiement à la séance tant qu'une séance payée non utilisée est détenue. Remboursez-la d'abord, ou attendez qu'elle soit utilisée ou expire (le {{date}}).",
+        "samePlan": "{{name}} a déjà cette formule.",
+        "noSubscription": "{{name}} n'a pas de formule en cours à corriger.",
+        "planGone": "Cette formule n'est plus disponible. Choisissez-en une autre.",
+        "changed": "La formule de ce membre a changé pendant votre saisie. Fermez cette fenêtre et rouvrez le membre."
+      },
+      "network": "Impossible de corriger la formule. Vérifiez votre connexion et réessayez.",
+      "permissionDenied": "Vous n'avez pas l'autorisation de faire cela.",
+      "supportAbout": "Vous allez : corriger la formule de {{name}}"
     }
   },
   "subscriptions": {
@@ -1972,7 +2037,8 @@
       "auditDisclosureAnswered": "Demande d'information traitée",
       "staffCheckIn": "Arrivée d'un membre enregistrée par le personnel",
       "staffCheckInRejected": "Arrivée par le personnel refusée",
-      "staffCheckInVoided": "Arrivée par le personnel annulée"
+      "staffCheckInVoided": "Arrivée par le personnel annulée",
+      "planCorrected": "Formule corrigée"
     },
     "disclosure": {
       "title": "Questions sur ce journal",
@@ -2005,6 +2071,11 @@
         "no_plan": "Aucune formule attribuée"
       },
       "voided": "Arrivée de {{time}} · Motif : {{reason}}"
+    },
+    "planCorrection": {
+      "details": "{{oldPlan}} → {{newPlan}} · {{oldPrice}} → {{newPrice}} XAF · {{expiry}} · Motif : {{reason}}",
+      "expiry": "expire le {{old}} → {{new}}",
+      "noExpiry": "sans expiration"
     }
   },
   "saasBilling": {

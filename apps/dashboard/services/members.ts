@@ -3,7 +3,7 @@ import { type AppError, parsePageSize } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
-import { MEMBERS_PAGE_SIZE, type MemberListRow, type MemberRowFromDb, applyMemberFilters, getCallerGymId, memberNotFoundError, toMemberListRow, usesSubscriptionInnerJoin } from "./members.shared";
+import { MEMBERS_PAGE_SIZE, MEMBER_SUBSCRIPTION_EMBED, type MemberListRow, type MemberRowFromDb, applyMemberFilters, getCallerGymId, memberNotFoundError, toMemberListRow, usesSubscriptionInnerJoin } from "./members.shared";
 
 /** Joins `members` to its most recent `subscriptions` row (order+limit on
  * the embedded resource) and to `plans.name`. A specific subscription-status
@@ -32,8 +32,8 @@ export async function listMembers(params: {
 
   const useInnerJoin = usesSubscriptionInnerJoin(params.status);
   const subscriptionsSelect = useInnerJoin
-    ? "subscriptions!inner(status, expiry_date, plan_id, created_at, plans(name, plan_type))"
-    : "subscriptions(status, expiry_date, plan_id, created_at, plans(name, plan_type))";
+    ? `subscriptions!inner(${MEMBER_SUBSCRIPTION_EMBED})`
+    : `subscriptions(${MEMBER_SUBSCRIPTION_EMBED})`;
 
   let query = supabase
     .from("members")
@@ -45,6 +45,7 @@ export async function listMembers(params: {
     .eq("role", "member")
     .order("name", { ascending: true })
     .order("created_at", { referencedTable: "subscriptions", ascending: false })
+    .order("id", { referencedTable: "subscriptions", ascending: false })
     .limit(1, { referencedTable: "subscriptions" });
 
   query = applyMemberFilters(query, params);

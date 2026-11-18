@@ -90,7 +90,7 @@ select private.support_set_membership('00000000-0000-0000-0000-000000236401', tr
 -- ============================================================================================================
 -- A. catalog
 -- ============================================================================================================
-select is((select count(*)::int from private.support_capabilities), 46, 'the allow-list holds 46 objects (21 policies, 25 RPCs): a change is deliberate (24.8 added publish_gym_page and unpublish_gym_page, 24.9 get_gym_page_status, 25.1 set_gym_location, 27.3 staff_check_in, void_staff_check_in and list_attendance_log)');
+select is((select count(*)::int from private.support_capabilities), 48, 'the allow-list holds 48 objects (21 policies, 27 RPCs): a change is deliberate (24.8 added publish_gym_page and unpublish_gym_page, 24.9 get_gym_page_status, 25.1 set_gym_location, 27.3 staff_check_in, void_staff_check_in and list_attendance_log, 27.4 correct_plan_eligibility and correct_subscription_plan)');
 select is(has_table_privilege('authenticated', 'private.support_capabilities', 'select') or has_table_privilege('anon', 'private.support_capabilities', 'select'),
           false, 'support_capabilities is not readable by clients');
 select is((select count(*)::int from private.support_capabilities c
@@ -196,7 +196,9 @@ insert into cls (kind, name, support) values
   ('function', 'waive_registration_fee', 'includes'),
   ('function', 'list_attendance_log', 'includes'),
   ('function', 'staff_check_in', 'includes'),
-  ('function', 'void_staff_check_in', 'includes');
+  ('function', 'void_staff_check_in', 'includes'),
+  ('function', 'correct_plan_eligibility', 'includes'),
+  ('function', 'correct_subscription_plan', 'includes');
 create temp table found_sup as
   select 'policy'::text as kind, p.tablename || '.' || p.policyname as name from pg_policies p
    where coalesce(p.qual, '') || coalesce(p.with_check, '') like '%''supervisor''%'
