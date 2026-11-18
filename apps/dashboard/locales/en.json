@@ -1530,7 +1530,8 @@
       "checkOut": "Check-out",
       "duration": "Duration",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "entry": "Entry"
     },
     "durationOpen": "Open",
     "durationFormat": "{{hours}}h {{minutes}}m",
@@ -1544,7 +1545,113 @@
       "checkingOut": "Checking out…"
     },
     "dateFrom": "From",
-    "dateTo": "To"
+    "dateTo": "To",
+    "checkIn": {
+      "action": "Check in a member",
+      "title": "Check in a member",
+      "close": "Close",
+      "intro": "For a member who can't use their phone at the entrance.",
+      "search": {
+        "label": "Find a member by name or phone",
+        "hint": "Type at least 2 letters or 3 digits.",
+        "none": "No member matches \"{{term}}\". Check the spelling, or search by phone.",
+        "more": "Showing the first 8. Type more to narrow the list.",
+        "error": "Couldn't search members. Try again.",
+        "retry": "Retry",
+        "clear": "Clear search",
+        "count": "{{count}} members found",
+        "loading": "Searching…",
+        "results": "Members found"
+      },
+      "row": {
+        "inside": "In the gym since {{time}}",
+        "noPlan": "No plan"
+      },
+      "entryTime": "Entry time: now ({{time}}). It can't be changed.",
+      "confirm": "Check in {{name}}",
+      "checkingIn": "Checking in…",
+      "ok": "{{name}} is checked in at {{time}}.",
+      "okExpiring": "Checked in at {{time}}. {{name}}'s membership expires on {{date}}.",
+      "okGrace": "Checked in at {{time}}. {{name}}'s membership expired on {{date}}; the grace period ends on {{graceDate}}.",
+      "renewNow": "Renew now",
+      "rejectedExpired": "Not checked in. {{name}}'s membership expired {{days}} days ago.",
+      "rejectedExpiredOne": "Not checked in. {{name}}'s membership expired 1 day ago.",
+      "rejectedExpiredToday": "Not checked in. {{name}}'s membership expired today.",
+      "rejectedExpiredHelp": "Renew the membership to let them in.",
+      "renewedDone": "Membership renewed. {{name}} is checked in at {{time}}.",
+      "sessionNeeded": "{{name}} has no paid session.",
+      "sessionNeededHelp": "Record {{amount}} XAF at the desk and {{name}} is checked in straight away.",
+      "recordAndCheckIn": "Record payment and check in",
+      "sessionDone": "Session recorded. {{name}} is checked in at {{time}}.",
+      "alreadyIn": "{{name}} is already checked in (since {{time}}).",
+      "alreadyInHelp": "See the list under the modal.",
+      "refused": {
+        "deactivated": "{{name}} is deactivated. Reactivate them first.",
+        "awaitingFee": "Settle {{name}}'s registration fee first.",
+        "noPlan": "{{name}} has no plan yet. Assign a plan first.",
+        "suspendedGym": "Check-ins can't be recorded while the gym is suspended.",
+        "notFound": "This member could not be found. Search again."
+      },
+      "partialSession": "The session for {{name}} was recorded, but the check-in didn't complete. Try again. Nothing is charged twice.",
+      "partialRenewal": "{{name}}'s renewal was recorded, but the check-in didn't complete. Try again. Nothing is charged twice.",
+      "network": "Couldn't check in {{name}}. Check your connection and try again.",
+      "networkHint": "Not sure it went through? Search for {{name}} again: a member who is in shows \"In the gym since…\".",
+      "offline": "You're offline — you can't check anyone in right now.",
+      "another": "Check in another member",
+      "done": "Done",
+      "openMember": "Open {{name}}",
+      "supportAbout": "You're about to: Check in {{name}}",
+      "resultLabel": {
+        "success": "Checked in",
+        "warning": "Checked in with a warning",
+        "rejected": "Not checked in",
+        "payment": "Payment needed",
+        "already": "Already checked in",
+        "refused": "Not checked in",
+        "suspended": "Gym suspended",
+        "partial": "Partly done"
+      }
+    },
+    "log": {
+      "entry": "Entry",
+      "entryScan": "QR scan",
+      "byStaff": "By staff",
+      "byStaffName": "By staff · {{name}}",
+      "entryAria": "Checked in by staff, {{name}}",
+      "voided": "Voided",
+      "voidedDetail": "Voided by {{name}} on {{date}} at {{time}}. Reason: {{reason}}"
+    },
+    "void": {
+      "action": "Void",
+      "actionAria": "Void the check-in of {{name}} at {{time}}",
+      "title": "Void this check-in?",
+      "close": "Close",
+      "body": "{{name}}'s check-in at {{time}} was entered by staff. Voiding it removes the visit: it stops counting for occupancy, streaks, rank and the gym challenge.",
+      "sessionBack": "The paid session this check-in used is given back to {{name}}.",
+      "sessionBackFree": "The free session this check-in used is given back to {{name}}.",
+      "paymentStays": "The payment stays on record. Refund it in Payments if you need to.",
+      "stampRemoved": "The loyalty stamp it earned is removed.",
+      "reason": {
+        "label": "Reason for voiding",
+        "placeholder": "For example: wrong member selected",
+        "error": "Enter a reason (at least 5 characters).",
+        "count": "{{count}} / 300"
+      },
+      "supportAbout": "You're about to: Void the check-in of {{name}}",
+      "keep": "Keep check-in",
+      "confirm": "Void check-in",
+      "voiding": "Voiding…",
+      "success": "Check-in voided. {{name}} is no longer counted as in the gym.",
+      "refused": {
+        "laterVisit": "Can't void this check-in: {{name}}'s later visit today relies on the same paid session.",
+        "laterVisitStaff": "Void the later check-in first.",
+        "notToday": "A check-in can only be voided on the day it was entered.",
+        "already": "This check-in was already voided.",
+        "notStaff": "Only check-ins entered by staff can be voided.",
+        "notFound": "This check-in could not be found."
+      },
+      "network": "Couldn't void the check-in. Check your connection and try again."
+    }
   },
   "payments": {
     "tabs": {
@@ -1862,7 +1969,10 @@
       "gymosSupportAccessEnded": "GymOS Support access ended",
       "gymosSupportAccessResumed": "GymOS Support access resumed",
       "auditDisclosureRequested": "Disclosure request filed",
-      "auditDisclosureAnswered": "Disclosure request answered"
+      "auditDisclosureAnswered": "Disclosure request answered",
+      "staffCheckIn": "Member checked in by staff",
+      "staffCheckInRejected": "Staff check-in not accepted",
+      "staffCheckInVoided": "Staff check-in voided"
     },
     "disclosure": {
       "title": "Questions about this log",
@@ -1883,6 +1993,18 @@
         "notFound": "That entry could not be found.",
         "alreadyOpen": "You already have an open question about this entry."
       }
+    },
+    "staffCheckIn": {
+      "checkedIn": "{{time}} · Checked in",
+      "checkedInWarning": "{{time}} · Checked in with a warning",
+      "reason": {
+        "expired": "Membership expired",
+        "no_paid_session": "No paid session",
+        "deactivated": "Member deactivated",
+        "registration_fee_due": "Registration fee not settled",
+        "no_plan": "No plan assigned"
+      },
+      "voided": "Entry at {{time}} · Reason: {{reason}}"
     }
   },
   "saasBilling": {
@@ -1971,7 +2093,8 @@
     },
     "source": {
       "check_in": "Check-in",
-      "class": "Class attendance"
+      "class": "Class attendance",
+      "desk": "Desk check-in"
     },
     "status": {
       "available": "Available",

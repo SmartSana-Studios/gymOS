@@ -701,6 +701,7 @@ export type Database = {
       guest_sessions: {
         Row: {
           consumed_at: string | null
+          covered_attendance_id: string | null
           covered_day: string | null
           created_at: string
           gym_id: string
@@ -714,6 +715,7 @@ export type Database = {
         }
         Insert: {
           consumed_at?: string | null
+          covered_attendance_id?: string | null
           covered_day?: string | null
           created_at?: string
           gym_id: string
@@ -726,6 +728,7 @@ export type Database = {
         }
         Update: {
           consumed_at?: string | null
+          covered_attendance_id?: string | null
           covered_day?: string | null
           created_at?: string
           gym_id?: string
@@ -737,6 +740,12 @@ export type Database = {
           voided_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "guest_sessions_covered_attendance_id_fkey"
+            columns: ["covered_attendance_id"]
+            referencedRelation: "attendance_events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "guest_sessions_gym_id_fkey"
             columns: ["gym_id"]
@@ -3140,6 +3149,20 @@ export type Database = {
         Returns: { assignment_id: string | null; code: string; ok: boolean }[]
       }
       record_support_factor_reset_run: { Args: { p_done: number; p_failed: number; p_started_at?: string }; Returns: undefined }
+      staff_check_in: {
+        Args: { p_member_id: string }
+        Returns: {
+          attendance_id: string | null
+          checked_in_at: string | null
+          days_since_expiry: number | null
+          expiry_date: string | null
+          grace_ends_on: string | null
+          member_status: Database["public"]["Enums"]["subscription_status"] | null
+          outcome: string
+          session_amount: number | null
+          since: string | null
+        }[]
+      }
       start_support_factor_reset: {
         Args: { p_cancel_link: string; p_cancel_token: string; p_identity_note: string; p_user_id: string }
         Returns: { code: string; executes_at: string | null; ok: boolean; reset_id: string | null }[]
@@ -3282,6 +3305,27 @@ export type Database = {
           description: string
           my_booking_id: string
           scheduled_at: string
+        }[]
+      }
+      list_attendance_log: {
+        Args: { p_from: string; p_member_id?: string; p_to: string }
+        Returns: {
+          attendance_id: string
+          checked_in_at: string
+          checked_out_at: string | null
+          checkout_type: string | null
+          consumed_session: boolean | null
+          consumed_session_paid: boolean | null
+          earned_stamp: boolean | null
+          entered_by_label: string | null
+          member_id: string
+          member_name: string
+          source: string
+          visit_day: string
+          void_reason: string | null
+          voidable: boolean
+          voided_at: string | null
+          voided_by_label: string | null
         }[]
       }
       list_free_guest_sessions: {
@@ -3772,6 +3816,17 @@ export type Database = {
       update_workout_plan: {
         Args: { p_exercises: Json; p_name: string; p_plan_id: string }
         Returns: undefined
+      }
+      void_staff_check_in: {
+        Args: { p_attendance_id: string; p_reason: string }
+        Returns: {
+          attendance_id: string | null
+          later_is_staff_entry: boolean | null
+          outcome: string
+          session_released: boolean | null
+          stamp_removed: boolean | null
+          voided_at: string | null
+        }[]
       }
       void_registration_fee_payment: {
         Args: { p_payment_id: string; p_reason: string }

@@ -230,10 +230,10 @@ create temp table cgs as
 select is((select array_agg(distinct name order by name) from cgs),
           array['add_session_note', 'assign_coach', 'book_class_session', 'cancel_class_booking', 'check_out', 'check_out_member', 'claim_page_name', 'confirm_renewal',
                 'create_class', 'create_staff_member', 'create_workout_plan', 'deactivate_staff_member', 'delete_page_media', 'edit_session_note', 'effective_loyalty',
-                'file_audit_disclosure_request', 'initiate_member_payment', 'initiate_registration_fee_payment', 'initiate_session_payment', 'list_my_class_session_roster',
+                'file_audit_disclosure_request', 'initiate_member_payment', 'initiate_registration_fee_payment', 'initiate_session_payment', 'list_attendance_log', 'list_my_class_session_roster',
                 'list_my_classes', 'mark_class_attendance', 'materialize_class_sessions', 'publish_gym_page', 'record_check_in', 'record_registration_fee', 'record_session_payment', 'register_page_media', 'renew_subscription',
-                'set_guest_charging', 'set_gym_location', 'set_gym_page_content', 'set_loyalty_program', 'set_registration_fee', 'support_connect_gym_payment_credentials', 'take_ownership_of_workout_plan',
-                'update_class', 'update_plan_pricing', 'update_staff_role', 'update_workout_plan', 'void_registration_fee_payment', 'waive_registration_fee']::text[],
+                'set_guest_charging', 'set_gym_location', 'set_gym_page_content', 'set_loyalty_program', 'set_registration_fee', 'staff_check_in', 'support_connect_gym_payment_credentials', 'take_ownership_of_workout_plan',
+                'update_class', 'update_plan_pricing', 'update_staff_role', 'update_workout_plan', 'void_registration_fee_payment', 'void_staff_check_in', 'waive_registration_fee']::text[],
           'E1 the callers of current_gym_status() are exactly the listed functions (a new caller must be added here deliberately)');
 select is((select count(*)::int from cgs where role_at is not null and role_at > st), 0,
           'E2 every caller with a role check runs it BEFORE the suspension check (a wrong role never learns the gym state)');
@@ -260,8 +260,8 @@ create temp table reach_actions as
   select distinct m[1] as action_type, proname from reach, regexp_matches(prosrc, '(?:p_action_type\s*=>|log_audit_event\(\s*)\s*''([a-z_]+)''', 'g') m;
 select ok((select count(distinct action_type) from reach_actions) >= 18, 'E4 the scan is not vacuous: it finds the audit actions of the allow-listed RPCs and their triggers');
 select is((select array_agg(distinct action_type order by action_type) from reach_actions where action_type not in (select action_type from private.support_audit_actions)),
-          array['platform_session_config_updated', 'session_attempt_blocked', 'session_consumed']::text[],
-          'E5 every audit action reachable from an allow-listed RPC is in support_audit_actions, except three that no support capability triggers (platform config trigger, check-in session triggers)');
+          array['platform_session_config_updated']::text[],
+          'E5 every audit action reachable from an allow-listed RPC is in support_audit_actions, except the one that no support capability triggers (the platform config trigger; since 27.3 the check-in session triggers session_consumed and session_attempt_blocked fire inside staff_check_in and are listed)');
 select is((select count(*)::int from reach_actions r join private.support_capabilities c on c.kind = 'rpc' and c.object_name = r.proname
             where r.action_type not in (select action_type from private.support_audit_actions)), 0,
           'E6 no allow-listed RPC itself writes an action type missing from the allow-list');

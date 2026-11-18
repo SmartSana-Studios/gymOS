@@ -9,7 +9,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000002701xx.
 
 begin;
-select plan(81);
+select plan(83);
 
 -- ============================================================================
 -- Fixtures
@@ -493,6 +493,10 @@ create function pg_temp.attendance_readers_outside_list() returns setof text lan
     'function check_out_member(uuid)',
     -- the auto-timeout job closes stale open rows
     'function run_check_in_auto_timeout_job()',
+    -- 27.3 (0175): the Daily Log read (it must return voided rows, which the 0173 policies hide) and the same-day void (the one updater
+    -- that sets the void columns). staff_check_in reads no attendance table itself: it calls private.record_check_in.
+    'function list_attendance_log(timestamp with time zone,timestamp with time zone,uuid)',
+    'function void_staff_check_in(uuid,text)',
     -- the protected counting view; member_visit_days reads this view, not the table, so it is not listed
     'view public.attendance_counted',
     -- the two SELECT policies (voided rows hidden) and the RESTRICTIVE tenant gate, all on the table itself
@@ -514,11 +518,12 @@ select is(
   (select count(*)::int from (
      select p.oid from pg_proc p
      where p.oid::regprocedure::text in ('check_in(timestamp with time zone,uuid)', 'private.record_check_in(uuid,uuid,text,uuid,timestamp with time zone,uuid)',
-                                          'check_out()', 'check_out_member(uuid)', 'run_check_in_auto_timeout_job()')
+                                          'check_out()', 'check_out_member(uuid)', 'run_check_in_auto_timeout_job()',
+                                          'list_attendance_log(timestamp with time zone,timestamp with time zone,uuid)', 'void_staff_check_in(uuid,text)')
        and p.prokind in ('f', 'p')
        and (case when p.prokind in ('f', 'p') then pg_get_functiondef(p.oid) end) ~ '\mattendance_events\M') q),
-  5,
-  'the five committed function readers exist and still mention attendance_events'
+  7,
+  'the seven committed function readers exist and still mention attendance_events'
 );
 
 -- ----------------------------------------------------------------------------
@@ -537,8 +542,27 @@ select is(
   'exactly one function inserts into attendance_events: private.record_check_in');
 select is(
   pg_temp.attendance_writers('update'),
-  array['check_out()', 'check_out_member(uuid)', 'private.record_check_in(uuid,uuid,text,uuid,timestamp with time zone,uuid)', 'run_check_in_auto_timeout_job()'],
-  'the updaters of attendance_events are exactly check_out, check_out_member, run_check_in_auto_timeout_job and record_check_in (the stale branch); 27.3 adds void_staff_check_in');
+  array['check_out()', 'check_out_member(uuid)', 'private.record_check_in(uuid,uuid,text,uuid,timestamp with time zone,uuid)', 'run_check_in_auto_timeout_job()', 'void_staff_check_in(uuid,text)'],
+  'the updaters of attendance_events are exactly check_out, check_out_member, run_check_in_auto_timeout_job, record_check_in (the stale branch) and void_staff_check_in (27.3)');
+
+-- ----------------------------------------------------------------------------
+-- (11c) Story 27.3: a voided open row can sit beside a live one (0174), so every function that reads the open row from the base table
+-- must also say "voided_at is null". Functions that count through attendance_counted are not base-table readers and are exempt by the
+-- first condition. Comments are stripped before matching.
+-- ----------------------------------------------------------------------------
+create function pg_temp.open_row_readers_without_void_filter() returns text[] language sql as $f$
+  select array_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text collate "C")
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname not in ('pg_catalog', 'information_schema', 'pg_temp') and n.nspname not like 'pg_temp%' and n.nspname not like 'pg_toast%'
+    and p.prokind in ('f', 'p')
+    and regexp_replace(pg_get_functiondef(p.oid), '--[^\n]*', '', 'g') ~* '\mattendance_events\M'
+    and regexp_replace(pg_get_functiondef(p.oid), '--[^\n]*', '', 'g') ~* 'checked_out_at\s+is\s+null'
+    and regexp_replace(pg_get_functiondef(p.oid), '--[^\n]*', '', 'g') !~* 'voided_at\s+is\s+null'
+$f$;
+select is(
+  pg_temp.open_row_readers_without_void_filter(),
+  null::text[],
+  'every function that reads the open attendance row from the base table also filters voided_at is null (check_out, check_out_member, the auto-timeout job, record_check_in)');
 
 -- Seeded offenders: a fake reader in each place is returned by the comparison.
 create function public.zz_attendance_offender() returns bigint language sql as $f$ select count(*) from attendance_events $f$;
@@ -571,8 +595,18 @@ select is(
   'a seeded second inserter is returned by the insert enumeration');
 select is(
   array_length(pg_temp.attendance_writers('update'), 1),
-  5,
+  6,
   'a seeded second updater is returned by the update enumeration');
+
+-- Seeded offender for (11c): an updater that reads the open row without the void filter is named. The check_out of 0124 is the known-bad
+-- shape (it was one between 0174 and 0175).
+create function public.zz_attendance_open_reader() returns void language sql as $f$
+  update attendance_events set checkout_type = 'manual' where checked_out_at is null
+$f$;
+select is(
+  pg_temp.open_row_readers_without_void_filter(),
+  array['zz_attendance_open_reader()'],
+  'seeded offender: an open-row reader without voided_at is null is named by the 27.3 enumeration');
 
 select * from finish();
 rollback;

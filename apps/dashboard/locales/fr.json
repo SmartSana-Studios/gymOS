@@ -1530,7 +1530,8 @@
       "checkOut": "Départ",
       "duration": "Durée",
       "status": "Statut",
-      "actions": "Actions"
+      "actions": "Actions",
+      "entry": "Arrivée"
     },
     "durationOpen": "En cours",
     "durationFormat": "{{hours}} h {{minutes}} min",
@@ -1544,7 +1545,113 @@
       "checkingOut": "Enregistrement du départ…"
     },
     "dateFrom": "Du",
-    "dateTo": "Au"
+    "dateTo": "Au",
+    "checkIn": {
+      "action": "Enregistrer l'arrivée d'un membre",
+      "title": "Enregistrer l'arrivée d'un membre",
+      "close": "Fermer",
+      "intro": "Pour un membre qui ne peut pas utiliser son téléphone à l'entrée.",
+      "search": {
+        "label": "Trouver un membre par nom ou téléphone",
+        "hint": "Saisissez au moins 2 lettres ou 3 chiffres.",
+        "none": "Aucun membre ne correspond à « {{term}} ». Vérifiez l'orthographe ou cherchez par téléphone.",
+        "more": "Les 8 premiers sont affichés. Précisez votre recherche.",
+        "error": "Impossible de rechercher les membres. Réessayez.",
+        "retry": "Réessayer",
+        "clear": "Effacer la recherche",
+        "count": "{{count}} membres trouvés",
+        "loading": "Recherche en cours…",
+        "results": "Membres trouvés"
+      },
+      "row": {
+        "inside": "Dans la salle depuis {{time}}",
+        "noPlan": "Aucune formule"
+      },
+      "entryTime": "Heure d'arrivée : maintenant ({{time}}). Elle ne peut pas être modifiée.",
+      "confirm": "Enregistrer l'arrivée de {{name}}",
+      "checkingIn": "Enregistrement…",
+      "ok": "L'arrivée de {{name}} est enregistrée à {{time}}.",
+      "okExpiring": "Arrivée enregistrée à {{time}}. L'adhésion de {{name}} expire le {{date}}.",
+      "okGrace": "Arrivée enregistrée à {{time}}. L'adhésion de {{name}} a expiré le {{date}} ; la période de grâce se termine le {{graceDate}}.",
+      "renewNow": "Renouveler maintenant",
+      "rejectedExpired": "Arrivée non enregistrée. L'adhésion de {{name}} a expiré il y a {{days}} jours.",
+      "rejectedExpiredOne": "Arrivée non enregistrée. L'adhésion de {{name}} a expiré il y a 1 jour.",
+      "rejectedExpiredToday": "Arrivée non enregistrée. L'adhésion de {{name}} a expiré aujourd'hui.",
+      "rejectedExpiredHelp": "Renouvelez l'adhésion pour l'autoriser à entrer.",
+      "renewedDone": "Adhésion renouvelée. L'arrivée de {{name}} est enregistrée à {{time}}.",
+      "sessionNeeded": "{{name}} n'a pas de séance payée.",
+      "sessionNeededHelp": "Enregistrez {{amount}} XAF à l'accueil et l'arrivée de {{name}} est enregistrée aussitôt.",
+      "recordAndCheckIn": "Enregistrer le paiement et l'arrivée",
+      "sessionDone": "Séance enregistrée. L'arrivée de {{name}} est enregistrée à {{time}}.",
+      "alreadyIn": "{{name}} est déjà dans la salle (depuis {{time}}).",
+      "alreadyInHelp": "Voir la liste sous la fenêtre.",
+      "refused": {
+        "deactivated": "{{name}} est désactivé. Réactivez ce membre d'abord.",
+        "awaitingFee": "Réglez d'abord les frais d'inscription de {{name}}.",
+        "noPlan": "{{name}} n'a pas encore de formule. Attribuez d'abord une formule.",
+        "suspendedGym": "Impossible d'enregistrer une arrivée tant que la salle est suspendue.",
+        "notFound": "Ce membre est introuvable. Relancez la recherche."
+      },
+      "partialSession": "La séance de {{name}} a été enregistrée, mais l'arrivée n'a pas abouti. Réessayez. Rien n'est facturé deux fois.",
+      "partialRenewal": "Le renouvellement de {{name}} a été enregistré, mais l'arrivée n'a pas abouti. Réessayez. Rien n'est facturé deux fois.",
+      "network": "Impossible d'enregistrer l'arrivée de {{name}}. Vérifiez votre connexion et réessayez.",
+      "networkHint": "Un doute ? Cherchez à nouveau {{name}} : un membre déjà présent affiche « Dans la salle depuis… ».",
+      "offline": "Vous êtes hors ligne : impossible d'enregistrer une arrivée pour le moment.",
+      "another": "Enregistrer l'arrivée d'un autre membre",
+      "done": "Terminé",
+      "openMember": "Ouvrir {{name}}",
+      "supportAbout": "Vous allez : enregistrer l'arrivée de {{name}}",
+      "resultLabel": {
+        "success": "Arrivée enregistrée",
+        "warning": "Arrivée enregistrée avec un avertissement",
+        "rejected": "Arrivée non enregistrée",
+        "payment": "Paiement nécessaire",
+        "already": "Déjà dans la salle",
+        "refused": "Arrivée non enregistrée",
+        "suspended": "Salle suspendue",
+        "partial": "Opération incomplète"
+      }
+    },
+    "log": {
+      "entry": "Arrivée",
+      "entryScan": "Scan du QR",
+      "byStaff": "Par le personnel",
+      "byStaffName": "Par le personnel · {{name}}",
+      "entryAria": "Arrivée enregistrée par le personnel, {{name}}",
+      "voided": "Annulée",
+      "voidedDetail": "Annulée par {{name}} le {{date}} à {{time}}. Motif : {{reason}}"
+    },
+    "void": {
+      "action": "Annuler",
+      "actionAria": "Annuler l'arrivée de {{name}} à {{time}}",
+      "title": "Annuler cette arrivée ?",
+      "close": "Fermer",
+      "body": "L'arrivée de {{name}} à {{time}} a été saisie par le personnel. L'annuler supprime la visite : elle ne compte plus pour la fréquentation, les séries, le classement et le défi de la salle.",
+      "sessionBack": "La séance payée utilisée par cette arrivée est restituée à {{name}}.",
+      "sessionBackFree": "La séance gratuite utilisée par cette arrivée est restituée à {{name}}.",
+      "paymentStays": "Le paiement reste enregistré. Remboursez-le dans Paiements si nécessaire.",
+      "stampRemoved": "Le tampon de fidélité gagné est retiré.",
+      "reason": {
+        "label": "Motif de l'annulation",
+        "placeholder": "Par exemple : mauvais membre sélectionné",
+        "error": "Saisissez un motif (au moins 5 caractères).",
+        "count": "{{count}} / 300"
+      },
+      "supportAbout": "Vous allez : annuler l'arrivée de {{name}}",
+      "keep": "Conserver l'arrivée",
+      "confirm": "Annuler l'arrivée",
+      "voiding": "Annulation…",
+      "success": "Arrivée annulée. {{name}} n'est plus comptabilisé dans la salle.",
+      "refused": {
+        "laterVisit": "Impossible d'annuler cette arrivée : la visite suivante de {{name}} aujourd'hui s'appuie sur la même séance payée.",
+        "laterVisitStaff": "Annulez d'abord l'arrivée suivante.",
+        "notToday": "Une arrivée ne peut être annulée que le jour de son enregistrement.",
+        "already": "Cette arrivée a déjà été annulée.",
+        "notStaff": "Seules les arrivées saisies par le personnel peuvent être annulées.",
+        "notFound": "Cette arrivée est introuvable."
+      },
+      "network": "Impossible d'annuler l'arrivée. Vérifiez votre connexion et réessayez."
+    }
   },
   "payments": {
     "tabs": {
@@ -1862,7 +1969,10 @@
       "gymosSupportAccessEnded": "Accès du support GymOS terminé",
       "gymosSupportAccessResumed": "Accès du support GymOS rétabli",
       "auditDisclosureRequested": "Demande d'information déposée",
-      "auditDisclosureAnswered": "Demande d'information traitée"
+      "auditDisclosureAnswered": "Demande d'information traitée",
+      "staffCheckIn": "Arrivée d'un membre enregistrée par le personnel",
+      "staffCheckInRejected": "Arrivée par le personnel refusée",
+      "staffCheckInVoided": "Arrivée par le personnel annulée"
     },
     "disclosure": {
       "title": "Questions sur ce journal",
@@ -1883,6 +1993,18 @@
         "notFound": "Cette entrée est introuvable.",
         "alreadyOpen": "Vous avez déjà une question en cours sur cette entrée."
       }
+    },
+    "staffCheckIn": {
+      "checkedIn": "{{time}} · Arrivée enregistrée",
+      "checkedInWarning": "{{time}} · Arrivée enregistrée avec un avertissement",
+      "reason": {
+        "expired": "Adhésion expirée",
+        "no_paid_session": "Aucune séance payée",
+        "deactivated": "Membre désactivé",
+        "registration_fee_due": "Frais d'inscription non réglés",
+        "no_plan": "Aucune formule attribuée"
+      },
+      "voided": "Arrivée de {{time}} · Motif : {{reason}}"
     }
   },
   "saasBilling": {
@@ -1971,7 +2093,8 @@
     },
     "source": {
       "check_in": "Entrée",
-      "class": "Présence au cours"
+      "class": "Présence au cours",
+      "desk": "Arrivée à l'accueil"
     },
     "status": {
       "available": "Disponible",
