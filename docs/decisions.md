@@ -3,6 +3,22 @@
 Dated entries recording spike/decision outcomes that can't be changed later without cost (region, provider selections, etc.). One entry per decision — newest first.
 
 
+---
+
+## 2026-11-19 — Story 28.2: single-use consumption at check-in (migration 0178, provisional)
+
+FR-237, the Single-use half of FR-239 for check-in, NFR-021, NFR-028, AD-55, AD-29, AD-28, AD-30, AD-31. A Single-use gym consumes one session per visit; a second scan during a visit costs nothing; a forgotten check-out never lets the member back in free. Migration 0178, rollback `scripts/rollback-0178-single-use-check-in.sql` (refuses while any `single_use` row or gym exists). Whole-day and charging-off behaviour is unchanged (every guest-session suite passes unedited).
+
+- **NFR-021 contradiction, recorded and not resolved here.** The NFR says one consumed session per gym-local day. That now holds for `whole_day` rows only (the one-per-member-day index is partial on `validity_mode = 'whole_day'`, 0177). In Single use the equivalent is one consumed session per open visit, held by the member lock, the one-open-visit partial index and `unique (covered_attendance_id)`. The PRD sentence should be amended; no story edits the PRD (epic 28 context).
+- **AD-30 key consequence.** One guest stamp is earned per consumed paid session, so a Single-use member with two visits in a day earns two stamps (Whole day earned one). A staff void releases exactly the session bound to that visit and reverses exactly that stamp; the released session, consumed again, earns no second stamp (the `(origin_id, event_type)` key exists), as in 0175.
+- **Coverage is judged from the row's own mode.** A consumed non-voided `whole_day` row for the receipt day returns `covered` in either gym mode; the visit limit applies only to an open row that is the `covered_attendance_id` of a consumed, non-voided `single_use` visit session (A2). A Whole-day-era open visit, a charging-off visit and an exempt visit keep the gym timeout alone.
+- **The limit closes a visit only at a later scan.** Occupancy and the auto-timeout job are not edited: a visit past the limit and inside `checkin_timeout_hours` is still counted until a scan, a check-out or the timeout. The stale close writes `checked_in_at + least(timeout, limit)`; `reason: 'visit_limit'` and `visit_limit_minutes` go on the audit row only when the limit (<= timeout) is the binding window. The close commits with a denial, as the timeout close always did. The offline immediate-stale close takes the same `least(...)` when the session just consumed is a Single-use visit.
+- **`class_single_use_unsupported` is raised after the exempt returns.** The spec says a class consume in a `single_use` gym raises. Placed before the exempt checks it would also break class marking for monthly members of a charging Single-use gym, who consume nothing, so the guard sits after them: an exempt member gets `exempt`, a charged member raises. Story 28.3 removes the guard; one pgTAP case pins it.
+- **`void_staff_check_in`: `later_visit_relies` applies only to a `whole_day` session.** A Single-use visit covered itself only, so voiding it with a later same-day visit is allowed. A refund of the only unused session is serialised against a scan by the member lock (`scripts/single-use-race.sh`, case 3).
+- **Platform visit limit (28-1 deferral, Epic 22 retro 67): no Super Admin UI or RPC, by decision (owner, 2026-11-19).** `platform_session_config.single_use_visit_limit_minutes` (default 180, range 1-1440) changes only by a Super Admin running SQL; 28.1's trigger audits the change (`platform_session_config_updated`, old and new value) and the next scan reads the new value. Runbook step: run `update platform_session_config set single_use_visit_limit_minutes = <minutes>;` as the database owner, confirm the audit row, and note that visits already open are judged against the new value at their next scan. `single_use_check_in.test.sql` proves the 89/90/91 boundary after a direct change.
+- **Tests and gates.** `single_use_check_in.test.sql` and `.negative.test.sql` (matrix, backstops, tenant isolation, callers source scan); `scripts/single-use-race.sh` (two simultaneous scans, a stale visit, refund vs scan in both orders) is wired into `scripts/ci-local.sh`; shown failing under a weakened member lock (`for share`), and the pgTAP file under a disabled limit (36 failures). The only existing test edit: the `regprocedure` literal in `session_validity_cover.test.sql` (the consume function is now four-argument).
+
+
 
 ---
 
