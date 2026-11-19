@@ -1,0 +1,114 @@
+---
+title: '29-1 Class schedule slots foundation (no UI change)'
+type: 'feature'
+created: '2026-11-19'
+status: 'in-progress'
+baseline_commit: 'be28607701a52559dad76bb5c41a22f244c6b887'
+route: 'dispatch'
+review_loop_iteration: 0
+context:
+  - '{project-root}/_bmad-output/implementation-artifacts/epic-29-context.md'
+  - '{project-root}/_bmad-output/planning-artifacts/epics.md'
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:** A recurring class stores one time and a list of days on the `classes` row, so it cannot run at a different time on each day. Epic 29's slot editor (29.2) and coach flows (29.3, 29.4) need the times stored as rows first, with the daily job and the class functions reading them, and with no change to any existing session, booking or screen.
+
+**Approach:** Add `class_schedule_slots` with its guards, expand every existing recurring class into slots, point the shared materializer at the slots, and add the single regeneration path `private.apply_class_slots`. `create_class` and `update_class` keep their signatures and now derive slots from the single time and the selected days. The dashboard and mobile app do not change. Acceptance criteria are Story 29.1 in `_bmad-output/planning-artifacts/epics.md` (lines 7130-7203); this spec adds the Code Map and the decisions the investigation forced.
+
+## Boundaries & Constraints
+
+**Always:**
+- One migration `0180_class_schedule_slots.sql` (0179 is the head; the number is "next free at merge time") with `scripts/rollback-0180-class-schedule-slots.sql` (conventions of `scripts/rollback-0179-*.sql`: `lock_timeout`, a refusal guard, drop new objects, restore old bodies) and a `do $verify$` block at the end of the migration (patterned on 0111's), which also holds the before/after count and md5 checks of `class_sessions` and `class_bookings` and the slot-count checks from the AC.
+- Table, grants and policies follow 0111: `enable row level security`, `revoke all ... from anon, authenticated, service_role`, `grant select ... to authenticated, service_role`, select policy `gym_id = (select private.gym_id())`, and a restrictive `tenant_active_gate` policy as in 0124 (`(select private.current_gym_status()) = 'active' or (select private.is_super_admin())`). Do not name "supervisor" in any new policy or function (it would enter `support_capabilities.test.sql`'s classification).
+- Lock order is class row first (`FOR UPDATE` on `classes`), then future session rows `FOR UPDATE` in `scheduled_at` order, never the reverse (spine AD-21; `book_class_session` locks a session row and takes no class lock).
+- The shared materializer keeps its signature, `on conflict (class_id, scheduled_at) do nothing`, the `current_date .. current_date + 4 weeks` window and the gym time-zone conversion; only the days/time source changes. `run_class_session_materializer_job()` is not edited.
+- Every new function ends with `revoke ... from public, anon` in the same file (`scripts/check-migration-guardrails.mjs`). A new definer function that writes `class_sessions` or `class_schedule_slots` carries the `current_gym_status() is distinct from 'active'` guard with no comments in its body, or an entry in the exclusion view the way `private.materialize_sessions_for_class` has one (`suspension_rpc_coverage.test.sql`).
+- `recurrence_days` and `recurrence_time` stay on `classes` and are still written by `create_class` and `update_class`. Regenerate `packages/types/src/database.ts` (only `class_schedule_slots` should appear). Record in `deferred-work.md`: the clean-up migration that drops the two columns, and the rolling window's server-date imprecision.
+- Existing pgTAP suites pass without edit, except the one arithmetic change named below. Run the full `scripts/ci-local.sh`; run `scripts/ci-local.selftest.sh` only if `ci-local.sh` is touched (it is, to wire the new race script).
+
+**Never:**
+- No UI, dashboard or mobile source change; no change to `list_my_classes`, `book_class_session`, `cancel_class_booking`, `mark_class_attendance`.
+- No new column on `classes`, `class_sessions` or `class_bookings`.
+- No `cancel_class`, slot editor RPC, or coach grants (29.2, 29.3). No change to one-off class behaviour: the 0058 "cannot reschedule ... existing bookings" refusal stays for one-off classes (fixtures 8094/8095 in `class_booking_with_capacity_enforcement.test.sql`).
+- Never move or delete an existing session at migration time; never delete a session that has a booking.
+- No direct write grant on `class_schedule_slots` to any role, including `service_role`.
+
+**Decisions (made while planning):**
+- Compatibility path for direct recurring inserts: `class_creation_scheduling.test.sql` (class 7042 and the materializer-job case) and `coach_portal_my_classes.test.sql` insert recurring classes straight into `classes` with days and time and no slots, and must pass unedited. An AFTER INSERT trigger on `classes` (definer, not callable) derives slots from `recurrence_days` x `recurrence_time` when both are present and the class has no slot, `on conflict do nothing`. It also serves any other legacy writer (E2E seed, `scripts/epic19-qa`). It does nothing when the columns are null, which is how 29.2 will create slot-only classes. `create_class` and `update_class` still derive and write slots explicitly, as the AC says.
+- The deferred "recurring class must have a slot" constraint trigger never fires inside pgTAP's rolled-back transactions unless a test sets constraints immediate; the new tests do so to prove it.
+- `suspension_rpc_coverage.test.sql` hard-codes "tenant_active_gate covers 25 tables"; the new gate makes it 26. That number and its message are the one unavoidable edit to an existing test.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected Output / Behavior | Error Handling |
+|----------|--------------|---------------------------|----------------|
+| Migrate existing classes | recurring classes: daily, Tue/Thu, Sunday-only (weekday 0), past start date, booked and attended | one slot per `recurrence_days` entry at `recurrence_time`; one-off gets none; sessions and bookings byte-identical (counts and md5) | verify block raises, migration rolls back |
+| 15th slot | class with 14 slots, insert another (same or other weekday) | refused: "a class can have at most 14 weekly times" | trigger locks class row first so concurrent 14th/15th cannot both pass |
+| Duplicate slot | same `(class_id, weekday, start_time)` | unique violation; same weekday at another time accepted | N/A |
+| Cross-gym slot | slot `gym_id` differs from its class's gym; or update moves slot to another class/gym | refused | tenancy trigger raises |
+| Direct write | Owner, Manager, Coach, `service_role` insert/update/delete | permission error | N/A |
+| Cross-tenant read | any role reads another gym's slots | zero rows; suspended gym denied by the restrictive gate | N/A |
+| Seconds in time | `start_time` 18:00:30 | refused by CHECK | check violation |
+| Recurring class, no slot, at commit | deferred constraint trigger | commit refused; one-off with a slot also refused | raises at commit |
+| Daily job / materialize | recurring class with slots | same `(class_id, scheduled_at)` set the pre-migration function produced, incl. a DST zone and a Sunday slot; second run inserts nothing; `job_runs` row logged | N/A |
+| Slot replace, session matches a slot | future session, with or without bookings | kept | N/A |
+| Slot replace, no match, no booking | future session | deleted (re-checked under the session lock) | N/A |
+| Slot replace, no match, has bookings | future session | untouched, returned as `(class_session_id, scheduled_at, booked_count)` | never raises |
+| Past session | `scheduled_at <= now()` | never touched | N/A |
+| Recurring reschedule with bookings | `update_class` / `materialize_class_sessions(id, true)` | regenerates under the slot rule; no "cannot reschedule" error | one-off keeps the 0058 refusal |
+| Booking races slot edit | `book_class_session` vs `apply_class_slots` on one unbooked non-matching session | either booked and kept-and-listed, or deleted and booking gets not-found; never an orphan booking, FK error or deadlock; 50 iterations clean | N/A |
+| Gym time zone changed | next daily run | new sessions use the new zone; existing not moved | N/A |
+
+</frozen-after-approval>
+
+## Code Map
+
+- `supabase/migrations/0057_*.sql` -- `classes` CHECK `classes_schedule_matches_type` (43-53), `classes_validate_coach_trigger` (140-165, tenancy-trigger template), live `private.materialize_sessions_for_class(uuid)` (189-253, never redefined; service_role only), job `run_class_session_materializer_job()` (453-487) and cron (494-498).
+- `supabase/migrations/0124_*.sql` -- live `public.create_class` (1286-1322), `public.update_class` (2362-2433; `select ... for update` at class row, schedule-changed compare 2399-2403, booking refusal 2405-2413, then delete future sessions and re-materialize), live `public.materialize_class_sessions(uuid, boolean)` (1982-2030, refusal 2015-2022), `classes` policies (85-90, 216-219) and the `(select ...)` wrapping style.
+- `supabase/migrations/0111_check_in_session_gate.sql` -- table, RLS, revoke/grant, restrictive gate (65-101) and `do $verify$` (551-609) to copy.
+- `supabase/migrations/0159_*.sql:76` -- `uppercase_name` trigger on `classes`, unaffected. `0096` `list_my_classes` returns `recurrence_days`/`recurrence_time` unchanged.
+- `supabase/tests/class_creation_scheduling.test.sql` (7042 inserted directly at 57-59, materializer calls 158-173 and 283-295) and `.negative.test.sql` (CHECK rejections 121-131: one-off with stray recurrence and recurring missing start date must still reject; a recurring row with no days/time is now valid) -- must pass unedited.
+- `supabase/tests/class_booking_with_capacity_enforcement.test.sql` -- section (u) 746-795, one-off fixtures 8094/8095; booking concurrency pattern (two connections) to extend. `coach_portal_my_classes.test.sql:84` direct recurring fixture.
+- `supabase/tests/suspension_rpc_coverage.test.sql` -- gate count 25 at 51-52 (to 26); definer-write guard scan 67-82; exclusion view entry pattern at 154. `support_capabilities.test.sql` -- totals and name lists must stay unchanged.
+- `scripts/single-use-race.sh` -- model for the new `scripts/class-slot-race.sh` (psql sessions in the DB container, "race: all passed" verdict), wired into `stage_pgtap` of `scripts/ci-local.sh` (116-143).
+- `scripts/check-migration-guardrails.mjs`, `scripts/claim-inventory.mjs` (`pnpm run check:claims`) -- must stay clean; `packages/types/src/database.ts` -- regenerate (`npx supabase gen types typescript --local`; zero-byte stdout bug, fallback is the pg-meta endpoint used by earlier stories).
+- `apps/dashboard/e2e/fixtures/seed.ts:318`, `scripts/epic19-qa/lib.mjs:106-110` -- direct recurring inserts; covered by the compatibility trigger, verify and do not edit.
+- `apps/dashboard/components/classes/ClassesPageClient` and `ClassModal`, `apps/dashboard/services/classes.ts` -- unchanged; add a component test proving the Schedule column and modal show the same days and time for fixture classes.
+
+## Tasks & Acceptance
+
+**Execution:**
+- [ ] `supabase/migrations/0180_class_schedule_slots.sql` -- table, CHECKs, unique and index, tenancy and 14-cap triggers, RLS/grants, expansion backfill, replaced CHECK, deferred constraint trigger, compatibility AFTER INSERT trigger, slot-based `private.materialize_sessions_for_class`, `private.apply_class_slots`, updated `create_class`, `update_class`, `materialize_class_sessions`, exclusion-view/guard entries, verify block -- the whole data half
+- [ ] `scripts/rollback-0180-class-schedule-slots.sql` -- restore the 0057/0124 bodies and CHECK, drop the new objects; refuse if slots differ from the legacy columns -- reversibility
+- [ ] `supabase/tests/class_schedule_slots.test.sql` and `.negative.test.sql` -- schema, cap and its concurrency lock, tenancy, per-role grants and RLS (cross-tenant per role, suspended gym), expansion fixtures with byte-identical sessions/bookings, constraint trigger with `set constraints ... immediate`, materializer equivalence incl. DST and Sunday, idempotence, `apply_class_slots` rules, recurring-versus-one-off reschedule behaviour
+- [ ] `scripts/class-slot-race.sh` and `scripts/ci-local.sh` -- 50-iteration book-versus-slot-edit race, wired into the pgtap stage; run once against a deliberately broken ordering to show it can fail
+- [ ] `supabase/tests/suspension_rpc_coverage.test.sql` -- gate count 25 to 26
+- [ ] `apps/dashboard` component test -- unchanged Schedule column and modal for fixture classes
+- [ ] `packages/types/src/database.ts` -- regenerate; `deferred-work.md` -- the two entries; `sprint-status.yaml` -- last_updated entry
+
+**Acceptance Criteria:**
+- Given Story 29.1's acceptance criteria in `epics.md` (7130-7203), when the pgTAP, race, vitest and `scripts/ci-local.sh` gates run, then every criterion has a named passing test and every pre-existing suite passes without edit except the gate count above.
+- Given a class created through today's UI after the migration, when it is read, then it behaves exactly as a migrated one.
+- Given `check:claims`, `check:migrations` and `support_capabilities.test.sql`, then no new `claim-only` entry, no guardrail failure, and unchanged totals.
+
+## Implementation Notes
+
+## Spec Change Log
+
+## Review Triage Log
+
+## Design Notes
+
+`apply_class_slots(p_class_id, p_slots jsonb)` is the only regeneration path. Order: lock class; replace the slot rows; lock future sessions in `scheduled_at` order; for each, re-check bookings under the lock, delete if unmatched and unbooked, otherwise leave; then call the materializer for the missing sessions. Matching is on the gym-local weekday and local time of `scheduled_at`. A session that matches a slot is kept whether or not it has bookings.
+
+## Verification
+
+**Commands:**
+- `supabase test db` (via `scripts/pgtap-run.sh`) -- expected: all green, per-stage lines read, not only the final GREEN
+- `bash scripts/class-slot-race.sh` -- expected: `race: all passed`
+- `pnpm run check:migrations && pnpm run check:claims && pnpm run typecheck` -- expected: clean
+- `scripts/ci-local.sh` -- expected: every stage PASS
