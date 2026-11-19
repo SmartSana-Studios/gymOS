@@ -16,7 +16,9 @@
 --     single_use visit session uses least(checkin_timeout_hours, platform_session_config.single_use_visit_limit_minutes); every other open row
 --     keeps the timeout alone. The stale close is at checked_in_at + that window, checkout_type 'auto', and its audit row gains
 --     reason 'visit_limit' and visit_limit_minutes only when the limit is the binding window. The offline immediate-stale close uses the same
---     least() when the session just consumed is a single_use visit.
+--     least() when the session just consumed is a single_use visit. An offline scan whose honoured time falls inside a closed (auto) single_use
+--     visit of the same member consumes nothing: it is recorded covered and closed at that visit's close time (reason 'inside_closed_visit'),
+--     so two offline scans of one visit that sync after the limit has lapsed cost one session, as two online scans do.
 --   * public.void_staff_check_in (the 0175 body): later_visit_relies applies only when the bound session is a whole_day row. A Single-use visit
 --     is voidable with a later same-day visit (no later visit relies on its coverage).
 --   * public.mark_class_attendance (the 0124 body): its one consume call passes 'class'. No other change.
@@ -172,6 +174,7 @@ declare
   v_limit_minutes integer;
   v_limit_binding boolean;
   v_visit_session boolean;
+  v_covering_out timestamptz;
 begin
   -- The member lock comes first, at every gym (NFR-021, AD-29 lock order). It serialises two entries for one member, whatever the
   -- gym charges, and it is the same row consume_guest_session() locks again below (harmless, same transaction).
@@ -287,6 +290,31 @@ begin
   -- AD-29 session gate (charging gyms only), after the open-row handling so a stale auto-close commits with a refused entry, and before
   -- the write so a consumed session and its attendance row commit together. A refusal is an outcome, never an exception.
   if v_charging then
+    -- An offline scan taken inside a visit that the limit (or the timeout) has already closed belongs to that visit: it consumes nothing.
+    -- Only a closed, non-voided visit covered by a consumed single_use visit session of this member counts, and only when the scan time
+    -- would be honoured below (inside the auto-timeout window of receipt, not before the covering session existed).
+    if p_at is not null then
+      select ae.checked_out_at, gs.created_at, gs.id into v_covering_out, v_session_created_at, v_session_id
+      from attendance_events ae
+      join guest_sessions gs on gs.covered_attendance_id = ae.id
+      where ae.member_id = p_member_id
+        and ae.voided_at is null
+        and ae.checkout_type = 'auto'
+        and ae.checked_in_at <= p_at
+        and p_at < ae.checked_out_at
+        and p_at + make_interval(hours => v_timeout_hours) > now()
+        and p_at >= gs.created_at
+        and gs.consumed_at is not null and gs.voided_at is null
+        and gs.validity_mode = 'single_use' and gs.covered_kind = 'visit'
+      order by ae.checked_in_at desc
+      limit 1;
+      if v_covering_out is not null then
+        v_gate_outcome := 'covered';
+      end if;
+    end if;
+  end if;
+
+  if v_charging and v_gate_outcome is null then
     select c.outcome, c.session_created_at, c.session_id into v_gate_outcome, v_session_created_at, v_session_id
     from private.consume_guest_session(p_member_id, p_gym_id, now()) c;
 
@@ -352,7 +380,29 @@ begin
     end if;
   end if;
 
-  if p_at is not null and v_checked_in_at + v_window <= now() then
+  if v_covering_out is not null then
+    -- Scan inside an already-closed single_use visit: the entry is recorded and closed with that visit, so it cannot block a later scan.
+    update attendance_events
+    set checked_out_at = v_covering_out,
+        checkout_type = 'auto'
+    where id = event.id
+    returning * into event;
+
+    perform log_audit_event(
+      p_action_type => 'attendance_stale_check_in_auto_closed',
+      p_gym_id => p_gym_id,
+      p_target_entity_id => event.id::text,
+      p_target_entity_type => 'attendance_event',
+      p_metadata => jsonb_build_object(
+        'member_id', p_member_id,
+        'original_checked_in_at', v_checked_in_at,
+        'auto_closed_checked_out_at', event.checked_out_at,
+        'timeout_hours', v_timeout_hours,
+        'source', 'offline_sync',
+        'reason', 'inside_closed_visit'
+      )
+    );
+  elsif p_at is not null and v_checked_in_at + v_window <= now() then
     update attendance_events
     set checked_out_at = v_checked_in_at + v_window,
         checkout_type = 'auto'

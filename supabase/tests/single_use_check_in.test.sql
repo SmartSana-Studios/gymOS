@@ -14,7 +14,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-00000028[21-24]xx. Gyms 2821nn, users 2822nn, members 2823nn, plans 2824nn.
 
 begin;
-select plan(163);
+select plan(170);
 
 create function pg_temp.g(n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0000-0000002821' || lpad(to_hex(n), 2, '0'))::uuid $f$;
 create function pg_temp.u(n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0000-0000002822' || lpad(to_hex(n), 2, '0'))::uuid $f$;
@@ -33,7 +33,7 @@ insert into fx values
   -- gym 1 (single_use, charging, loyalty threshold 3, timeout 8 h)
   ('morn', 101, 1, 'pps'), ('dbl', 102, 1, 'pps'), ('b179', 103, 1, 'pps'), ('b180', 104, 1, 'pps'), ('b181', 105, 1, 'pps'),
   ('nocover', 106, 1, 'pps'), ('daycover', 107, 1, 'pps'), ('unc_stale', 108, 1, 'pps'), ('nosess', 109, 1, 'pps'),
-  ('off_replay', 110, 1, 'pps'), ('off_late', 111, 1, 'pps'), ('off_denied', 112, 1, 'pps'), ('staff_a', 113, 1, 'pps'),
+  ('off_replay', 110, 1, 'pps'), ('off_late', 111, 1, 'pps'), ('off_denied', 112, 1, 'pps'), ('off_dbl', 123, 1, 'pps'), ('staff_a', 113, 1, 'pps'),
   ('void_m', 114, 1, 'pps'), ('monthly', 115, 1, 'monthly'), ('zero', 116, 1, 'zero'), ('p89', 117, 1, 'pps'), ('p90', 118, 1, 'pps'),
   ('p91', 119, 1, 'pps'), ('class_m', 120, 1, 'pps'), ('exempt_open', 121, 1, 'monthly'), ('voided_cover', 122, 1, 'pps'),
   -- gym 2 (whole_day, charging)
@@ -417,7 +417,27 @@ select is((select visit_day from attendance_events where member_id = pg_temp.mm(
 select ok((pg_temp.scan('off_late') ? 'id'), 'offline late: it does not block a later scan');
 select is(pg_temp.consumed('off_late'), 2, 'offline late: the later scan consumed the second session');
 
-insert into scanned select 'den1', pg_temp.scan('off_denied', now() - interval '5 minutes', '00000000-0000-0000-0000-0000002828a3');
+-- Two offline scans inside one visit, both synced after the limit lapsed: one session (28.2 review). A at -200 min is closed on arrival at
+-- -20 min; B at -199 min lies inside that closed visit and consumes nothing; C at -19 min is after it and is a new visit.
+select pg_temp.mk_paid(pg_temp.g(1), pg_temp.mm('off_dbl'));
+select pg_temp.mk_paid(pg_temp.g(1), pg_temp.mm('off_dbl'));
+insert into scanned select 'dblA', pg_temp.scan('off_dbl', now() - interval '200 minutes', '00000000-0000-0000-0000-0000002828b1');
+insert into scanned select 'dblB', pg_temp.scan('off_dbl', now() - interval '199 minutes', '00000000-0000-0000-0000-0000002828b2');
+select ok((select res ? 'id' from scanned where label = 'dblB'), 'offline double: the second scan inside the closed visit checks in');
+select is(pg_temp.consumed('off_dbl'), 1, 'offline double: both scans cost one session');
+select is((select count(*)::int from attendance_events where member_id = pg_temp.mm('off_dbl')), 2, 'offline double: both scans are recorded');
+select is((select checked_out_at from attendance_events where client_scan_id = '00000000-0000-0000-0000-0000002828b2'),
+          (select checked_out_at from attendance_events where client_scan_id = '00000000-0000-0000-0000-0000002828b1'),
+          'offline double: the second scan is closed with the visit it belongs to');
+select is((select checkout_type from attendance_events where client_scan_id = '00000000-0000-0000-0000-0000002828b2'), 'auto', 'offline double: closed as auto');
+select is((select metadata ->> 'reason' || ':' || (metadata ->> 'source') from audit_log
+           where action_type = 'attendance_stale_check_in_auto_closed'
+             and target_entity_id = (select id::text from attendance_events where client_scan_id = '00000000-0000-0000-0000-0000002828b2')),
+          'inside_closed_visit:offline_sync', 'offline double: the close is audited with its reason and offline source');
+insert into scanned select 'dblC', pg_temp.scan('off_dbl', now() - interval '19 minutes', '00000000-0000-0000-0000-0000002828b3');
+select is(pg_temp.consumed('off_dbl'), 2, 'offline double: a scan after the closed visit is a new visit and consumes the second session');
+
+insert into scanned select 'den1',pg_temp.scan('off_denied', now() - interval '5 minutes', '00000000-0000-0000-0000-0000002828a3');
 select is((select res from scanned where label = 'den1'), '{"denied": true}'::jsonb, 'offline denied: no usable session, the sync is denied');
 select is((select count(*)::int from session_attempts where member_id = pg_temp.mm('off_denied') and scan_id = '00000000-0000-0000-0000-0000002828a3'), 1, 'offline denied: one attempt keyed by its scan id');
 select is(pg_temp.scan('off_denied', now() - interval '5 minutes', '00000000-0000-0000-0000-0000002828a3'), '{"denied": true}'::jsonb, 'offline denied: the replay is denied again');

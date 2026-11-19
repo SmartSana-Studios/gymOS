@@ -87,6 +87,39 @@ context:
 - Given the Story 28.2 criteria in `epics.md`, when verified, then each has a named passing test and the regression suites named in Epic 28's cross-story list pass with no fixture edits beyond those listed.
 - Given a `whole_day` gym or charging off, when a member checks in, out and in again, then one consumed `day` row exists, the second scan is `covered`, and no `visit` row is ever written.
 
+### Review Findings
+
+Second review pass 2026-11-19 (bmad-code-review, four layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor; diff `94a00ee..7091392` without `_bmad-output`). The first pass is the Review Triage Log below; findings it already rejected were re-judged and rejected again.
+
+- [x] [Review][Patch] (resolved from Decision: owner chose option 2, fix now) An offline scan whose honoured time falls inside a closed auto-closed single_use visit of the same member must consume nothing (treated as covered by that visit). Needs a `record_check_in` change in 0178, a rollback-body check, and a pgTAP case (two offline scans inside one lapsed visit: one session consumed). Original finding: two offline scans inside one Single-use visit, synced after the visit limit has lapsed, consume two sessions — medium. Scan A (p_at = now - 200 min) consumes a session and is closed on arrival at A + 180 min. Scan B (p_at = now - 199 min) then finds no open row and consumes a second session, also closed on arrival. In a Whole-day gym B would be `covered`. The 28.2 offline AC says each such scan "consumes one session", so the code follows the AC; the AC never says what a second scan inside an already-closed visit window does. The mobile queue (`apps/mobile/src/services/checkin.ts`) keeps every offline scan and does not dedupe, so a member who scans twice while offline for more than 3 hours is charged twice. Options: (a) accept and record the behaviour in `docs/decisions.md`; (b) in `record_check_in`, treat an offline scan whose honoured time falls inside a closed single_use visit of the same member (checked_in_at <= p_at < checked_out_at, `checkout_type = 'auto'`) as `covered`, consuming nothing, with a pgTAP case; (c) defer to Story 28.3. [supabase/migrations/0178_single_use_check_in.sql:339-377] (blind-hunter)
+- [x] [Review][Patch] `single-use-race.sh` is wired into `scripts/ci-local.sh` only, not into `.github/workflows/ci.yml`, which runs every sibling race script as its own step (`session-refund-race`, `check-in-member-lock-race`, `correct-plan-race`, `support-assignments-race.test.sh`). The epic-end GitHub Actions run, the final gate, would skip the only real two-session proof for the single-use consume. Add a step after "Correct-plan race" with `DB_CONTAINER=supabase_db_gym_os bash scripts/single-use-race.sh`. Medium; rule 1 (a gate must reach its consumers). [.github/workflows/ci.yml:136-138] (blind-hunter + acceptance-auditor)
+
+**Rejected** (one line each):
+- `false` Edge: an offline scan 200 min late is charged for a visit already closed on arrival. The member did make that visit; the AC says it "consumes one session and is recorded closed at scan time + limit", and `off_late` pins it.
+- `false` Edge: no `platform_session_config` row switches the limit off. Seeded singleton (unique index on `(true)`), column NOT NULL with a 1..1440 CHECK; first-pass row 4.
+- `low` Edge: class guard raises before the whole_day `covered` lookup for a charged member after a mid-day flip. Interim state until 28.3 removes the guard; first-pass row 9.
+- `false` Edge: every class mark for a charged member in a Single-use gym raises. This is the specified interim; `class_single_use_unsupported` is in 28.3's acceptance criteria.
+- `low` Edge, blind, gap: rollback script takes no lock between its refusal check and the function swap, has no verify block, and has no automated test. Manual ops script; the repo does not test rollbacks (first-pass row 2); the fix adds locks and a harness.
+- `false` Edge claim: the close is at `least(timeout, limit)`, not always `checked_in_at + limit`. That is the spec ("the earlier of the two"); the commit message is shorthand.
+- `low` Blind: `record_check_in` relies on the default `p_kind = 'visit'`. The callers source scan pins the two callers, so a new caller fails the scan.
+- `low` Blind: the verify block matches function source by substring. Behaviour is covered by the pgTAP suites; first-pass row 10.
+- `low` Blind: the visit-limit resolution is written twice in `record_check_in`. Developer-only duplication, no named harm; first-pass row 13.
+- `low` Blind: `decisions.md` says "unedited" and lists one edit, and keeps the runbook step inside the entry. The runbook placement is the owner's recorded decision; the wording slip is cosmetic.
+- `false` Blind: a Single-use visit stays in occupancy until the next scan or the timeout. The accepted design (the limit closes a visit only at a later scan); a forgotten check-out was already counted until the timeout; fix edits the spec.
+- `low` Blind, gap: the race script is timing-based, uses fixed `/tmp` paths, and does not race a staff void against a scan. Same shape as `check-in-member-lock-race.sh`; first-pass row 7.
+- `false` Blind: `reason: visit_limit` is written when the limit equals the timeout. Specified (`<=`) and pinned by the `eq180` case and the first-pass patch.
+- `false` Blind, gap: mobile `sessionState.ts` keys on `covered_day`. 28.1's AC already makes a null `coveredDay` render as used and not "covered today"; 28.3 owns the copy.
+- `low` Blind: `consumed(m(10)) = 0` is vacuous (member 10 has no session). The real isolation check is the `member_not_found` assertion before it; first-pass row 6.
+- `low` Auditor: the "gate can fail" evidence is one sentence in `decisions.md`. The weakened lock and the disabled limit were run and are recorded; the extra mutations are not worth a harness.
+- `false` Auditor: no test enumerates the `record_check_in` callers. The limit sits inside `record_check_in`, so every caller (`check_in`, `staff_check_in`, offline sync) gets it by construction.
+- `false` Auditor: no offline case for a scan older than the timeout or before the session existed. That branch is shared with Whole-day and covered by cases G and K in `check_in_session_gate.test.sql`.
+- `low` Auditor: `member_occupancy_band()` is not asserted. It agrees with `gym_occupancy_band`, which is.
+- `low` Auditor: the `position('''class''' ...)` assertion can never fail. Pinned by behavioural cases; first-pass row 3.
+- `low` Auditor: the next-day flip case calls `consume_guest_session` directly, not through `check_in`. The same-day flip cases go through `check_in()`.
+- `false` Auditor: the NFR-021 PRD amendment has no owning story. Recorded in `decisions.md` as the epic context requires; first-pass row 11.
+- `false` Auditor: the class guard sits after the exempt returns, unlike the frozen matrix. The fix edits the spec; named in Implementation Notes and `decisions.md`; first-pass row 8.
+- `low` Gap: a re-consumed released session earns no second stamp, untested for Single-use. No mode-dependent logic touches the stamp key; the Whole-day test pins it.
+
 ## Implementation Notes
 
 - Migration `0178_single_use_check_in.sql` (one transaction, verify block asserts grants, shapes and the callers scan) and `scripts/rollback-0178-single-use-check-in.sql` (restores the 0177 consume body, the 0175 `record_check_in` and `void_staff_check_in`, the 0124 `mark_class_attendance`; rehearsed in a rolled-back transaction after the migration). Applied to the local database only; NOT on production.
@@ -96,6 +129,7 @@ context:
 - New: `supabase/tests/single_use_check_in.test.sql` (157) and `single_use_check_in.negative.test.sql` (49); `scripts/single-use-race.sh` wired into the pgtap stage of `scripts/ci-local.sh`. The offline immediate-stale audit row also carries `reason` / `visit_limit_minutes` when the limit binds (the spec names the audit addition for the open-row close; the same rule is applied to the offline close for consistency).
 - `packages/types/src/database.ts` needs no change: the consume function is in the private schema and no public signature changed.
 - Review patch (28-2 review, triage row 1): a limit-equals-timeout case (SU Gym 8, 3 h timeout, 181-minute covered visit) added to `single_use_check_in.test.sql` (157 to 163); mutating `<=` to `<` in `record_check_in` fails the reason and visit_limit_minutes assertions.
+- Review patch (second pass, owner chose option 2): `record_check_in` treats an offline scan inside a closed auto single_use visit of the same member as covered (consumes nothing, closed at that visit's close time, audit reason `inside_closed_visit`); `single_use_check_in.test.sql` 163 to 170 (the `off_dbl` case; with the lookup disabled 3 assertions fail, shown, then restored); `ci.yml` gains the `single-use-race.sh` step; decisions.md entry added. The new body was applied to the local DB by running the function statement only; the full migration re-run and a full `ci-local.sh` are owed (the gate stamp for 7091392 is stale).
 
 ## Spec Change Log
 
