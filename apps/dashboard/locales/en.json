@@ -1148,6 +1148,10 @@
         "lapsesOn": "Lapses {{date}}",
         "usedOn": "Used {{date}}",
         "covered": "covered {{date}}",
+        "usedVisit": "Used · visit on {{date}}, {{time}}",
+        "usedClass": "Used · class {{name}}, {{date}}",
+        "coveredVisit": "This session covered one visit",
+        "coveredClass": "This session covered one class",
         "lapsed": "Lapsed {{date}}",
         "voided": "Voided by refund {{date}}",
         "viewPayments": "View session payments"
@@ -2181,7 +2185,14 @@
       "class": "Class",
       "earned": "Earned",
       "useBy": "Use by",
-      "status": "Status"
+      "status": "Status",
+      "used": "Used"
+    },
+    "used": {
+      "day": "covered day",
+      "none": "—",
+      "visit": "visit {{date}}, {{time}}",
+      "class": "class {{name}}, {{date}}"
     },
     "refund": {
       "refunded": "Refunded",

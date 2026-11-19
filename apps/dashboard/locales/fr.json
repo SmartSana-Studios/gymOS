@@ -1148,6 +1148,10 @@
         "lapsesOn": "Expire le {{date}}",
         "usedOn": "Utilisée le {{date}}",
         "covered": "couvre le {{date}}",
+        "usedVisit": "Utilisée · visite le {{date}}, {{time}}",
+        "usedClass": "Utilisée · cours {{name}}, {{date}}",
+        "coveredVisit": "Cette séance a couvert une visite",
+        "coveredClass": "Cette séance a couvert un cours",
         "lapsed": "Expirée le {{date}}",
         "voided": "Annulée par remboursement le {{date}}",
         "viewPayments": "Voir les paiements de séances"
@@ -2181,7 +2185,14 @@
       "class": "Cours",
       "earned": "Obtenue",
       "useBy": "À utiliser avant",
-      "status": "Statut"
+      "status": "Statut",
+      "used": "Utilisée"
+    },
+    "used": {
+      "day": "journée couverte",
+      "none": "—",
+      "visit": "visite {{date}}, {{time}}",
+      "class": "cours {{name}}, {{date}}"
     },
     "refund": {
       "refunded": "Remboursée",

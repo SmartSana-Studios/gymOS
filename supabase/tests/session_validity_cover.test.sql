@@ -404,7 +404,7 @@ select is(
 -- private.consume_guest_session: unchanged contract, plus the whole_day / day stamp. audit_session_consumed carries them.
 -- ============================================================================
 select is(
-  pg_get_function_result('private.consume_guest_session(uuid, uuid, timestamptz, text)'::regprocedure),
+  pg_get_function_result('private.consume_guest_session(uuid, uuid, timestamptz, text, uuid)'::regprocedure),
   'TABLE(outcome text, session_created_at timestamp with time zone, session_id uuid)',
   'the consume function keeps its signature and its three result columns'
 );

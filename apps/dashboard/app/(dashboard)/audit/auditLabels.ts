@@ -118,7 +118,8 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // member. session_refund_applied metadata { outcome: voided | kept_partial |
   // kept_consumed, refund_id, payment_id, guest_session_id, refund_amount,
   // payment_amount }. session_consumed metadata { guest_session_id, payment_id,
-  // covered_day, consumed_at, source: paid | free }. session_attempt_blocked
+  // covered_day, consumed_at, source: paid | free, validity_mode, covered_kind, and for a class row covered_booking_id (Story 28.3; the key
+  // is absent for a day or visit row) }. session_attempt_blocked
   // metadata { attempt_id, scan_id, source, class_session_id, scanned_at }.
   session_refund_applied: "audit.actionTypes.sessionRefundApplied",
   session_consumed: "audit.actionTypes.sessionConsumed",

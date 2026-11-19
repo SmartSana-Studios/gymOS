@@ -55,6 +55,29 @@ describe('resolveSessionsLine with the cover fields', () => {
   });
 });
 
+// Story 28.3 (A5): no new member copy. A visit or class row is never "covered today", whatever day it was consumed, and a covered class
+// (which consumes no row at all) leaves the line exactly as it was.
+describe('visit and class rows are never covered today (Story 28.3)', () => {
+  const classRow: GuestSessionRow = { ...visit, coveredKind: 'class', coveredAttendanceId: null, coveredBookingId: 'b1' };
+  const unused: GuestSessionRow = { usableUntil: later, consumedAt: null, coveredDay: null, voidedAt: null, validityMode: null, coveredKind: null };
+
+  it.each([
+    ['visit', visit],
+    ['class', classRow],
+  ])('a %s row consumed this very day is used, not covered today', (_kind, row) => {
+    expect(resolveSessionsLine([row], 'Africa/Douala', now)).toEqual({ tone: 'info', usableCount: 0, soonestUsableUntil: null, coveredToday: false });
+  });
+
+  it('a visit row and a class row together still read as used, and an unused session beside them stays usable', () => {
+    expect(resolveSessionsLine([visit, classRow], 'Africa/Douala', now).coveredToday).toBe(false);
+    expect(resolveSessionsLine([visit, classRow, unused], 'Africa/Douala', now)).toMatchObject({ tone: 'neutral', usableCount: 1, coveredToday: false });
+  });
+
+  it('only a day row with a coveredDay of today covers today, even beside visit and class rows', () => {
+    expect(resolveSessionsLine([visit, classRow, wholeDay], 'Africa/Douala', now)).toMatchObject({ tone: 'success', coveredToday: true });
+  });
+});
+
 describe('homeSessionsOrFilter with Single-use rows', () => {
   it('is unchanged: usable rows plus the row covering the local day (a Single-use row has no covered_day to match)', () => {
     expect(homeSessionsOrFilter(now, 'Africa/Douala')).toBe(

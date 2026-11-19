@@ -115,14 +115,14 @@ create function pg_temp.checkout(p_member uuid) returns void language sql securi
 -- Signature, default and privileges.
 -- ============================================================================
 select is(to_regprocedure('private.consume_guest_session(uuid, uuid, timestamptz)'), null, 'the 3-argument consume function no longer exists (no ambiguity with the default)');
-select is(pg_get_function_arguments('private.consume_guest_session(uuid, uuid, timestamptz, text)'::regprocedure),
-          'p_member_id uuid, p_gym_id uuid, p_receipt_at timestamp with time zone, p_kind text DEFAULT ''visit''::text', 'the consume function takes p_kind text default visit');
-select is(pg_get_function_result('private.consume_guest_session(uuid, uuid, timestamptz, text)'::regprocedure),
+select is(pg_get_function_arguments('private.consume_guest_session(uuid, uuid, timestamptz, text, uuid)'::regprocedure),
+          'p_member_id uuid, p_gym_id uuid, p_receipt_at timestamp with time zone, p_kind text DEFAULT ''visit''::text, p_booking_id uuid DEFAULT NULL::uuid', 'the consume function takes p_kind text default visit and p_booking_id uuid default null (0179)');
+select is(pg_get_function_result('private.consume_guest_session(uuid, uuid, timestamptz, text, uuid)'::regprocedure),
           'TABLE(outcome text, session_created_at timestamp with time zone, session_id uuid)', 'the consume function keeps its three result columns');
-select is(has_function_privilege('anon', 'private.consume_guest_session(uuid, uuid, timestamptz, text)', 'EXECUTE')
-          or has_function_privilege('authenticated', 'private.consume_guest_session(uuid, uuid, timestamptz, text)', 'EXECUTE'), false, 'anon and authenticated cannot execute the consume function');
+select is(has_function_privilege('anon', 'private.consume_guest_session(uuid, uuid, timestamptz, text, uuid)', 'EXECUTE')
+          or has_function_privilege('authenticated', 'private.consume_guest_session(uuid, uuid, timestamptz, text, uuid)', 'EXECUTE'), false, 'anon and authenticated cannot execute the consume function');
 select is((select count(*)::int from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
-           where p.oid = 'private.consume_guest_session(uuid, uuid, timestamptz, text)'::regprocedure and a.grantee = 0), 0, 'PUBLIC has no EXECUTE on the consume function');
+           where p.oid = 'private.consume_guest_session(uuid, uuid, timestamptz, text, uuid)'::regprocedure and a.grantee = 0), 0, 'PUBLIC has no EXECUTE on the consume function');
 select is(pg_get_function_result('public.check_in(timestamptz, uuid)'::regprocedure), 'attendance_events', 'check_in() still returns attendance_events (the denial contract is null)');
 select is(pg_get_function_arguments('public.check_in(timestamptz, uuid)'::regprocedure),
           'p_scanned_at timestamp with time zone DEFAULT NULL::timestamp with time zone, p_client_scan_id uuid DEFAULT NULL::uuid', 'check_in() keeps its arguments');
@@ -135,8 +135,8 @@ select is((select outcome from private.consume_guest_session(pg_temp.m(11), pg_t
 -- ============================================================================
 select pg_temp.mk_paid(pg_temp.g(1), pg_temp.m(15));
 select is(pg_temp.err($$ select * from private.consume_guest_session('$$ || pg_temp.m(15) || $$', '$$ || pg_temp.g(1) || $$', now(), 'class') $$),
-          'P0001:class_single_use_unsupported', 'class in a single_use gym raises class_single_use_unsupported (Story 28.3 replaces this case)');
-select is(pg_temp.consumed(pg_temp.m(15)), 0, 'the class guard consumed nothing');
+          'P0001:consume_guest_session: a class needs its booking id', 'class in a single_use gym with no booking id raises (0179 replaced class_single_use_unsupported)');
+select is(pg_temp.consumed(pg_temp.m(15)), 0, 'the missing-booking guard consumed nothing');
 select is(pg_temp.err($$ select * from private.consume_guest_session('$$ || pg_temp.m(15) || $$', '$$ || pg_temp.g(1) || $$', now(), 'booking') $$),
           'P0001:consume_guest_session: invalid kind booking', 'an unknown kind raises');
 select is(pg_temp.err($$ select * from private.consume_guest_session('$$ || pg_temp.m(15) || $$', '$$ || pg_temp.g(1) || $$', now(), null) $$),

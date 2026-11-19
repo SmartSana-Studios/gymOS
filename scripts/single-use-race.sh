@@ -13,6 +13,10 @@
 # Case 3 (refund of the only unused paid session vs a scan, both orders): exactly one outcome. Scan first -> a visit, the session consumed and
 #   kept_consumed by the refund, the stamp earned then reversed (ledger 0/0). Refund first -> the session voided, the scan denied (one attempt,
 #   no attendance row). Both outcomes must have occurred.
+# Case 4 (Story 28.3: a class mark vs a scan, one member, two usable paid sessions, behind a third session that holds the member lock, the
+#   arrival order forced by when each statement is started). Scan queued first -> one visit row, the class lands inside the open visit and costs
+#   nothing: no class row, one consumed session, one stamp. Class queued first -> one class row and one visit row, two consumed sessions, two
+#   stamps, one attendance row (the class wrote none). Either way each need consumed exactly one session, and the booking is attended.
 set -uo pipefail
 DB=${DB_CONTAINER:-supabase_db_gym_os}
 N=${SINGLE_USE_RACE_ITERATIONS:-6}
@@ -45,6 +49,9 @@ delete from audit_log where gym_id = '$G';
 delete from session_attempts where gym_id = '$G';
 delete from refunds where gym_id = '$G';
 delete from guest_sessions where gym_id = '$G';
+delete from class_bookings where gym_id = '$G';
+delete from class_sessions where gym_id = '$G';
+delete from classes where gym_id = '$G';
 delete from loyalty_events where gym_id = '$G';
 delete from loyalty_progress where gym_id = '$G';
 delete from attendance_events where gym_id = '$G';
@@ -70,6 +77,15 @@ insert into gyms (id, name, tier_id, status, charge_guests_per_session, registra
 insert into auth.users (id) values ('$OWNER_U');
 insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days)
   values ('$PLAN', '$G', 'SU Race PPS', 'pay_per_session', 2000, 'XAF', 'monthly', null);
+-- Story 28.3: a manager (marks attendance and coaches the class) and one class.
+insert into auth.users (id) values ('00000000-0000-0000-0000-00000028f2a1');
+insert into members (id, gym_id, user_id, role, name, join_date)
+  values ('00000000-0000-0000-0000-00000028f3a1', '$G', '00000000-0000-0000-0000-00000028f2a1', 'manager', 'SU Race Manager', current_date);
+insert into auth.users (id) values ('00000000-0000-0000-0000-00000028f2a2');
+insert into members (id, gym_id, user_id, role, name, join_date)
+  values ('00000000-0000-0000-0000-00000028f3a2', '$G', '00000000-0000-0000-0000-00000028f2a2', 'coach', 'SU Race Coach', current_date);
+insert into classes (id, gym_id, name, coach_id, capacity, schedule_type, one_off_session_at)
+  values ('00000000-0000-0000-0000-00000028f0c0', '$G', 'SU Race Class', '00000000-0000-0000-0000-00000028f3a2', 50, 'one_off', now() + interval '1 day');
 SQL
 
 fail=0
@@ -190,5 +206,53 @@ done
 if [ "$n_voided" -lt 1 ] || [ "$n_consumed" -lt 1 ]; then
   echo "FAIL case 3: expected both outcomes, got refund-first=$n_voided scan-first=$n_consumed"; fail=1
 fi
+
+# ---- case 4 (Story 28.3): a class mark vs a scan, the queue order forced, both orders twice ----
+mark_sql() { # mark_sql <booking>: one class mark as the manager; prints OK <attended_at is set>
+  echo "begin; set local role authenticated; select set_config('request.jwt.claims', '{\"sub\":\"00000000-0000-0000-0000-00000028f2a1\",\"role\":\"authenticated\",\"gym_id\":\"$G\",\"app_role\":\"manager\"}', true); select 'OK ' || (select (attended_at is not null)::text from mark_class_attendance('$1')); commit;"
+}
+for i in $(seq 1 4); do
+  hex=$(printf '%02x' $((60 + i)))
+  mk_member "$hex"; mk_session "$hex" f4; mk_session "$hex" f5
+  M=$(Mid "$hex")
+  CS=00000000-0000-0000-0000-00000028f8$hex
+  B=00000000-0000-0000-0000-00000028f9$hex
+  psql_ <<SQL >/dev/null
+insert into class_sessions (id, gym_id, class_id, scheduled_at) values ('$CS', '$G', '00000000-0000-0000-0000-00000028f0c0', now() + interval '1 day' + make_interval(mins => $i));
+insert into class_bookings (id, gym_id, class_session_id, member_id) values ('$B', '$G', '$CS', '$M');
+SQL
+  hold_lock "$hex" & holder=$!
+  sleep 0.6
+  if [ $((i % 2)) -eq 1 ]; then
+    order="scan first"
+    psql_ -c "$(scan_sql "$hex")" > /tmp/su-race-a.$$ 2>&1 & a=$!
+    sleep 0.4
+    psql_ -c "$(mark_sql "$B")" > /tmp/su-race-b.$$ 2>&1 & b=$!
+    want="1/0/1/1/1/1"      # visit rows / class rows / consumed / stamps / attendance rows / attended
+  else
+    order="class first"
+    psql_ -c "$(mark_sql "$B")" > /tmp/su-race-b.$$ 2>&1 & b=$!
+    sleep 0.4
+    psql_ -c "$(scan_sql "$hex")" > /tmp/su-race-a.$$ 2>&1 & a=$!
+    want="1/1/2/2/1/1"
+  fi
+  wait "$a"; wait "$b"; wait "$holder"
+  visit_rows=$(psql_ -c "select count(*) from guest_sessions s join attendance_events a on a.id = s.covered_attendance_id where s.member_id = '$M' and s.consumed_at is not null and s.validity_mode = 'single_use' and s.covered_kind = 'visit'")
+  class_rows=$(psql_ -c "select count(*) from guest_sessions where member_id = '$M' and consumed_at is not null and validity_mode = 'single_use' and covered_kind = 'class' and covered_booking_id = '$B' and covered_day is null and covered_attendance_id is null")
+  consumed=$(psql_ -c "select count(*) from guest_sessions where member_id = '$M' and consumed_at is not null")
+  stamps=$(psql_ -c "select count(*) from loyalty_events where member_id = '$M' and event_type = 'stamp_earned'")
+  att=$(psql_ -c "select count(*) from attendance_events where member_id = '$M'")
+  attended=$(psql_ -c "select (attended_at is not null)::int from class_bookings where id = '$B'")
+  scan_ok=$(grep -c "^OK [0-9a-f]" /tmp/su-race-a.$$)
+  mark_ok=$(grep -c "^OK true" /tmp/su-race-b.$$)
+  got="$visit_rows/$class_rows/$consumed/$stamps/$att/$attended"
+  if [ "$got" = "$want" ] && [ "$scan_ok" = 1 ] && [ "$mark_ok" = 1 ]; then
+    echo "ok   case 4 iteration $i ($order): visit/class/consumed/stamps/attendance/attended = $got"
+  else
+    echo "FAIL case 4 iteration $i ($order): visit/class/consumed/stamps/attendance/attended = $got (want $want), scan ok=$scan_ok mark ok=$mark_ok"
+    cat /tmp/su-race-a.$$ /tmp/su-race-b.$$; fail=1
+  fi
+  rm -f /tmp/su-race-a.$$ /tmp/su-race-b.$$
+done
 
 [ "$fail" = 0 ] && echo "race: all passed" || { echo "race: FAILED"; exit 1; }

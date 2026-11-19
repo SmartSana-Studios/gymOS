@@ -11,6 +11,7 @@ import {
   GUEST_SESSIONS_PAGE_SIZE,
   GUEST_SESSIONS_PERIODS,
   GUEST_SESSIONS_TABS,
+  formatGymLocal,
   type BlockedAttemptRow,
   type FreeGuestSessionRow,
   type GuestSessionsPeriod,
@@ -174,6 +175,25 @@ export function GuestSessionsPageClient(props: Props) {
     return row.recorderKind === "tara" ? t("guestSessions.recorderTara") : t("guestSessions.recorderUnknown");
   }
 
+  // Story 28.3 (UX AD-22): what a consumed session covered, in the gym's own timezone. A null kind on a consumed row is a legacy day row
+  // and reads as a covered day; an unconsumed row has nothing to show.
+  const usedLabel = (row: PaidGuestSessionRow): string => {
+    if (!row.consumedAt) return t("guestSessions.used.none");
+    if (row.coveredKind === "visit") {
+      return t("guestSessions.used.visit", {
+        date: formatGymLocal(row.consumedAt, row.gymTimezone, lang, "date"),
+        time: formatGymLocal(row.consumedAt, row.gymTimezone, lang, "time"),
+      });
+    }
+    if (row.coveredKind === "class") {
+      return t("guestSessions.used.class", {
+        name: row.className ?? "",
+        date: formatGymLocal(row.classStartsAt ?? row.consumedAt, row.gymTimezone, lang, "date"),
+      });
+    }
+    return t("guestSessions.used.day");
+  };
+
   const refundLabel = (row: PaidGuestSessionRow) =>
     row.refundState === "refunded"
       ? t("guestSessions.refund.refunded")
@@ -197,6 +217,7 @@ export function GuestSessionsPageClient(props: Props) {
               {th("recordedBy")}
               {th("time")}
               {th("refund")}
+              {th("used")}
             </tr>
           </thead>
           <tbody>
@@ -214,6 +235,8 @@ export function GuestSessionsPageClient(props: Props) {
                           total: fmtNumber(row.groupTotal ?? 0),
                         })}
                       </th>
+                      {/* The seventh column (Used) is not part of a recorder group: an empty cell keeps the band full width. The header spans 6. */}
+                      <td aria-hidden="true" />
                     </tr>
                   )}
                   <tr className="border-b last:border-0">
@@ -225,6 +248,7 @@ export function GuestSessionsPageClient(props: Props) {
                     <td className="p-3">{recorderLabel(row)}</td>
                     <td className="p-3">{fmtDateTime(row.createdAt)}</td>
                     <td className="p-3">{refundLabel(row)}</td>
+                    <td className="p-3">{usedLabel(row)}</td>
                   </tr>
                 </Fragment>
               );

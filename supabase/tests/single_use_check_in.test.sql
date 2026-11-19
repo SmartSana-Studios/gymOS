@@ -5,7 +5,7 @@
 -- changed directly (audited, read by the next scan), a gym timeout shorter than the limit, an uncovered and a Whole-day-covered open visit
 -- (timeout alone), a forgotten check-out with and without a usable session, offline replay / late / denied, the staff path and the staff void
 -- (voidable with a later same-day visit), a whole_day gym and a charging-off gym unchanged, exempt members, the setting flipped both ways mid-day
--- and mid-visit, occupancy and the auto-timeout job at limit + 1 minute, the class guard (pinned) and the class pass-through in a whole_day
+-- and mid-visit, occupancy and the auto-timeout job at limit + 1 minute, a class mark in a single_use gym and the class pass-through in a whole_day
 -- gym, and the engagement counts.
 --
 -- pgTAP runs one session and one transaction: now() is constant, so every age below is exact. The helpers switch to the caller's role themselves,
@@ -575,7 +575,7 @@ select is((select checkout_type from attendance_events where id = (select att fr
 select is(private.gym_occupancy_band(pg_temp.g(7)), 'medium', 'occupancy: after the job one visit is still counted');
 
 -- ============================================================================
--- Classes: the guard is pinned for a single_use gym; a whole_day gym passes 'class' through unchanged.
+-- Classes: a single_use gym consumes a class session (Story 28.3, migration 0179; its own file proves the rest); a whole_day gym unchanged.
 -- ============================================================================
 insert into classes (id, gym_id, name, coach_id, capacity, schedule_type, one_off_session_at) values
   ('00000000-0000-0000-0000-000000282a01', pg_temp.g(1), 'SU Class 1', pg_temp.m(4), 20, 'one_off', now() + interval '1 day'),
@@ -589,10 +589,11 @@ insert into class_bookings (id, gym_id, class_session_id, member_id) values
 select pg_temp.mk_paid(pg_temp.g(1), pg_temp.mm('class_m'));
 select pg_temp.mk_paid(pg_temp.g(2), pg_temp.mm('wd_class'));
 
-select is(pg_temp.mark('00000000-0000-0000-0000-000000282c01', 2, 1, 'manager'), 'error:P0001:class_single_use_unsupported',
-          'class guard (Story 28.3 replaces this case): a class mark for a charged member in a single_use gym raises class_single_use_unsupported');
-select is((select attended_at from class_bookings where id = '00000000-0000-0000-0000-000000282c01'), null, 'class guard: the booking is not attended');
-select is(pg_temp.consumed('class_m'), 0, 'class guard: no session consumed');
+select is(pg_temp.mark('00000000-0000-0000-0000-000000282c01', 2, 1, 'manager'), 'attended',
+          'class (Story 28.3 replaced the guard case): a class mark for a charged member in a single_use gym attends the booking');
+select ok((select attended_at is not null from class_bookings where id = '00000000-0000-0000-0000-000000282c01'), 'class: the booking is attended');
+select is((select count(*)::int from guest_sessions where member_id = pg_temp.mm('class_m') and consumed_at is not null and covered_kind = 'class'
+           and covered_booking_id = '00000000-0000-0000-0000-000000282c01'), 1, 'class: one class session consumed for the booking');
 select is(pg_temp.mark('00000000-0000-0000-0000-000000282c02', 3, 2, 'manager'), 'attended', 'whole_day gym: the class mark passes ''class'' through and attends the booking');
 select is((select validity_mode || ':' || covered_kind || ':' || (covered_day is not null)::text from guest_sessions where member_id = pg_temp.mm('wd_class') and consumed_at is not null),
           'whole_day:day:true', 'whole_day gym: the class consumed a day row exactly as before');

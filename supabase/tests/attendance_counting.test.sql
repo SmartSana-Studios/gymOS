@@ -488,6 +488,9 @@ create function pg_temp.attendance_readers_outside_list() returns setof text lan
     'function check_in(timestamp with time zone,uuid)',
     -- the one inserter of attendance_events (27.2, 0174) and the stale-open closer
     'function private.record_check_in(uuid,uuid,text,uuid,timestamp with time zone,uuid)',
+    -- 28.3 (0179): a class mark reads the open, non-voided row to see whether a single_use visit session covers the class (read only: the
+    -- class path never writes attendance, AD-21)
+    'function private.consume_guest_session(uuid,uuid,timestamp with time zone,text,uuid)',
     -- staff and member check-out close the open row
     'function check_out()',
     'function check_out_member(uuid)',
@@ -519,11 +522,12 @@ select is(
      select p.oid from pg_proc p
      where p.oid::regprocedure::text in ('check_in(timestamp with time zone,uuid)', 'private.record_check_in(uuid,uuid,text,uuid,timestamp with time zone,uuid)',
                                           'check_out()', 'check_out_member(uuid)', 'run_check_in_auto_timeout_job()',
-                                          'list_attendance_log(timestamp with time zone,timestamp with time zone,uuid)', 'void_staff_check_in(uuid,text)')
+                                          'list_attendance_log(timestamp with time zone,timestamp with time zone,uuid)', 'void_staff_check_in(uuid,text)',
+                                          'private.consume_guest_session(uuid,uuid,timestamp with time zone,text,uuid)')
        and p.prokind in ('f', 'p')
        and (case when p.prokind in ('f', 'p') then pg_get_functiondef(p.oid) end) ~ '\mattendance_events\M') q),
-  7,
-  'the seven committed function readers exist and still mention attendance_events'
+  8,
+  'the eight committed function readers exist and still mention attendance_events'
 );
 
 -- ----------------------------------------------------------------------------

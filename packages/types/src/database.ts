@@ -3411,10 +3411,15 @@ export type Database = {
         }
         Returns: {
           amount: number
+          class_name: string | null
+          class_starts_at: string | null
           consumed_at: string | null
+          covered_booking_id: string | null
+          covered_kind: string | null
           created_at: string
           group_sessions: number | null
           group_total: number | null
+          gym_timezone: string | null
           member_id: string
           member_name: string
           method: string
