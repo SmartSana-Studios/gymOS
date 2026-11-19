@@ -836,7 +836,7 @@
       "edit": "Modifier",
       "deactivate": "Désactiver",
       "menu": "Actions pour {{name}}",
-      "button": "Action :"
+      "button": "Action"
     },
     "resend": {
       "confirm": "Générer un nouveau mot de passe temporaire pour {{name}} et l'envoyer par WhatsApp ? Son mot de passe cessera de fonctionner immédiatement pour toute nouvelle connexion (une session déjà ouverte n'est pas affectée)."
@@ -934,7 +934,7 @@
       "auditLogFailedEdit": "La formule a été modifiée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedDelete": "La formule a été supprimée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
     },
-    "actionsButton": "Action :",
+    "actionsButton": "Action",
     "annual": {
       "summary": "{{price}} XAF · {{days}} jours · Payé en une fois",
       "listLine": "{{price}} XAF · {{days}} jours · Payé en une fois",
@@ -1051,7 +1051,7 @@
       "invite": "Inviter",
       "deactivate": "Désactiver",
       "menu": "Actions pour {{name}}",
-      "button": "Action :",
+      "button": "Action",
       "collectFee": "Encaisser les frais",
       "waiveFee": "Exonérer les frais",
       "assignPlan": "Attribuer une formule",
@@ -1842,7 +1842,7 @@
       "amountMismatchLine": "{{internal}} (signalé : {{reported}})",
       "wrongAccountSettlementLine": "Attendu {{expected}}, réglé sur {{actual}}"
     },
-    "actionsButton": "Action :",
+    "actionsButton": "Action",
     "purposes": {
       "subscription": "Abonnement",
       "registrationFee": "Frais d'inscription",

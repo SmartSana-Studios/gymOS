@@ -836,7 +836,7 @@
       "edit": "Edit",
       "deactivate": "Deactivate",
       "menu": "Actions for {{name}}",
-      "button": "Action :"
+      "button": "Action"
     },
     "resend": {
       "confirm": "Generate a new temporary password for {{name}} and send it via WhatsApp? Their password will stop working for new logins immediately (any session they're already logged into is unaffected)."
@@ -934,7 +934,7 @@
       "auditLogFailedEdit": "The plan was updated, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedDelete": "The plan was deleted, but the audit log entry failed to write. Please contact support."
     },
-    "actionsButton": "Action :",
+    "actionsButton": "Action",
     "annual": {
       "summary": "{{price}} XAF · {{days}} days · Paid once",
       "listLine": "XAF {{price}} · {{days}} days · Paid once",
@@ -1051,7 +1051,7 @@
       "invite": "Invite",
       "deactivate": "Deactivate",
       "menu": "Actions for {{name}}",
-      "button": "Action :",
+      "button": "Action",
       "collectFee": "Collect fee",
       "waiveFee": "Waive fee",
       "assignPlan": "Assign plan",
@@ -1842,7 +1842,7 @@
       "amountMismatchLine": "{{internal}} (reported: {{reported}})",
       "wrongAccountSettlementLine": "Expected {{expected}}, settled to {{actual}}"
     },
-    "actionsButton": "Action :",
+    "actionsButton": "Action",
     "purposes": {
       "subscription": "Subscription",
       "registrationFee": "Registration fee",
