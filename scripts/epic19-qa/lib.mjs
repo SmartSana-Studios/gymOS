@@ -53,7 +53,7 @@ export async function buildWorld() {
   execFileSync("docker", ["exec", "-i", "supabase_db_gym_os", "psql", "-U", "postgres", "-v", "ON_ERROR_STOP=1", "-q"],
     { input: readFileSync(path.join(here, "reset.sql")), stdio: ["pipe", "inherit", "inherit"] });
 
-  const tier = must(await admin.from("tiers").select("id").eq("name", "Grind").single(), "tier");
+  const tier = must(await admin.from("tiers").select("id").ilike("name", "grind").single(), "tier");
   const gym = must(await admin.from("gyms").insert({ name: "Epic19 QA Gym", tier_id: tier.id, status: "active", default_language: "en" }).select("id, gym_token, charge_guests_per_session").single(), "gym");
   const otherGym = must(await admin.from("gyms").insert({ name: "Epic19 QA Other Gym", tier_id: tier.id, status: "active", default_language: "en" }).select("id").single(), "other gym");
 

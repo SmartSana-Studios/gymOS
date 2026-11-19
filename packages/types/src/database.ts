@@ -16,9 +16,15 @@ export type Database = {
           checkout_type: string | null
           client_scan_id: string | null
           created_at: string
+          entered_by: string | null
           gym_id: string
           id: string
           member_id: string
+          source: string
+          visit_day: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           checked_in_at?: string
@@ -26,9 +32,15 @@ export type Database = {
           checkout_type?: string | null
           client_scan_id?: string | null
           created_at?: string
+          entered_by?: string | null
           gym_id: string
           id?: string
           member_id: string
+          source?: string
+          visit_day: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           checked_in_at?: string
@@ -36,11 +48,23 @@ export type Database = {
           checkout_type?: string | null
           client_scan_id?: string | null
           created_at?: string
+          entered_by?: string | null
           gym_id?: string
           id?: string
           member_id?: string
+          source?: string
+          visit_day?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_events_entered_by_fkey"
+            columns: ["entered_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "attendance_events_gym_id_fkey"
             columns: ["gym_id"]
@@ -51,6 +75,12 @@ export type Database = {
             foreignKeyName: "attendance_events_member_id_fkey"
             columns: ["member_id"]
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_events_voided_by_fkey"
+            columns: ["voided_by"]
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -671,6 +701,7 @@ export type Database = {
       guest_sessions: {
         Row: {
           consumed_at: string | null
+          covered_attendance_id: string | null
           covered_day: string | null
           created_at: string
           gym_id: string
@@ -684,6 +715,7 @@ export type Database = {
         }
         Insert: {
           consumed_at?: string | null
+          covered_attendance_id?: string | null
           covered_day?: string | null
           created_at?: string
           gym_id: string
@@ -696,6 +728,7 @@ export type Database = {
         }
         Update: {
           consumed_at?: string | null
+          covered_attendance_id?: string | null
           covered_day?: string | null
           created_at?: string
           gym_id?: string
@@ -707,6 +740,12 @@ export type Database = {
           voided_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "guest_sessions_covered_attendance_id_fkey"
+            columns: ["covered_attendance_id"]
+            referencedRelation: "attendance_events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "guest_sessions_gym_id_fkey"
             columns: ["gym_id"]
@@ -2573,6 +2612,55 @@ export type Database = {
       }
     }
     Views: {
+      attendance_counted: {
+        Row: {
+          checked_in_at: string | null
+          checked_out_at: string | null
+          checkout_type: string | null
+          client_scan_id: string | null
+          created_at: string | null
+          gym_id: string | null
+          id: string | null
+          member_id: string | null
+          source: string | null
+          visit_day: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_events_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_events_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_visit_days: {
+        Row: {
+          gym_id: string | null
+          member_id: string | null
+          visit_day: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_events_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_events_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions_current: {
         Row: {
           deactivated_at: string | null
@@ -2683,9 +2771,15 @@ export type Database = {
           checkout_type: string | null
           client_scan_id: string | null
           created_at: string
+          entered_by: string | null
           gym_id: string
           id: string
           member_id: string
+          source: string
+          visit_day: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         SetofOptions: {
           from: "*"
@@ -2709,9 +2803,15 @@ export type Database = {
           checkout_type: string | null
           client_scan_id: string | null
           created_at: string
+          entered_by: string | null
           gym_id: string
           id: string
           member_id: string
+          source: string
+          visit_day: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         SetofOptions: {
           from: "*"
@@ -2728,9 +2828,15 @@ export type Database = {
           checkout_type: string | null
           client_scan_id: string | null
           created_at: string
+          entered_by: string | null
           gym_id: string
           id: string
           member_id: string
+          source: string
+          visit_day: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         SetofOptions: {
           from: "*"
@@ -2780,6 +2886,39 @@ export type Database = {
           p_webhook_secret: string
         }
         Returns: undefined
+      }
+      correct_plan_eligibility: {
+        Args: { p_member_id: string }
+        Returns: {
+          block_amount: number | null
+          block_at: string | null
+          block_method: string | null
+          block_more: number | null
+          block_payment_id: string | null
+          block_refunded_amount: number | null
+          block_state: string | null
+          billing_interval: Database["public"]["Enums"]["billing_interval"]
+          duration_days: number | null
+          expiry_date: string | null
+          plan_id: string
+          plan_name: string
+          plan_type: Database["public"]["Enums"]["plan_type"]
+          price: number
+          start_date: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          subscription_id: string
+        }[]
+      }
+      correct_subscription_plan: {
+        Args: { p_member_id: string; p_new_plan_id: string; p_reason: string; p_subscription_id?: string }
+        Returns: {
+          expiry_date: string | null
+          plan_id: string
+          plan_name: string
+          plan_type: Database["public"]["Enums"]["plan_type"]
+          status: Database["public"]["Enums"]["subscription_status"]
+          subscription_id: string
+        }[]
       }
       create_class: {
         Args: {
@@ -3043,6 +3182,20 @@ export type Database = {
         Returns: { assignment_id: string | null; code: string; ok: boolean }[]
       }
       record_support_factor_reset_run: { Args: { p_done: number; p_failed: number; p_started_at?: string }; Returns: undefined }
+      staff_check_in: {
+        Args: { p_member_id: string }
+        Returns: {
+          attendance_id: string | null
+          checked_in_at: string | null
+          days_since_expiry: number | null
+          expiry_date: string | null
+          grace_ends_on: string | null
+          member_status: Database["public"]["Enums"]["subscription_status"] | null
+          outcome: string
+          session_amount: number | null
+          since: string | null
+        }[]
+      }
       start_support_factor_reset: {
         Args: { p_cancel_link: string; p_cancel_token: string; p_identity_note: string; p_user_id: string }
         Returns: { code: string; executes_at: string | null; ok: boolean; reset_id: string | null }[]
@@ -3185,6 +3338,27 @@ export type Database = {
           description: string
           my_booking_id: string
           scheduled_at: string
+        }[]
+      }
+      list_attendance_log: {
+        Args: { p_from: string; p_member_id?: string; p_to: string }
+        Returns: {
+          attendance_id: string
+          checked_in_at: string
+          checked_out_at: string | null
+          checkout_type: string | null
+          consumed_session: boolean | null
+          consumed_session_paid: boolean | null
+          earned_stamp: boolean | null
+          entered_by_label: string | null
+          member_id: string
+          member_name: string
+          source: string
+          visit_day: string
+          void_reason: string | null
+          voidable: boolean
+          voided_at: string | null
+          voided_by_label: string | null
         }[]
       }
       list_free_guest_sessions: {
@@ -3675,6 +3849,17 @@ export type Database = {
       update_workout_plan: {
         Args: { p_exercises: Json; p_name: string; p_plan_id: string }
         Returns: undefined
+      }
+      void_staff_check_in: {
+        Args: { p_attendance_id: string; p_reason: string }
+        Returns: {
+          attendance_id: string | null
+          later_is_staff_entry: boolean | null
+          outcome: string
+          session_released: boolean | null
+          stamp_removed: boolean | null
+          voided_at: string | null
+        }[]
       }
       void_registration_fee_payment: {
         Args: { p_payment_id: string; p_reason: string }

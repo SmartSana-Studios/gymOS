@@ -2122,3 +2122,40 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-25-6-directory-gate-seo-verification-and-removal-timing.md`
   summary: The directory wiring of the landing-gate kit has no automated check. `seed.mjs --directory` (`seedDirectory`), the directory share in `load.mjs`, the `GATE_LCP_TARGET` targets in `lcp.mjs` and the `JOBS`/`SEED_ARGS` logic in `run-local.sh` are covered only by the unit tests of the pure helpers in `lib/load.mjs`; making `load.mjs` pass `expected: false` keeps all 101 kit tests green.
   evidence: Owner-run kit by design; decisions.md 25.6 records a passing local run (7229 requests, 1464 directory). Would settle it: a thin test of `seedDirectory` or a `ci-local` stage that runs `run-local.sh load` with a short `GATE_LOAD_STEPS`.
+
+## Deferred from: code review of spec-27-1-protected-attendance-counting (2026-11-15)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-1-protected-attendance-counting.md`
+  summary: The Attendance page "today" count is gym-local after 27.1, but the Daily Log's date filter and its default "today" still use the UTC day, so for a Douala gym a check-in from 00:00 to 01:00 local counts in the header but not in the log filtered to today.
+  evidence: `apps/dashboard/services/attendance.ts` `listAttendanceLog` still builds its range from `todayUtcDate()`; 27.1's frozen Never excludes changing it. Settled by filtering the log on `visit_day` (default date from `gym_local_period_bounds()`); do it before Epic 30 reads the same days, or accept the one-hour window.
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-1-protected-attendance-counting.md`
+  summary: Migration 0173 was proven only applied alone on a local database sitting at 0159 (`supabase migration up` stops at 0160), not in sequence after 0160 to 0172.
+  evidence: grep shows 0160 to 0172 do not touch `attendance_events`, its policies or `private.gym_occupancy_band`, so the risk is low. Settled by `supabase db reset` followed by the full `scripts/ci-local.sh` before epic/27 reaches master; the reset needs the owner's `!` line because the permission classifier refused it for the subagent.
+
+## Deferred from: code review of spec-27-1-protected-attendance-counting (2026-11-15, second pass)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-1-protected-attendance-counting.md`
+  summary: Migration 0173 backfills `visit_day` in one UPDATE with a per-row function call (own exception sub-block and `gyms` lookup) while holding ACCESS EXCLUSIVE on `attendance_events`; unmeasured, marked medium unverified.
+  evidence: `lock_timeout = '5s'` bounds only the wait for the lock, not the hold time. The first pass estimated tens of thousands of production rows at microseconds per call. Would settle it: `select count(*) from attendance_events` on production and a timed local run of the backfill at that size before the prod apply; if the count is large, backfill in a join (`update ... from gyms`) or in batches.
+
+## Deferred from: code review of spec-27-2-one-check-in-insert-path (2026-11-15)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-2-one-check-in-insert-path.md`
+  summary: Story 27.3 must make `check_out()`, `check_out_member(uuid)` and `run_check_in_auto_timeout_job()` read "the open row" with `voided_at is null` (or prove it unneeded), because after 0174 a voided open row can sit beside a live open row for one member.
+  evidence: 0174 narrows the one-open index to `voided_at is null`; the three updater bodies (0124, 0111) still match `checked_out_at is null` only, and 27.2's frozen Always keeps them unchanged. Unreachable until 27.3 adds `void_staff_check_in`. Belongs in 27.3's acceptance criteria (epic-27-context.md Cross-Story Dependencies carries it); a pgTAP case should run each updater with a voided open row present.
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-2-one-check-in-insert-path.md`
+  summary: `private.record_check_in` checks `private.current_gym_status()`, which resolves the gym from the session or the support proxy, not from `p_gym_id`; story 27.3 must prove or enforce that a support caller's resolved gym is the `p_gym_id` it passes.
+  evidence: identical for a scan (the gym comes from the same session). Only the 27.3 `staff_check_in` support path can differ. Flagged in the spec Design Notes and `docs/decisions.md`; belongs in 27.3's acceptance criteria.
+
+## Deferred from: code review of spec-27-4-correct-plan-and-annual-plan-wording (2026-11-18)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-4-correct-plan-and-annual-plan-wording.md`
+  summary: A full `scripts/ci-local.sh` GREEN after the 27-4 review patches and an owner-run `supabase db reset` are still owed before epic/27 goes to master.
+  evidence: migration 0176 was applied by hand to the local DB; the implementer's green run predates the review patches that changed the migration, race script, tests and locales. Read the per-stage lines, not only the final GREEN.
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-4-correct-plan-and-annual-plan-wording.md`
+  summary: `renew_subscription` reads `deactivated_at` in its unlocked member lookup and takes the member lock afterwards, so a deactivation committed in between is not seen.
+  evidence: pre-existing shape from 0157 (no lock at all); 0176 adds the lock after the lookup. Fix when the function is next touched: one `select gym_id, deactivated_at ... for no key update`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-4-correct-plan-and-annual-plan-wording.md`
+  summary: `scripts/correct-plan-race.sh` uses fixed sleeps (0.6 s, 0.8 s against a 2 s hold, an `elapsed >= 1000` ms assert), a `pg_stat_activity` LIKE on query text, and greps `ERROR:  <code>`; medium, unverified.
+  evidence: not read in this review; older race scripts share the shape. Would settle it: run it ten times under CPU load and see whether a case flakes; if so poll for the blocked waiter and match SQLSTATE/detail.
+  update 2026-11-18 (after merge): confirmed flaky in practice. The first full ci-local on c6b3e1b failed at case 1a; alone, 17 of 21 back-to-back runs passed, the 4 failures including a run that collapsed from its first case (rows=0, invalid uuid) and one with no verdict, consistent with overlapping detached `docker exec -d` copies (not proven); 6 of 6 passed when each run waited for the container to be idle. Fix: poll `pg_stat_activity` for the blocked waiter instead of `sleep 0.6/0.8`, and make the launcher refuse to start while `ci-cp-race.sh` is already running.

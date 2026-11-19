@@ -151,10 +151,14 @@ export interface RenewalPreview {
    * (initiatePaymentSchema requires a valid phone). Sourced from the same
    * query as plan/price rather than a second round-trip. */
   memberPhone: string | null;
+  /** Story 27.4: the plan's type, duration and billing interval, for the plan summary line ("Paid once" on an annual plan). */
+  planType?: string;
+  durationDays?: number | null;
+  billingInterval?: string;
 }
 
 interface RenewalPreviewRowFromDb {
-  plans: { name: string; price: number; currency: string } | null;
+  plans: { name: string; price: number; currency: string; plan_type?: string; duration_days?: number | null; billing_interval?: string } | null;
   members: { phone: string | null } | null;
 }
 
@@ -178,7 +182,7 @@ export async function getRenewalPreview(
 
   const { data, error } = await supabase
     .from("subscriptions")
-    .select("plans(name, price, currency), members(phone)")
+    .select("plans(name, price, currency, plan_type, duration_days, billing_interval), members(phone)")
     .eq("gym_id", gymId)
     .eq("member_id", memberId)
     .order("created_at", { ascending: false })
@@ -197,7 +201,15 @@ export async function getRenewalPreview(
   }
 
   return {
-    data: { planName: plan.name, price: plan.price, currency: plan.currency, memberPhone: row?.members?.phone ?? null },
+    data: {
+      planName: plan.name,
+      price: plan.price,
+      currency: plan.currency,
+      memberPhone: row?.members?.phone ?? null,
+      ...(plan.plan_type !== undefined
+        ? { planType: plan.plan_type, durationDays: plan.duration_days ?? null, billingInterval: plan.billing_interval }
+        : {}),
+    },
     error: null,
   };
 }

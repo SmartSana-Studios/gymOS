@@ -147,6 +147,22 @@ describe("GuestSessionsPageClient", () => {
     expect(screen.getByText("Spin")).toBeInTheDocument();
   });
 
+  it("shows a refused desk check-in (source staff) as the Desk check-in source, never the raw value (27.3)", () => {
+    render(
+      ready({
+        tab: "blocked",
+        total: 2,
+        blockedRows: [
+          { id: "a1", memberId: "m1", memberName: "Amina", source: "check_in", className: null, time: "2026-10-12T07:00:00Z", scannedAt: null, syncedAt: "2026-10-12T07:00:00Z" },
+          { id: "a3", memberId: "m3", memberName: "Chantal", source: "staff", className: null, time: "2026-10-12T09:00:00Z", scannedAt: null, syncedAt: "2026-10-12T09:00:00Z" },
+        ],
+      }),
+    );
+    expect(screen.getByText("guestSessions.source.desk")).toBeInTheDocument();
+    expect(screen.getByText("guestSessions.source.check_in")).toBeInTheDocument();
+    expect(screen.queryByText("guestSessions.source.staff")).toBeNull();
+  });
+
   it("shows Member, Earned, Use by and Status for free sessions", () => {
     render(
       ready({

@@ -19,6 +19,7 @@ import { confirmRenewalAction, getRenewalPreviewAction } from "@/app/(dashboard)
 import { getPendingMobileMoneyPaymentAction, initiatePaymentAction } from "@/app/(dashboard)/payments/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { RenewalPreview } from "@/services/subscriptions";
+import { planNameWithSummary } from "@/lib/planSummary";
 
 interface FieldErrors {
   reason?: string;
@@ -90,15 +91,29 @@ function formatLocalDate(dateOnly: string, locale: string): string {
  * a standalone reusable component so Story 4.8's Subscriptions page can
  * render it from a table row later.
  */
-export function RenewalModal({
-  alertId,
-  memberId,
-  memberName,
-  originalExpiryDate,
-  mobileMoneyEnabled,
-  onClose,
-  onRenewed,
-}: {
+export function RenewalModal(props: RenewalPanelProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [blockClose, setBlockClose] = useState(false);
+
+  useEffect(() => {
+    dialogRef.current?.showModal();
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onClose={props.onClose}
+      onCancel={(e) => {
+        if (blockClose) e.preventDefault();
+      }}
+      className="w-full max-w-[480px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
+    >
+      <RenewalPanel {...props} onBusyChange={setBlockClose} />
+    </dialog>
+  );
+}
+
+export interface RenewalPanelProps {
   alertId?: string;
   memberId: string;
   memberName: string;
@@ -112,10 +127,30 @@ export function RenewalModal({
   mobileMoneyEnabled: boolean;
   onClose: () => void;
   onRenewed: () => void;
-}) {
+}
+
+/**
+ * The renewal form without its dialog (Story 27.3, "Inline Renewal Panel", FR-050): the same plan preview, methods, note, Mobile
+ * Money watch and refusals as the dialog. The Check in a member modal hosts it inline under a result panel; `RenewalModal` wraps it
+ * in the native <dialog>. `onBusyChange(true)` means a request is in flight and the host must not close.
+ */
+export function RenewalPanel({
+  alertId,
+  memberId,
+  memberName,
+  originalExpiryDate,
+  mobileMoneyEnabled,
+  onClose,
+  onRenewed,
+  onBusyChange,
+}: RenewalPanelProps & { onBusyChange?: (busy: boolean) => void }) {
   const { t, i18n } = useTranslation();
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const domIdSuffix = alertId ?? memberId;
+  // The Mobile Money watch below must not be torn down when a host re-renders with a fresh inline callback: hold the latest in a ref.
+  const onRenewedRef = useRef(onRenewed);
+  useEffect(() => {
+    onRenewedRef.current = onRenewed;
+  });
 
   const [preview, setPreview] = useState<RenewalPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -159,10 +194,6 @@ export function RenewalModal({
     "idle" | "sending" | "pending" | "stillWaiting" | "failed"
   >("idle");
   const [initiatedPaymentId, setInitiatedPaymentId] = useState<string | null>(null);
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -253,7 +284,7 @@ export function RenewalModal({
             );
           }
         }
-        if (active) onRenewed();
+        if (active) onRenewedRef.current();
       } else if (row.status === "flagged") {
         stopPolling();
         setMobileMoneyPhase("failed");
@@ -300,7 +331,7 @@ export function RenewalModal({
       clearTimeout(stillWaitingTimer);
       void supabase.removeChannel(channel);
     };
-  }, [initiatedPaymentId, alertId, memberId, onRenewed]);
+  }, [initiatedPaymentId, alertId, memberId]);
 
   // UX: "pre-filled 'Paid at desk' for Cash; cleared when method changes".
   // `mobile_money` (Story 4.12) has no note/reason field at all (
@@ -437,19 +468,22 @@ export function RenewalModal({
   const isWatchingMobileMoney =
     mobileMoneyPhase === "pending" || mobileMoneyPhase === "stillWaiting" || mobileMoneyPhase === "failed";
   const blockClose = submitting || mobileMoneyPhase === "sending";
+  useEffect(() => {
+    onBusyChange?.(blockClose);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockClose]);
+  // A host that unmounts the panel mid-flight (the Check in a member modal does, once the renewal completes) must not stay "busy".
+  const onBusyChangeRef = useRef(onBusyChange);
+  useEffect(() => {
+    onBusyChangeRef.current = onBusyChange;
+  });
+  useEffect(() => () => onBusyChangeRef.current?.(false), []);
   const methodOptions: { value: RenewalMethod }[] = mobileMoneyEnabled
     ? [...MANUAL_METHOD_OPTIONS, { value: "mobile_money" }]
     : MANUAL_METHOD_OPTIONS;
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={resetAndClose}
-      onCancel={(e) => {
-        if (blockClose) e.preventDefault();
-      }}
-      className="w-full max-w-[480px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
-    >
+    <>
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">{t("renewalPanel.title")}</h2>
@@ -477,7 +511,19 @@ export function RenewalModal({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("renewalPanel.plan")}</span>
-              <span>{preview.planName}</span>
+              <span>
+                {planNameWithSummary(
+                  t,
+                  {
+                    name: preview.planName,
+                    planType: preview.planType,
+                    price: preview.price,
+                    durationDays: preview.durationDays ?? null,
+                    billingInterval: preview.billingInterval,
+                  },
+                  i18n.language,
+                )}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("renewalPanel.startDate")}</span>
@@ -603,6 +649,6 @@ export function RenewalModal({
           )}
         </div>
       </form>
-    </dialog>
+    </>
   );
 }

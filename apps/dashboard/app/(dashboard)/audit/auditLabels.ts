@@ -135,4 +135,17 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // for completeness.
   audit_disclosure_requested: "audit.actionTypes.auditDisclosureRequested",
   audit_disclosure_answered: "audit.actionTypes.auditDisclosureAnswered",
+  // Story 27.3 (0175, UX AD-12 V1.8). Written by staff_check_in() (an accepted entry, metadata { member_id, attendance_event_id,
+  // checked_in_at, member_status, outcome: checked_in | checked_in_with_warning }), by the same function for a refusal
+  // (staff_check_in_rejected: { member_id, outcome, reason, ... }; never for an already-inside no-op) and by void_staff_check_in()
+  // ({ member_id, attendance_event_id, original_checked_in_at, reason, session_released, stamp_removed }). Gym-scoped, target = the
+  // member; the actor is the staff member, or "GymOS Support" for support. The Details cell is worded per action (AuditLogPageClient).
+  staff_check_in: "audit.actionTypes.staffCheckIn",
+  staff_check_in_rejected: "audit.actionTypes.staffCheckInRejected",
+  staff_check_in_voided: "audit.actionTypes.staffCheckInVoided",
+  // Story 27.4 (0176, UX AD-12 V1.8). Written by correct_subscription_plan(): ONE gym-scoped row, target = the member, the actor the staff
+  // member or "GymOS Support". Metadata { member_id, subscription_id, old_plan_id, new_plan_id, old_plan_name, new_plan_name, old_price,
+  // new_price, old_expiry_date, new_expiry_date, old_status, new_status, basis_start_date, loyalty_days_added, reason }. The Details cell
+  // carries both plans, both prices, both expiries and the reason (AuditLogPageClient).
+  subscription_plan_corrected: "audit.actionTypes.planCorrected",
 };

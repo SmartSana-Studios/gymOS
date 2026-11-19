@@ -120,7 +120,7 @@ select throws_ok($$insert into members (gym_id, user_id, role, name) values ('00
 create temp table cat_fn (name text primary key, includes_support boolean not null);
 insert into cat_fn (name, includes_support) values
   ('private.capability_roles', false), ('private.staff_roles', false), ('private.guest_sessions_period', false), ('private.support_rpc_role', false),
-  ('public.assign_coach', false), ('public.check_out_member', false), ('public.confirm_renewal', false), ('public.create_class', false),
+  ('public.assign_coach', false), ('public.check_out_member', false), ('public.list_attendance_log', false), ('public.staff_check_in', false), ('public.void_staff_check_in', false), ('public.confirm_renewal', false), ('public.correct_plan_eligibility', false), ('public.correct_subscription_plan', false), ('public.create_class', false),
   ('public.create_staff_member', false), ('public.deactivate_staff_member', false), ('public.effective_loyalty', false),
   ('public.guest_charging_impact', false), ('public.initiate_registration_fee_payment', false), ('public.list_guest_sessions_paid', false),
   ('public.mark_class_attendance', false), ('public.materialize_class_sessions', false), ('public.record_registration_fee', false),
@@ -204,7 +204,8 @@ select is((select count(*)::int from cat_pol p join pg_policies pp on p.name = p
 -- Consumer scan: every function that counts members rows is classified as member-scoped or support-excluding.
 create temp table cat_count (name text primary key, note text not null);
 insert into cat_count values
-  ('public.book_class_session', 'class capacity, not staff'), ('public.create_workout_plan', 'coach/member plans'),
+  ('public.book_class_session', 'class capacity, not staff'), ('public.correct_plan_eligibility', 'counts standing payments, not members'),
+  ('public.correct_subscription_plan', 'counts standing payments, not members'), ('public.create_workout_plan', 'coach/member plans'),
   ('public.enforce_member_cap', 'role = member only'), ('public.guest_charging_impact', 'guest sessions'),
   ('public.guest_sessions_summary', 'guest sessions'), ('public.gym_member_count', 'excludes support'),
   ('public.list_bookable_class_sessions', 'class capacity'), ('public.list_free_guest_sessions', 'guest sessions'),

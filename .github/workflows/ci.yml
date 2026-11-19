@@ -51,6 +51,9 @@ jobs:
       - name: Server Components import no value from a "use client" module (Epic 24 retro, PR 123)
         run: pnpm run check:client-boundary
 
+      - name: No new base-table reader of attendance_events (Story 27.1)
+        run: pnpm run check:attendance-readers
+
       - name: Migration guardrails (AD-3 app_role lint, function privilege revokes)
         run: pnpm run check:migrations && pnpm run check:credentials-id && pnpm run test:guardrails
 
@@ -125,6 +128,14 @@ jobs:
         # Two real sessions contend for one member lock; pgTAP cannot interleave.
         # The script re-executes itself inside the DB container.
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/session-refund-race.sh
+
+      - name: Check-in member lock race (two real sessions, every gym)
+        # Story 27.2 (NFR-021): a second scan waits on the member lock at a non-charging gym too; pgTAP cannot interleave.
+        run: DB_CONTAINER=supabase_db_gym_os bash scripts/check-in-member-lock-race.sh
+
+      - name: Correct-plan race (two real sessions, both orders)
+        # Story 27.4 (NFR-021): the correction against complete_verified_payment, confirm_renewal, the Tara initiation and the lifecycle job; pgTAP cannot interleave.
+        run: DB_CONTAINER=supabase_db_gym_os bash scripts/correct-plan-race.sh
 
       - name: Check the job_runs alert query against fixtures
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/job-runs-alert.test.sh

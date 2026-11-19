@@ -836,7 +836,7 @@
       "edit": "Modifier",
       "deactivate": "Désactiver",
       "menu": "Actions pour {{name}}",
-      "button": "Action :"
+      "button": "Action"
     },
     "resend": {
       "confirm": "Générer un nouveau mot de passe temporaire pour {{name}} et l'envoyer par WhatsApp ? Son mot de passe cessera de fonctionner immédiatement pour toute nouvelle connexion (une session déjà ouverte n'est pas affectée)."
@@ -881,7 +881,6 @@
     "typeLocked": {
       "reason": "Cette formule a des membres : son type ne peut pas être modifié. Créez plutôt une nouvelle formule."
     },
-    "discountSuffix": "(remise de {{percent}} %)",
     "intervalMonthly": "mensuel",
     "intervalAnnual": "annuel",
     "durationDaysLabel": "{{days}} jours",
@@ -935,7 +934,21 @@
       "auditLogFailedEdit": "La formule a été modifiée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedDelete": "La formule a été supprimée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
     },
-    "actionsButton": "Action :"
+    "actionsButton": "Action",
+    "annual": {
+      "summary": "{{price}} XAF · {{days}} jours · Payé en une fois",
+      "listLine": "{{price}} XAF · {{days}} jours · Payé en une fois",
+      "discount": "Dont {{percent}} % de remise annuelle",
+      "modalHelp": "Les membres paient le prix complet en une fois. La formule dure ensuite {{days}} jours. Le renouvellement est un nouveau paiement.",
+      "modalHelpNoDuration": "Les membres paient le prix complet en une fois. La formule dure ensuite la durée indiquée ci-dessous. Le renouvellement est un nouveau paiement.",
+      "noInstalments": "Pour un paiement mensuel, créez une formule mensuelle distincte. Le paiement d'une formule annuelle en plusieurs fois n'est pas disponible."
+    },
+    "summary": {
+      "monthly": "{{price}} XAF · {{days}} jours",
+      "perSession": "{{price}} XAF / séance",
+      "option": "{{name}} · {{summary}}",
+      "withName": "{{name}} ({{summary}})"
+    }
   },
   "classes": {
     "title": "Cours",
@@ -1038,7 +1051,7 @@
       "invite": "Inviter",
       "deactivate": "Désactiver",
       "menu": "Actions pour {{name}}",
-      "button": "Action :",
+      "button": "Action",
       "collectFee": "Encaisser les frais",
       "waiveFee": "Exonérer les frais",
       "assignPlan": "Attribuer une formule",
@@ -1303,6 +1316,58 @@
         "startDateInvalid": "Saisissez une date de début valide",
         "assignFailed": "Impossible d'attribuer la formule. Vérifiez votre connexion et réessayez."
       }
+    },
+    "subscriptionStarted": "Abonnement débuté le",
+    "correctPlan": {
+      "action": "Corriger la formule",
+      "title": "Corriger la formule",
+      "intro": "À utiliser lorsque la mauvaise formule a été choisie. Ce n'est pas un renouvellement : aucun paiement n'est enregistré, aucune notification n'est envoyée et aucun tampon de fidélité n'est gagné.",
+      "current": "Formule actuelle",
+      "currentDetail": "Débutée le {{start}} · Expire le {{expiry}}",
+      "currentDetailNoExpiry": "Débutée le {{start}}",
+      "checking": "Vérification des paiements…",
+      "loadError": "Impossible de vérifier les paiements de ce membre. Réessayez.",
+      "retry": "Réessayer",
+      "newPlan": {
+        "label": "Nouvelle formule",
+        "placeholder": "Choisissez une formule"
+      },
+      "noOtherPlan": "Il n'y a pas d'autre formule à choisir. Ajoutez d'abord une formule dans Formules.",
+      "noOtherPlanLink": "Ouvrir Formules",
+      "reason": {
+        "label": "Motif",
+        "placeholder": "Par exemple : mauvaise formule choisie à l'inscription",
+        "error": "Saisissez un motif (au moins 5 caractères).",
+        "count": "{{count}} / 300"
+      },
+      "rule": "La nouvelle date d'expiration est calculée à partir de la date de début ({{date}}), pas d'aujourd'hui.",
+      "appNote": "L'application de {{name}} affichera la nouvelle formule à sa prochaine ouverture.",
+      "feeNote": "Les frais d'inscription ne sont pas modifiés.",
+      "confirm": "Corriger la formule",
+      "confirming": "Correction…",
+      "success": "Formule corrigée. {{name}} est maintenant sur {{plan}} ; expire le {{date}} · {{status}}.",
+      "successExpired": "Formule corrigée. {{name}} est maintenant sur {{plan}}. La nouvelle date d'expiration, le {{date}}, est déjà passée : l'adhésion est expirée.",
+      "successPps": "Formule corrigée. {{name}} est maintenant sur {{plan}}.",
+      "blocked": {
+        "lead": "Impossible de corriger la formule pour le moment.",
+        "verified": "Le paiement de {{amount}} XAF du {{date}} ({{method}}) est toujours enregistré. Remboursez-le intégralement d'abord, puis corrigez la formule.",
+        "pending": "Le paiement de {{amount}} XAF du {{date}} ({{method}}) attend sa vérification. Remboursez-le intégralement d'abord, ou attendez son règlement, puis corrigez la formule.",
+        "inFlight": "Le paiement mobile money de {{amount}} XAF commencé le {{date}} est en cours. Attendez son règlement. S'il aboutit, remboursez-le intégralement, puis corrigez la formule.",
+        "partlyRefunded": "Le paiement de {{amount}} XAF du {{date}} ({{method}}) n'est remboursé qu'en partie ({{refunded}} XAF sur {{amount}} XAF). Remboursez le reste d'abord, puis corrigez la formule.",
+        "more_one": "+ {{count}} autre paiement de cette formule est encore enregistré.",
+        "more_other": "+ {{count}} autres paiements de cette formule sont encore enregistrés.",
+        "open": "Ouvrir les paiements"
+      },
+      "refused": {
+        "sessionHeld": "Impossible de faire passer {{name}} vers ou depuis Paiement à la séance tant qu'une séance payée non utilisée est détenue. Remboursez-la d'abord, ou attendez qu'elle soit utilisée ou expire (le {{date}}).",
+        "samePlan": "{{name}} a déjà cette formule.",
+        "noSubscription": "{{name}} n'a pas de formule en cours à corriger.",
+        "planGone": "Cette formule n'est plus disponible. Choisissez-en une autre.",
+        "changed": "La formule de ce membre a changé pendant votre saisie. Fermez cette fenêtre et rouvrez le membre."
+      },
+      "network": "Impossible de corriger la formule. Vérifiez votre connexion et réessayez.",
+      "permissionDenied": "Vous n'avez pas l'autorisation de faire cela.",
+      "supportAbout": "Vous allez : corriger la formule de {{name}}"
     }
   },
   "subscriptions": {
@@ -1530,7 +1595,8 @@
       "checkOut": "Départ",
       "duration": "Durée",
       "status": "Statut",
-      "actions": "Actions"
+      "actions": "Actions",
+      "entry": "Arrivée"
     },
     "durationOpen": "En cours",
     "durationFormat": "{{hours}} h {{minutes}} min",
@@ -1544,7 +1610,113 @@
       "checkingOut": "Enregistrement du départ…"
     },
     "dateFrom": "Du",
-    "dateTo": "Au"
+    "dateTo": "Au",
+    "checkIn": {
+      "action": "Enregistrer l'arrivée d'un membre",
+      "title": "Enregistrer l'arrivée d'un membre",
+      "close": "Fermer",
+      "intro": "Pour un membre qui ne peut pas utiliser son téléphone à l'entrée.",
+      "search": {
+        "label": "Trouver un membre par nom ou téléphone",
+        "hint": "Saisissez au moins 2 lettres ou 3 chiffres.",
+        "none": "Aucun membre ne correspond à « {{term}} ». Vérifiez l'orthographe ou cherchez par téléphone.",
+        "more": "Les 8 premiers sont affichés. Précisez votre recherche.",
+        "error": "Impossible de rechercher les membres. Réessayez.",
+        "retry": "Réessayer",
+        "clear": "Effacer la recherche",
+        "count": "{{count}} membres trouvés",
+        "loading": "Recherche en cours…",
+        "results": "Membres trouvés"
+      },
+      "row": {
+        "inside": "Dans la salle depuis {{time}}",
+        "noPlan": "Aucune formule"
+      },
+      "entryTime": "Heure d'arrivée : maintenant ({{time}}). Elle ne peut pas être modifiée.",
+      "confirm": "Enregistrer l'arrivée de {{name}}",
+      "checkingIn": "Enregistrement…",
+      "ok": "L'arrivée de {{name}} est enregistrée à {{time}}.",
+      "okExpiring": "Arrivée enregistrée à {{time}}. L'adhésion de {{name}} expire le {{date}}.",
+      "okGrace": "Arrivée enregistrée à {{time}}. L'adhésion de {{name}} a expiré le {{date}} ; la période de grâce se termine le {{graceDate}}.",
+      "renewNow": "Renouveler maintenant",
+      "rejectedExpired": "Arrivée non enregistrée. L'adhésion de {{name}} a expiré il y a {{days}} jours.",
+      "rejectedExpiredOne": "Arrivée non enregistrée. L'adhésion de {{name}} a expiré il y a 1 jour.",
+      "rejectedExpiredToday": "Arrivée non enregistrée. L'adhésion de {{name}} a expiré aujourd'hui.",
+      "rejectedExpiredHelp": "Renouvelez l'adhésion pour l'autoriser à entrer.",
+      "renewedDone": "Adhésion renouvelée. L'arrivée de {{name}} est enregistrée à {{time}}.",
+      "sessionNeeded": "{{name}} n'a pas de séance payée.",
+      "sessionNeededHelp": "Enregistrez {{amount}} XAF à l'accueil et l'arrivée de {{name}} est enregistrée aussitôt.",
+      "recordAndCheckIn": "Enregistrer le paiement et l'arrivée",
+      "sessionDone": "Séance enregistrée. L'arrivée de {{name}} est enregistrée à {{time}}.",
+      "alreadyIn": "{{name}} est déjà dans la salle (depuis {{time}}).",
+      "alreadyInHelp": "Voir la liste sous la fenêtre.",
+      "refused": {
+        "deactivated": "{{name}} est désactivé. Réactivez ce membre d'abord.",
+        "awaitingFee": "Réglez d'abord les frais d'inscription de {{name}}.",
+        "noPlan": "{{name}} n'a pas encore de formule. Attribuez d'abord une formule.",
+        "suspendedGym": "Impossible d'enregistrer une arrivée tant que la salle est suspendue.",
+        "notFound": "Ce membre est introuvable. Relancez la recherche."
+      },
+      "partialSession": "La séance de {{name}} a été enregistrée, mais l'arrivée n'a pas abouti. Réessayez. Rien n'est facturé deux fois.",
+      "partialRenewal": "Le renouvellement de {{name}} a été enregistré, mais l'arrivée n'a pas abouti. Réessayez. Rien n'est facturé deux fois.",
+      "network": "Impossible d'enregistrer l'arrivée de {{name}}. Vérifiez votre connexion et réessayez.",
+      "networkHint": "Un doute ? Cherchez à nouveau {{name}} : un membre déjà présent affiche « Dans la salle depuis… ».",
+      "offline": "Vous êtes hors ligne : impossible d'enregistrer une arrivée pour le moment.",
+      "another": "Enregistrer l'arrivée d'un autre membre",
+      "done": "Terminé",
+      "openMember": "Ouvrir {{name}}",
+      "supportAbout": "Vous allez : enregistrer l'arrivée de {{name}}",
+      "resultLabel": {
+        "success": "Arrivée enregistrée",
+        "warning": "Arrivée enregistrée avec un avertissement",
+        "rejected": "Arrivée non enregistrée",
+        "payment": "Paiement nécessaire",
+        "already": "Déjà dans la salle",
+        "refused": "Arrivée non enregistrée",
+        "suspended": "Salle suspendue",
+        "partial": "Opération incomplète"
+      }
+    },
+    "log": {
+      "entry": "Arrivée",
+      "entryScan": "Scan du QR",
+      "byStaff": "Par le personnel",
+      "byStaffName": "Par le personnel · {{name}}",
+      "entryAria": "Arrivée enregistrée par le personnel, {{name}}",
+      "voided": "Annulée",
+      "voidedDetail": "Annulée par {{name}} le {{date}} à {{time}}. Motif : {{reason}}"
+    },
+    "void": {
+      "action": "Annuler",
+      "actionAria": "Annuler l'arrivée de {{name}} à {{time}}",
+      "title": "Annuler cette arrivée ?",
+      "close": "Fermer",
+      "body": "L'arrivée de {{name}} à {{time}} a été saisie par le personnel. L'annuler supprime la visite : elle ne compte plus pour la fréquentation, les séries, le classement et le défi de la salle.",
+      "sessionBack": "La séance payée utilisée par cette arrivée est restituée à {{name}}.",
+      "sessionBackFree": "La séance gratuite utilisée par cette arrivée est restituée à {{name}}.",
+      "paymentStays": "Le paiement reste enregistré. Remboursez-le dans Paiements si nécessaire.",
+      "stampRemoved": "Le tampon de fidélité gagné est retiré.",
+      "reason": {
+        "label": "Motif de l'annulation",
+        "placeholder": "Par exemple : mauvais membre sélectionné",
+        "error": "Saisissez un motif (au moins 5 caractères).",
+        "count": "{{count}} / 300"
+      },
+      "supportAbout": "Vous allez : annuler l'arrivée de {{name}}",
+      "keep": "Conserver l'arrivée",
+      "confirm": "Annuler l'arrivée",
+      "voiding": "Annulation…",
+      "success": "Arrivée annulée. {{name}} n'est plus comptabilisé dans la salle.",
+      "refused": {
+        "laterVisit": "Impossible d'annuler cette arrivée : la visite suivante de {{name}} aujourd'hui s'appuie sur la même séance payée.",
+        "laterVisitStaff": "Annulez d'abord l'arrivée suivante.",
+        "notToday": "Une arrivée ne peut être annulée que le jour de son enregistrement.",
+        "already": "Cette arrivée a déjà été annulée.",
+        "notStaff": "Seules les arrivées saisies par le personnel peuvent être annulées.",
+        "notFound": "Cette arrivée est introuvable."
+      },
+      "network": "Impossible d'annuler l'arrivée. Vérifiez votre connexion et réessayez."
+    }
   },
   "payments": {
     "tabs": {
@@ -1670,7 +1842,7 @@
       "amountMismatchLine": "{{internal}} (signalé : {{reported}})",
       "wrongAccountSettlementLine": "Attendu {{expected}}, réglé sur {{actual}}"
     },
-    "actionsButton": "Action :",
+    "actionsButton": "Action",
     "purposes": {
       "subscription": "Abonnement",
       "registrationFee": "Frais d'inscription",
@@ -1862,7 +2034,11 @@
       "gymosSupportAccessEnded": "Accès du support GymOS terminé",
       "gymosSupportAccessResumed": "Accès du support GymOS rétabli",
       "auditDisclosureRequested": "Demande d'information déposée",
-      "auditDisclosureAnswered": "Demande d'information traitée"
+      "auditDisclosureAnswered": "Demande d'information traitée",
+      "staffCheckIn": "Arrivée d'un membre enregistrée par le personnel",
+      "staffCheckInRejected": "Arrivée par le personnel refusée",
+      "staffCheckInVoided": "Arrivée par le personnel annulée",
+      "planCorrected": "Formule corrigée"
     },
     "disclosure": {
       "title": "Questions sur ce journal",
@@ -1883,6 +2059,23 @@
         "notFound": "Cette entrée est introuvable.",
         "alreadyOpen": "Vous avez déjà une question en cours sur cette entrée."
       }
+    },
+    "staffCheckIn": {
+      "checkedIn": "{{time}} · Arrivée enregistrée",
+      "checkedInWarning": "{{time}} · Arrivée enregistrée avec un avertissement",
+      "reason": {
+        "expired": "Adhésion expirée",
+        "no_paid_session": "Aucune séance payée",
+        "deactivated": "Membre désactivé",
+        "registration_fee_due": "Frais d'inscription non réglés",
+        "no_plan": "Aucune formule attribuée"
+      },
+      "voided": "Arrivée de {{time}} · Motif : {{reason}}"
+    },
+    "planCorrection": {
+      "details": "{{oldPlan}} → {{newPlan}} · {{oldPrice}} → {{newPrice}} XAF · {{expiry}} · Motif : {{reason}}",
+      "expiry": "expire le {{old}} → {{new}}",
+      "noExpiry": "sans expiration"
     }
   },
   "saasBilling": {
@@ -1971,7 +2164,8 @@
     },
     "source": {
       "check_in": "Entrée",
-      "class": "Présence au cours"
+      "class": "Présence au cours",
+      "desk": "Arrivée à l'accueil"
     },
     "status": {
       "available": "Disponible",
