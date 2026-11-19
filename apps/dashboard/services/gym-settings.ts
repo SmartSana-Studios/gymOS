@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { type AppError, type GymSettingsInput } from "@gymos/types";
+import { type AppError, type GymSettingsInput, type SessionValidity } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -464,6 +464,59 @@ export async function setGymCategory(
     return { data: null, error: await mapAndLog(error) };
   }
   return { data: { ok: true }, error: null };
+}
+
+/** Story 28.1: sets the gym's session validity through `set_session_validity()` (0177), the only write
+ * path for `gyms.session_validity` (pinned against plain UPDATEs, including the general Settings save).
+ * The RPC checks Owner or Supervisor of this gym (a Super Admin is refused), an active gym and the code,
+ * and writes the audit row itself. */
+export async function setSessionValidity(
+  validity: SessionValidity,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+  const { error } = await supabase.rpc("set_session_validity", {
+    p_gym_id: gymId,
+    p_validity: validity,
+  });
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: { ok: true }, error: null };
+}
+
+export interface SessionValiditySettings {
+  sessionValidity: SessionValidity;
+  /** The platform's Single-use visit limit, in minutes (never typed into a string; shown as hours). */
+  visitLimitMinutes: number;
+}
+
+/** Story 28.1: the Settings "Session validity" section's read (`get_session_validity_settings`, 0177): the
+ * gym's setting plus the platform visit limit, which an Owner cannot read from the table. Returns no data
+ * for any role but Owner, Supervisor and assigned support. A failure just hides the section. */
+export async function getSessionValiditySettings(): Promise<{
+  data: SessionValiditySettings | null;
+  error: AppError | null;
+}> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_session_validity_settings");
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  const row = data?.[0];
+  if (!row) {
+    return { data: null, error: null };
+  }
+  return {
+    data: {
+      sessionValidity: row.session_validity === "single_use" ? "single_use" : "whole_day",
+      visitLimitMinutes: row.single_use_visit_limit_minutes,
+    },
+    error: null,
+  };
 }
 
 /** Story 23.3: the Owner's "Allow GymOS Support" switch (0137). The RPC is the real

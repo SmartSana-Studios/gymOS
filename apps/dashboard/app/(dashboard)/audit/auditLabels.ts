@@ -148,4 +148,8 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // new_price, old_expiry_date, new_expiry_date, old_status, new_status, basis_start_date, loyalty_days_added, reason }. The Details cell
   // carries both plans, both prices, both expiries and the reason (AuditLogPageClient).
   subscription_plan_corrected: "audit.actionTypes.planCorrected",
+  // Story 28.1 (0177, UX AD-13 V1.8). Written by set_session_validity(): ONE gym-scoped row, target = the gym, the actor the Owner or
+  // Supervisor, or "GymOS Support". Metadata { old_validity, new_validity }, each whole_day | single_use. The Details cell reads
+  // "Whole day → Single use" (AuditLogPageClient).
+  session_validity_changed: "audit.actionTypes.sessionValidityChanged",
 };

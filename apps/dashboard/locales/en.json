@@ -103,7 +103,9 @@
   },
   "settings": {
     "title": "Settings",
-    "saveHint": "Save applies changes across every section below, except Registration fee, Charge guests per session, Loyalty program, Category, Allow GymOS Support and Landing page, which save on their own.",
+    "saveHint": {
+      "v18": "Save applies changes across every section below, except Registration fee, Charge guests per session, Loyalty program, Category, Allow GymOS Support, Landing page and Session validity, which save on their own."
+    },
     "guestCharging": {
       "label": "Charge guests per session",
       "hint": "When on, Pay-per-session members need a paid session to check in. Saves on its own.",
@@ -126,6 +128,26 @@
       "offStamps": "Guests stop earning loyalty stamps.",
       "stop": "Stop charging",
       "offToast": "Guests no longer pay per session."
+    },
+    "chargeGuests": {
+      "helperWholeDay": "One session covers the whole day.",
+      "helperSingleUse": "Pay-per-session members need a paid session to check in or attend a class. One session covers one visit."
+    },
+    "sessionValidity": {
+      "title": "Session validity",
+      "description": "Whether a paid session covers the whole day or one visit",
+      "wholeDay": "Whole day",
+      "wholeDayDesc": "A paid session covers every check-in until the end of the day.",
+      "singleUse": "Single use",
+      "singleUseDesc_one": "A paid session covers one visit. A visit ends at check-out, or {{hours}} hour after check-in, whichever comes first.",
+      "singleUseDesc": "A paid session covers one visit. A visit ends at check-out, or {{hours}} hours after check-in, whichever comes first.",
+      "classNote": "A class attended during an open visit uses that visit's session. Otherwise it uses its own session.",
+      "chargingOff": "Takes effect when \"Charge guests per session\" is on.",
+      "applies": "The change applies to check-ins from now on. A visit already open finishes under the old rule, and sessions already used keep their coverage.",
+      "loyaltyNote": "Single use earns loyalty stamps faster: one per paid session. Check your loyalty setting.",
+      "save": "Save session validity",
+      "saved": "Session validity saved.",
+      "error": "Couldn't save session validity. Try again."
     },
     "saveButton": "Save Settings",
     "savedToast": "Settings saved.",
@@ -2038,7 +2060,8 @@
       "staffCheckIn": "Member checked in by staff",
       "staffCheckInRejected": "Staff check-in not accepted",
       "staffCheckInVoided": "Staff check-in voided",
-      "planCorrected": "Plan corrected"
+      "planCorrected": "Plan corrected",
+      "sessionValidityChanged": "Session validity changed"
     },
     "disclosure": {
       "title": "Questions about this log",
@@ -2071,6 +2094,9 @@
         "no_plan": "No plan assigned"
       },
       "voided": "Entry at {{time}} · Reason: {{reason}}"
+    },
+    "sessionValidity": {
+      "details": "{{old}} → {{new}}"
     },
     "planCorrection": {
       "details": "{{oldPlan}} → {{newPlan}} · {{oldPrice}} → {{newPrice}} XAF · {{expiry}} · Reason: {{reason}}",

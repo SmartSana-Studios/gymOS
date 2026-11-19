@@ -12,9 +12,11 @@ vi.mock("@/lib/i18n/get-server-translation", () => ({
 
 const getGymSettings = vi.fn();
 const getGymosSupportStatus = vi.fn();
+const getSessionValiditySettings = vi.fn<(...a: unknown[]) => Promise<{ data: unknown; error: unknown }>>(async () => ({ data: null, error: null }));
 vi.mock("@/services/gym-settings", () => ({
   getGymSettings: (...a: unknown[]) => getGymSettings(...a),
   getGymosSupportStatus: (...a: unknown[]) => getGymosSupportStatus(...a),
+  getSessionValiditySettings: (...a: unknown[]) => getSessionValiditySettings(...a),
 }));
 vi.mock("@/services/gym-payment-credentials", () => ({
   getGymPaymentConnectionStatus: vi.fn(async () => ({ data: null, error: null })),
@@ -79,6 +81,34 @@ describe("SettingsPage role prop", () => {
   ])("passes role=null when the shell lookup %s", async (_label, result) => {
     getDashboardShellContext.mockResolvedValue(result);
     expect((await renderedForm()).props.role).toBeNull();
+  });
+});
+
+describe("SettingsPage session validity (28.1)", () => {
+  beforeEach(() => {
+    getGymSettings.mockReset().mockResolvedValue({ data: { chargeGuestsPerSession: false }, error: null });
+    getGymosSupportStatus.mockReset().mockResolvedValue({ data: null, error: null });
+    listPlans.mockReset().mockResolvedValue({ data: [], error: null });
+    getLandingPageState.mockReset().mockResolvedValue(null);
+    getSessionValiditySettings.mockReset().mockResolvedValue({ data: { sessionValidity: "whole_day", visitLimitMinutes: 180 }, error: null });
+    getDashboardShellContext.mockReset();
+  });
+
+  it.each(["owner", "supervisor", "support"])("%s gets the setting and the platform limit from the service", async (role) => {
+    getDashboardShellContext.mockResolvedValue({ data: { role }, error: null, suspended: null });
+    expect((await renderedForm()).props.sessionValidity).toEqual({ sessionValidity: "whole_day", visitLimitMinutes: 180 });
+  });
+
+  it.each(["manager", "receptionist", "coach"])("%s: the service is not called and nothing is passed", async (role) => {
+    getDashboardShellContext.mockResolvedValue({ data: { role }, error: null, suspended: null });
+    expect((await renderedForm()).props.sessionValidity).toBeNull();
+    expect(getSessionValiditySettings).not.toHaveBeenCalled();
+  });
+
+  it("an unreadable setting hides the section instead of failing the page", async () => {
+    getSessionValiditySettings.mockResolvedValue({ data: null, error: { code: "unknown", message: "x" } });
+    getDashboardShellContext.mockResolvedValue({ data: { role: "owner" }, error: null, suspended: null });
+    expect((await renderedForm()).props.sessionValidity).toBeNull();
   });
 });
 

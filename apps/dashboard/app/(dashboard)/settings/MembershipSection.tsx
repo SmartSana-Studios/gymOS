@@ -2,6 +2,7 @@
 
 import { useTranslation } from "react-i18next";
 import { Users } from "lucide-react";
+import type { SessionValidity } from "@gymos/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,7 @@ export function MembershipSection({
   initialFee,
   canManageGuestCharging,
   charge,
+  sessionValidity = "whole_day",
   showToast,
 }: {
   form: SettingsFormState;
@@ -25,6 +27,8 @@ export function MembershipSection({
   initialFee: number;
   canManageGuestCharging: boolean;
   charge: ReturnType<typeof useGuestCharging>;
+  /** Story 28.1: the stored session validity; the Charge guests helper words the rule. */
+  sessionValidity?: SessionValidity;
   showToast: (message: string) => void;
 }) {
   const { t } = useTranslation();
@@ -69,7 +73,7 @@ export function MembershipSection({
 
             <RegistrationFeeField initialFee={initialFee} showToast={showToast} />
 
-            {canManageGuestCharging && <GuestChargingControl charge={charge} />}
+            {canManageGuestCharging && <GuestChargingControl charge={charge} sessionValidity={sessionValidity} />}
           </CardContent>
         </Card>
   );

@@ -702,7 +702,9 @@ export type Database = {
         Row: {
           consumed_at: string | null
           covered_attendance_id: string | null
+          covered_booking_id: string | null
           covered_day: string | null
+          covered_kind: string | null
           created_at: string
           gym_id: string
           id: string
@@ -711,12 +713,15 @@ export type Database = {
           member_id: string
           payment_id: string | null
           usable_until: string
+          validity_mode: string | null
           voided_at: string | null
         }
         Insert: {
           consumed_at?: string | null
           covered_attendance_id?: string | null
+          covered_booking_id?: string | null
           covered_day?: string | null
+          covered_kind?: string | null
           created_at?: string
           gym_id: string
           id?: string
@@ -724,12 +729,15 @@ export type Database = {
           member_id: string
           payment_id?: string | null
           usable_until: string
+          validity_mode?: string | null
           voided_at?: string | null
         }
         Update: {
           consumed_at?: string | null
           covered_attendance_id?: string | null
+          covered_booking_id?: string | null
           covered_day?: string | null
+          covered_kind?: string | null
           created_at?: string
           gym_id?: string
           id?: string
@@ -737,6 +745,7 @@ export type Database = {
           member_id?: string
           payment_id?: string | null
           usable_until?: string
+          validity_mode?: string | null
           voided_at?: string | null
         }
         Relationships: [
@@ -744,6 +753,12 @@ export type Database = {
             foreignKeyName: "guest_sessions_covered_attendance_id_fkey"
             columns: ["covered_attendance_id"]
             referencedRelation: "attendance_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_sessions_covered_booking_id_fkey"
+            columns: ["covered_booking_id"]
+            referencedRelation: "class_bookings"
             referencedColumns: ["id"]
           },
           {
@@ -989,6 +1004,7 @@ export type Database = {
           saas_billing_interval: Database["public"]["Enums"]["billing_interval"]
           saas_billing_status: Database["public"]["Enums"]["saas_billing_status"]
           saas_grace_period_days: number
+          session_validity: string
           status: Database["public"]["Enums"]["gym_status"]
           tier_id: string
           timezone: string
@@ -1034,6 +1050,7 @@ export type Database = {
           saas_billing_interval?: Database["public"]["Enums"]["billing_interval"]
           saas_billing_status?: Database["public"]["Enums"]["saas_billing_status"]
           saas_grace_period_days?: number
+          session_validity?: string
           status?: Database["public"]["Enums"]["gym_status"]
           tier_id: string
           timezone?: string
@@ -1079,6 +1096,7 @@ export type Database = {
           saas_billing_interval?: Database["public"]["Enums"]["billing_interval"]
           saas_billing_status?: Database["public"]["Enums"]["saas_billing_status"]
           saas_grace_period_days?: number
+          session_validity?: string
           status?: Database["public"]["Enums"]["gym_status"]
           tier_id?: string
           timezone?: string
@@ -1764,18 +1782,21 @@ export type Database = {
           id: string
           loyalty_idle_reset_days: number
           paid_session_validity_days: number
+          single_use_visit_limit_minutes: number
         }
         Insert: {
           free_session_validity_days: number
           id?: string
           loyalty_idle_reset_days: number
           paid_session_validity_days: number
+          single_use_visit_limit_minutes?: number
         }
         Update: {
           free_session_validity_days?: number
           id?: string
           loyalty_idle_reset_days?: number
           paid_session_validity_days?: number
+          single_use_visit_limit_minutes?: number
         }
         Relationships: []
       }
@@ -3067,6 +3088,13 @@ export type Database = {
       }
       get_gym_page_name: { Args: { p_gym_id: string }; Returns: Json }
       get_gym_page_status: { Args: { p_gym_id: string }; Returns: Json }
+      get_session_validity_settings: {
+        Args: never
+        Returns: {
+          session_validity: string
+          single_use_visit_limit_minutes: number
+        }[]
+      }
       get_gym_support_proxy_id: {
         Args: never
         Returns: string
@@ -3731,6 +3759,10 @@ export type Database = {
         Returns: undefined
       }
       set_registration_fee: { Args: { p_amount: number }; Returns: undefined }
+      set_session_validity: {
+        Args: { p_gym_id: string; p_validity: string }
+        Returns: undefined
+      }
       staff_account_for_reset: {
         Args: { p_member_id: string }
         Returns: {

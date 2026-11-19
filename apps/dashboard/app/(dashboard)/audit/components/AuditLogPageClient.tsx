@@ -103,6 +103,20 @@ function planCorrectionDetails(
   });
 }
 
+// Story 28.1 (UX AD-13 V1.8): "Whole day → Single use" -- the two codes in the words of the Settings radio. Any other value falls back to
+// the generic cell.
+function sessionValidityDetails(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  metadata: Record<string, unknown>,
+): string | null {
+  const label = (value: unknown): string | null =>
+    value === "whole_day" ? t("settings.sessionValidity.wholeDay") : value === "single_use" ? t("settings.sessionValidity.singleUse") : null;
+  const oldLabel = label(metadata.old_validity);
+  const newLabel = label(metadata.new_validity);
+  if (!oldLabel || !newLabel) return null;
+  return t("audit.sessionValidity.details", { old: oldLabel, new: newLabel });
+}
+
 function formatTimestamp(iso: string, locale: string): string {
   return new Date(iso).toLocaleString(locale);
 }
@@ -303,6 +317,7 @@ export function AuditLogPageClient({
                   <td className="p-3">{targetLabel(row)}</td>
                   <td className="p-3">{staffCheckInDetails(t, row.actionType, row.metadata, i18n.language) ??
                       (row.actionType === "subscription_plan_corrected" ? planCorrectionDetails(t, row.metadata, i18n.language) : null) ??
+                      (row.actionType === "session_validity_changed" ? sessionValidityDetails(t, row.metadata) : null) ??
                       detailsLabel(row.metadata)}</td>
                   {role === "owner" && (
                     <td className="p-3">

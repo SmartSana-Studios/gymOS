@@ -103,7 +103,9 @@
   },
   "settings": {
     "title": "Paramètres",
-    "saveHint": "Enregistrer applique les changements de toutes les sections ci-dessous, sauf Frais d'inscription, Facturer les invités par séance, Programme de fidélité, Catégorie, Autoriser le support GymOS et Page publique, qui s'enregistrent séparément.",
+    "saveHint": {
+      "v18": "Enregistrer applique les changements de toutes les sections ci-dessous, sauf Frais d'inscription, Facturer les invités par séance, Programme de fidélité, Catégorie, Autoriser le support GymOS, Page publique et Validité de la séance, qui s'enregistrent séparément."
+    },
     "guestCharging": {
       "label": "Facturer les invités par séance",
       "hint": "Lorsque cette option est active, les membres au forfait Paiement par séance ont besoin d'une séance payée pour s'enregistrer. S'enregistre séparément.",
@@ -126,6 +128,26 @@
       "offStamps": "Les invités ne gagnent plus de tampons de fidélité.",
       "stop": "Arrêter la facturation",
       "offToast": "Les invités ne paient plus par séance."
+    },
+    "chargeGuests": {
+      "helperWholeDay": "Une séance couvre toute la journée.",
+      "helperSingleUse": "Les membres en Paiement à la séance doivent avoir une séance payée pour s'enregistrer ou assister à un cours. Une séance couvre une visite."
+    },
+    "sessionValidity": {
+      "title": "Validité de la séance",
+      "description": "Une séance payée couvre toute la journée ou une visite",
+      "wholeDay": "Toute la journée",
+      "wholeDayDesc": "Une séance payée couvre toutes les arrivées jusqu'à la fin de la journée.",
+      "singleUse": "Usage unique",
+      "singleUseDesc_one": "Une séance payée couvre une seule visite. Une visite se termine au départ, ou {{hours}} heure après l'arrivée, selon ce qui arrive en premier.",
+      "singleUseDesc": "Une séance payée couvre une seule visite. Une visite se termine au départ, ou {{hours}} heures après l'arrivée, selon ce qui arrive en premier.",
+      "classNote": "Un cours suivi pendant une visite ouverte utilise la séance de cette visite. Sinon, il utilise sa propre séance.",
+      "chargingOff": "Prend effet lorsque « Facturer les invités par séance » est activé.",
+      "applies": "Le changement s'applique aux arrivées à partir de maintenant. Une visite déjà ouverte se termine selon l'ancienne règle, et les séances déjà utilisées gardent leur couverture.",
+      "loyaltyNote": "L'usage unique fait gagner les tampons de fidélité plus vite : un par séance payée. Vérifiez votre programme de fidélité.",
+      "save": "Enregistrer la validité de la séance",
+      "saved": "Validité de la séance enregistrée.",
+      "error": "Impossible d'enregistrer la validité de la séance. Réessayez."
     },
     "saveButton": "Enregistrer les paramètres",
     "savedToast": "Paramètres enregistrés.",
@@ -2038,7 +2060,8 @@
       "staffCheckIn": "Arrivée d'un membre enregistrée par le personnel",
       "staffCheckInRejected": "Arrivée par le personnel refusée",
       "staffCheckInVoided": "Arrivée par le personnel annulée",
-      "planCorrected": "Formule corrigée"
+      "planCorrected": "Formule corrigée",
+      "sessionValidityChanged": "Validité de la séance modifiée"
     },
     "disclosure": {
       "title": "Questions sur ce journal",
@@ -2071,6 +2094,9 @@
         "no_plan": "Aucune formule attribuée"
       },
       "voided": "Arrivée de {{time}} · Motif : {{reason}}"
+    },
+    "sessionValidity": {
+      "details": "{{old}} → {{new}}"
     },
     "planCorrection": {
       "details": "{{oldPlan}} → {{newPlan}} · {{oldPrice}} → {{newPrice}} XAF · {{expiry}} · Motif : {{reason}}",

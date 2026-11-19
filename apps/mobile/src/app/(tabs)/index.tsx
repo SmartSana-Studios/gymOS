@@ -294,7 +294,9 @@ export default function HomeScreen() {
           const now = new Date();
           const { data: sessionRows, error: sessionError } = await supabase
             .from('guest_sessions')
-            .select('usable_until, consumed_at, covered_day, voided_at')
+            .select(
+              'usable_until, consumed_at, covered_day, voided_at, validity_mode, covered_kind, covered_attendance_id, covered_booking_id',
+            )
             .eq('member_id', memberResult.data.id)
             .is('voided_at', null)
             .or(homeSessionsOrFilter(now, ctx.timezone))
@@ -307,6 +309,10 @@ export default function HomeScreen() {
                 consumedAt: r.consumed_at,
                 coveredDay: r.covered_day,
                 voidedAt: r.voided_at,
+                validityMode: r.validity_mode === 'whole_day' || r.validity_mode === 'single_use' ? r.validity_mode : null,
+                coveredKind: r.covered_kind === 'day' || r.covered_kind === 'visit' || r.covered_kind === 'class' ? r.covered_kind : null,
+                coveredAttendanceId: r.covered_attendance_id,
+                coveredBookingId: r.covered_booking_id,
               })),
             );
           }
