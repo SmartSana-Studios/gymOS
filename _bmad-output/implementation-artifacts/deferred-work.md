@@ -2162,3 +2162,12 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-28-1-session-validity-setting-and-session-record-changes.md`
   summary: `platform_session_config.single_use_visit_limit_minutes` can only be changed by a Super Admin running SQL; there is no Super Admin UI or runbook step for it.
   evidence: Story 28.1 only adds the column, its audit and the Owner read function; the tests change it with a direct UPDATE. Decide before or at Story 28.2 whether the limit needs a Super Admin control.
+
+## Deferred from: code review of spec-28-1-session-validity-setting-and-session-record-changes (2026-11-19)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-28-1-session-validity-setting-and-session-record-changes.md`
+  summary: `guest_sessions.covered_booking_id` references `class_bookings(id)` with no ON DELETE action, and class_bookings rows are hard-deleted in 0058, 0090 and 0124; medium.
+  evidence: nothing in 28.1 writes the column, so no failure today. Once Story 28.3 writes class-cover rows, deleting a booking that covers a consumed session raises FK 23503. Put the cancel / member-delete behaviour into Story 28.3's acceptance criteria with a pgTAP case.
+- source_spec: `_bmad-output/implementation-artifacts/spec-28-1-session-validity-setting-and-session-record-changes.md`
+  summary: the platform visit-limit control entry above says "decide before or at Story 28.2"; by the Epic 22 retro rule (deferrals naming a later story are acceptance criteria) it belongs in Story 28.2's criteria.
+  evidence: deferred-work.md entry for 28-1 (no Super Admin UI or runbook for `single_use_visit_limit_minutes`). Fix edits epics.md, so it is recorded here rather than patched.

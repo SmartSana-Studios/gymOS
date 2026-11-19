@@ -6,7 +6,7 @@
 --   E. step-up (refund, waiver, staff creation) and the staff ceiling
 --   F. revocation leaves support-created staff active and tagged
 begin;
-select plan(154);
+select plan(157);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -311,6 +311,13 @@ select is((select category || ':' || loyalty_enabled || ':' || charge_guests_per
 select is(pg_temp.err($$select set_session_validity('00000000-0000-0000-0000-000000236001', 'single_use')$$), 'ok', 'allow-list: session validity');
 select is(pg_temp.err($$select set_session_validity('00000000-0000-0000-0000-000000236002', 'single_use')$$), 'P0001:permission denied', 'session validity of another gym is refused');
 select is((select session_validity from gyms where id = '00000000-0000-0000-0000-000000236001'), 'single_use', 'session validity changed for the assigned gym');
+-- the read RPC the Settings page calls for a support caller: one row for the assigned gym, none otherwise (review of 28.1)
+select is((select session_validity || ':' || (single_use_visit_limit_minutes is not null)::text from get_session_validity_settings()), 'single_use:true', 'support read: the assigned gym returns its setting and the platform limit');
+select pg_temp.claims('00000000-0000-0000-0000-000000236101', 'support', 'aal2', '00000000-0000-0000-0000-000000236002', '00000000-0000-0000-0000-0000000236a1');
+select is((select count(*)::int from get_session_validity_settings()), 0, 'support read: a gym with no assignment returns no row');
+select pg_temp.claims('00000000-0000-0000-0000-000000236101', 'support', 'aal1', '00000000-0000-0000-0000-000000236001', '00000000-0000-0000-0000-0000000236a1');
+select is((select count(*)::int from get_session_validity_settings()), 0, 'support read: aal1 returns no row');
+select pg_temp.live_support();
 reset role;
 select is((select session_validity from gyms where id = '00000000-0000-0000-0000-000000236002'), 'whole_day', 'session validity of the unassigned gym is untouched');
 select is((select array_agg(action_type order by action_type) from audit_log where gym_id = '00000000-0000-0000-0000-000000236001' and actor_id = (select id from users where support_proxy_gym_id = '00000000-0000-0000-0000-000000236001')),

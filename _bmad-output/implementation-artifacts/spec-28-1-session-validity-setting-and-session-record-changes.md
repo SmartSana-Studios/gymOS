@@ -128,3 +128,27 @@ context:
 
 **Manual checks (if no CLI):**
 - Owner browser QA is done by the owner once at epic end (not per story).
+
+### Review Findings
+
+Independent code review 2026-11-19 (4 layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor; diff `master...HEAD` = f33c462). 0 decision-needed, 1 patch, 2 defer, 24 rejected.
+
+- [x] [Review][Patch] No pgTAP case for a live GymOS Support caller reading `get_session_validity_settings()` — the Settings page shows the section to `support`, but only owner/supervisor/denied roles and the registry rows are tested [supabase/tests/support_capabilities.test.sql, next to the `set_session_validity` allow-list cases; function at supabase/migrations/0177_session_validity.sql:410-438]. FIXED 2026-11-19: three cases added (assigned gym returns one row, unassigned gym zero rows, aal1 zero rows), plan 154 -> 157; support_capabilities and session_validity pgTAP files pass; a mutated copy fails 2 of 157 so the cases can fail.
+- [x] [Review][Defer] `guest_sessions.covered_booking_id` references `class_bookings(id)` with no ON DELETE action, and booking-delete paths exist (0058, 0090, 0124); once 28.3 writes class-cover rows, deleting a covering booking raises FK 23503 [supabase/migrations/0177_session_validity.sql:91] — deferred: nothing in 28.1 writes the column; belongs in Story 28.3 acceptance criteria (cancel / member-delete behaviour for a booking that covers a consumed session) with a pgTAP case. medium, real once 28.3 lands.
+- [x] [Review][Defer] The platform visit-limit control deferral names Story 28.2 ("decide before or at Story 28.2"), so by the Epic 22 retro rule it belongs in 28.2's acceptance criteria, not only in deferred-work.md [deferred-work.md:2162-2164] — deferred: fix edits epics.md (another spec); move the decision into 28.2's AC when 28.2 is created.
+
+#### Rejected
+
+- Gym INSERT not covered by the pin trigger (blind, edge x3): low. Spec "Never: no change to gym-creation paths", the 0123 category pin is also UPDATE-only, a pgTAP case asserts it deliberately, and only privileged paths insert gyms. Fix adds a trigger and breaks the seeding the tests use.
+- Owner can pick Single use before 28.2/28.3 enforce it (edge, claim findings): false. Epic context: all three stories reach master together; "nothing writes a Single-use row" is true of guest_sessions, and the commit wording is history.
+- Consumed row coverage not protected from later edits (blind): low. Only the definer consume function and the normalise trigger write these columns; spec asks for none; fix adds triggers.
+- Receipt "used on" mixes ISO timestamp and day (blind): false. `row.covered_day ?? row.consumed_at` already existed at HEAD~1; this commit changed only the comment, and the formatter uses `new Date(value)` on either shape.
+- Mobile select of cover columns is dead code (blind): false. Spec Code Map and AC require the readers to carry the four fields.
+- `visitLimitHours` shows "0 hours" for a 1-2 minute limit (edge, blind): low. The AC mandates one-decimal hours; only a Super Admin SQL edit to an absurd value reaches it; fix adds a branch.
+- Charge guests helper concatenation / Single use drops "Saves on its own." / FR wording (blind, auditor): low. Copy is the UX catalog text; already rejected as triage 6 and 13 in the build review.
+- Auditor: whole_day `day` row may carry `covered_attendance_id` (deviation from AC "neither id"): false as a code defect. 0175 `record_check_in` stamps it and must not be edited; disclosed in the migration header and sprint-status. NOTE for 28.2/28.3: no guard may assume a `day` row has no attendance id.
+- Auditor / blind: two extra test files edited, spec status `done` vs sprint `review`, empty Implementation Notes: false/low. Fix is to edit the spec under review.
+- Auditor: mobile reader fields optional (`?`): low. Both call sites pass them; looser contract only.
+- Auditor: MemberModal shows no date for a null `coveredDay`: false for 28.1 (UX copy is 28.2's); never throws.
+- Auditor: platform visit limit has no Super Admin UI: duplicate of the existing deferred-work entry (see defer above).
+- Blind: FK, rollback not atomic or untested, backfill test copies SQL, narrowing repeated, `database.ts` order, epic27 test constant name, no owner for the limit change: low or false, developer-only with no named harm, or already rejected as triage 9, 12.
