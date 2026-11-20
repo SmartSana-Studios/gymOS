@@ -113,6 +113,8 @@ export function ClassModal({
   editingClass,
   coaches,
   gymTimezone = null,
+  coachMode = null,
+  onOwnOnlyRefused,
 }: {
   open: boolean;
   onClose: () => void;
@@ -120,6 +122,12 @@ export function ClassModal({
   editingClass: ClassRow | null;
   coaches: CoachRow[];
   gymTimezone?: string | null;
+  /** Story 29.3 (UX AD-19 Coach mode): the signed-in Coach, resolved on the server (never typed by the user). Coach is then plain text, not a
+   * select, and the class is saved with this id. Null for Manager, Supervisor and Owner, who keep the full select. */
+  coachMode?: { id: string; name: string } | null;
+  /** Story 29.3: called when the server refuses a Coach on a class that is not theirs (a stale tab after a reassignment); the message is shown
+   * in the modal and the caller refreshes its list. */
+  onOwnOnlyRefused?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -144,7 +152,7 @@ export function ClassModal({
   });
   if (open && (!syncedWith.open || syncedWith.editingClass !== editingClass)) {
     setSyncedWith({ open, editingClass });
-    setForm(formFromClass(editingClass));
+    setForm({ ...formFromClass(editingClass), ...(coachMode ? { coachId: coachMode.id } : {}) });
     setFieldErrors({});
     setFormError(null);
     setShowTimeErrors(false);
@@ -235,7 +243,7 @@ export function ClassModal({
     if (form.name.trim() === "") {
       preErrors.name = t("classes.modal.errors.nameRequired");
     }
-    if (form.coachId === "") {
+    if (!coachMode && form.coachId === "") {
       preErrors.coachId = t("classes.modal.errors.coachRequired");
     }
 
@@ -289,7 +297,7 @@ export function ClassModal({
     const parsed = classSchema.safeParse({
       name: form.name,
       description: form.description.trim() === "" ? undefined : form.description,
-      coachId: form.coachId,
+      coachId: coachMode ? coachMode.id : form.coachId,
       capacity: capacityNum,
       scheduleType: form.scheduleType,
       oneOffSessionAt,
@@ -334,6 +342,7 @@ export function ClassModal({
           return;
         }
         setFormError(error.message);
+        if (error.code === "class_coach_own_only") onOwnOnlyRefused?.();
         return;
       }
 
@@ -442,23 +451,43 @@ export function ClassModal({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="classCoach">{t("classes.modal.coach")}</Label>
-          <select
-            id="classCoach"
-            value={form.coachId}
-            onChange={(e) => setForm({ ...form, coachId: e.target.value })}
-            className={selectClassName}
-          >
-            <option value="">{t("classes.modal.coachPlaceholder")}</option>
-            {coaches.map((coach) => (
-              <option key={coach.id} value={coach.id}>
-                {coach.name}
-              </option>
-            ))}
-          </select>
-          {fieldErrors.coachId && <p className="text-sm text-red-600">{fieldErrors.coachId}</p>}
-        </div>
+        {coachMode ? (
+          <div className="space-y-2">
+            <p id="classCoachFixedLabel" className="text-sm font-medium leading-none">
+              {t("classes.coach.fixed")}
+            </p>
+            <p
+              data-testid="class-coach-fixed"
+              role="group"
+              aria-labelledby="classCoachFixedLabel"
+              aria-describedby="classCoachFixedHelp"
+              className="text-sm"
+            >
+              {coachMode.name}
+            </p>
+            <p id="classCoachFixedHelp" className="text-xs text-muted-foreground">
+              {t("classes.coach.fixedHelp")}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="classCoach">{t("classes.modal.coach")}</Label>
+            <select
+              id="classCoach"
+              value={form.coachId}
+              onChange={(e) => setForm({ ...form, coachId: e.target.value })}
+              className={selectClassName}
+            >
+              <option value="">{t("classes.modal.coachPlaceholder")}</option>
+              {coaches.map((coach) => (
+                <option key={coach.id} value={coach.id}>
+                  {coach.name}
+                </option>
+              ))}
+            </select>
+            {fieldErrors.coachId && <p className="text-sm text-red-600">{fieldErrors.coachId}</p>}
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="classCapacity">{t("classes.modal.capacity")}</Label>

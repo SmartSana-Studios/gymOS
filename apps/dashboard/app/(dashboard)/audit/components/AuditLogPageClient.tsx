@@ -136,6 +136,13 @@ function classDetails(
   actionType: string,
   metadata: Record<string, unknown>,
 ): string | null {
+  if (actionType === "class_created_by_coach") {
+    const createdName = metadata.name;
+    const capacity = metadata.capacity;
+    return typeof createdName === "string" && typeof capacity === "number"
+      ? t("audit.classCreated.details", { name: createdName, capacity })
+      : null;
+  }
   const name = metadata.class_name;
   if (typeof name !== "string") return null;
   if (actionType === "class_cancelled") {

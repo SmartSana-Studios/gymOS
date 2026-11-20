@@ -1093,7 +1093,11 @@
       "nothingLeft": "Ce cours a déjà eu lieu, il n'y a plus rien à annuler."
     },
     "coach": {
-      "ownOnly": "Vous ne pouvez modifier que vos propres cours."
+      "fixed": "Coach",
+      "fixedHelp": "Les cours que vous créez sont animés par vous.",
+      "ownOnly": "Vous ne pouvez modifier que vos propres cours.",
+      "create": "+ Créer un cours",
+      "empty": "Vous n'avez pas encore de cours. Créez-en un, ou demandez à votre responsable de vous en attribuer un."
     }
   },
   "members": {
@@ -2127,7 +2131,8 @@
       "planCorrected": "Formule corrigée",
       "sessionValidityChanged": "Validité de la séance modifiée",
       "classTimesChanged": "Horaires du cours modifiés",
-      "classCancelled": "Cours annulé"
+      "classCancelled": "Cours annulé",
+      "classCreatedByCoach": "Cours créé"
     },
     "disclosure": {
       "title": "Questions sur ce journal",
@@ -2176,6 +2181,9 @@
     "classCancelled": {
       "details_one": "{{name}} · {{count}} réservation annulée",
       "details_other": "{{name}} · {{count}} réservations annulées"
+    },
+    "classCreated": {
+      "details": "{{name}} · capacité {{capacity}}"
     }
   },
   "saasBilling": {

@@ -30,6 +30,16 @@
 #   Without the session lock before the cancelled_at read the "cancel first" order lets the other call through; shown able to fail by hand
 #   (2026-11-20): the `perform ... for no key update` line removed from mark_class_attendance and `for share of cs` removed from
 #   cancel_class_booking each fail this case. Redo that if either function is edited.
+# Case 6 (Story 29.3: a Manager's reassignment of a class from coach A to coach B vs coach A's update_class, and vs coach A's cancel_class; at
+#   most 12 iterations per function). The Manager's transaction reassigns the class and holds the class row; coach A's call starts while it is
+#   open and must queue behind the row lock that update_class and cancel_class take BEFORE the coach check, then see coach B and be refused
+#   "coaches can only manage their own classes". Ends with: the class assigned to B, its name unchanged, not cancelled, no session flagged, no
+#   deadlock. Without the lock before the check the coach's call reads the old coach (A) from its snapshot, passes the check, waits on the row
+#   at its UPDATE and then overwrites the reassignment or cancels the class.
+#   Shown able to fail by hand (2026-11-20): with the `for update` removed from the class-row select of update_class
+#   alone, every "update" iteration fails (the former coach's edit goes through and overwrites the reassignment) while "cancel" passes; with it
+#   removed from cancel_class alone, every "cancel" iteration fails (the class ends cancelled) while "update" passes. The migration was restored
+#   after each run. Redo that if update_class or cancel_class is edited.
 set -uo pipefail
 DB=${DB_CONTAINER:-supabase_db_gym_os}
 N=${CLASS_SLOT_RACE_ITERATIONS:-50}
@@ -56,6 +66,8 @@ G=00000000-0000-0000-0000-00000029f001
 PLAN=00000000-0000-0000-0000-00000029f010
 COACH_U=00000000-0000-0000-0000-00000029f2a2
 COACH_M=00000000-0000-0000-0000-00000029f3a2
+COACH2_U=00000000-0000-0000-0000-00000029f2a3
+COACH2_M=00000000-0000-0000-0000-00000029f3a3
 MEMBER_U=00000000-0000-0000-0000-00000029f2b1
 MEMBER_M=00000000-0000-0000-0000-00000029f3b1
 MANAGER_U=00000000-0000-0000-0000-00000029f2c1
@@ -90,9 +102,10 @@ cleanup
 psql_ <<SQL
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values ('$T', 'Slot Race Tier', 6000, 60000, null);
 insert into gyms (id, name, tier_id, status) values ('$G', 'Slot Race Gym', '$T', 'active');
-insert into auth.users (id) values ('$COACH_U'), ('$MEMBER_U'), ('$MANAGER_U');
+insert into auth.users (id) values ('$COACH_U'), ('$COACH2_U'), ('$MEMBER_U'), ('$MANAGER_U');
 insert into members (id, gym_id, user_id, role, name, join_date) values
   ('$COACH_M', '$G', '$COACH_U', 'coach', 'Slot Race Coach', current_date),
+  ('$COACH2_M', '$G', '$COACH2_U', 'coach', 'Slot Race Coach Two', current_date),
   ('$MEMBER_M', '$G', '$MEMBER_U', 'member', 'Slot Race Member', current_date),
   ('$MANAGER_M', '$G', '$MANAGER_U', 'manager', 'Slot Race Manager', current_date);
 insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days)
@@ -336,6 +349,53 @@ SQL
         echo "ok   case 5 $kind iteration $i ($order): $want"
       else
         echo "FAIL case 5 $kind iteration $i ($order): flagged/bookings/attended/counted/other ok/refused = $flagged/$books/$attended/$counted/$other_ok/$refused, wanted $want, deadlock-or-fk=$bad, cancel errors=$a_errors"
+        cat /tmp/cs-race-a.$$ /tmp/cs-race-b.$$; fail=1
+      fi
+      rm -f /tmp/cs-race-a.$$ /tmp/cs-race-b.$$
+    done
+  done
+
+  # ---- case 6: a Manager's reassignment vs the former coach's update_class / cancel_class ----
+  SLOTS6='[{"weekday":2,"start_time":"18:00"}]'
+  claims_sql() { # claims_sql <user> <role>
+    echo "select set_config('request.jwt.claims', '{\"sub\":\"$1\",\"role\":\"authenticated\",\"gym_id\":\"$G\",\"app_role\":\"$2\"}', true);"
+  }
+  reassign_sql() { # reassign_sql <class> <name> <hold-seconds>: the Manager moves the class to coach two and holds the row
+    echo "begin; set local role authenticated; $(claims_sql "$MANAGER_U" manager) select 'REASSIGNED'; select update_class('$1', '$2', null, '$COACH2_M', 10, 'recurring', null, null, null, current_date, '$SLOTS6'::jsonb); reset role; select pg_sleep($3); commit;"
+  }
+  former_coach_sql() { # former_coach_sql <kind> <class>: coach one calls update_class or cancel_class
+    if [ "$1" = update ]; then
+      echo "begin; set local role authenticated; $(claims_sql "$COACH_U" coach) select update_class('$2', 'Hijacked', null, '$COACH_M', 10, 'recurring', null, null, null, current_date, '$SLOTS6'::jsonb); select 'COACH_OK'; reset role; commit;"
+    else
+      echo "begin; set local role authenticated; $(claims_sql "$COACH_U" coach) select cancel_class('$2'); select 'COACH_OK'; reset role; commit;"
+    fi
+  }
+  N6=$N; [ "$N6" -gt 12 ] && N6=12
+  for kind in update cancel; do
+    base=0; [ "$kind" = cancel ] && base=32
+    for i in $(seq 1 "$N6"); do
+      C=$(printf '00000000-0000-0000-0000-00000029f1%02x' $((base + i)))
+      psql_ <<SQL >/dev/null
+insert into classes (id, gym_id, name, coach_id, capacity, schedule_type, recurrence_days, recurrence_time, recurrence_start_date)
+  values ('$C', '$G', 'Own Race $kind $i', '$COACH_M', 10, 'recurring', '{2}', '18:00', current_date);
+SQL
+      psql_ -c "$(reassign_sql "$C" "Own Race $kind $i" "$HOLD_S")" > /tmp/cs-race-a.$$ 2>&1 & a=$!
+      sleep "$GAP_S"
+      psql_ -c "$(former_coach_sql "$kind" "$C")" > /tmp/cs-race-b.$$ 2>&1 & b=$!
+      wait "$a"; wait "$b"
+      owner=$(psql_ -c "select coach_id from classes where id = '$C'")
+      name=$(psql_ -c "select name from classes where id = '$C'")
+      cancelled=$(psql_ -c "select count(*) from classes where id = '$C' and cancelled_at is not null")
+      flagged=$(psql_ -c "select count(*) from class_sessions where class_id = '$C' and cancelled_at is not null")
+      reassigned=$(grep -c "^REASSIGNED" /tmp/cs-race-a.$$)
+      refused=$(grep -c "${kind}_class: coaches can only manage their own classes" /tmp/cs-race-b.$$)
+      coach_ok=$(grep -c "^COACH_OK" /tmp/cs-race-b.$$)
+      bad=$(cat /tmp/cs-race-a.$$ /tmp/cs-race-b.$$ | grep -ci "deadlock\|foreign key\|violates")
+      a_errors=$(grep -ci "error" /tmp/cs-race-a.$$)
+      if [ "$owner" = "$COACH2_M" ] && [ "$name" = "OWN RACE $(echo "$kind" | tr a-z A-Z) $i" ] && [ "$cancelled/$flagged/$reassigned/$refused/$coach_ok" = "0/0/1/1/0" ] && [ "$bad" = 0 ] && [ "$a_errors" = 0 ]; then
+        echo "ok   case 6 $kind iteration $i: the former coach was refused behind the reassignment, the class stays with coach two, unchanged"
+      else
+        echo "FAIL case 6 $kind iteration $i: coach=$owner name=$name cancelled/flagged/reassigned/refused/coach ok = $cancelled/$flagged/$reassigned/$refused/$coach_ok, deadlock-or-fk=$bad, manager errors=$a_errors"
         cat /tmp/cs-race-a.$$ /tmp/cs-race-b.$$; fail=1
       fi
       rm -f /tmp/cs-race-a.$$ /tmp/cs-race-b.$$

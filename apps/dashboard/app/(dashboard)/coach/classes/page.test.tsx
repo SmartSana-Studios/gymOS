@@ -4,6 +4,9 @@
  * the page's <Suspense> to the async child and await it.
  *
  *  - one `listMyClasses()` call, no arguments;
+ *  - Story 29.3: the signed-in Coach (member id and name from the shell context) is handed to the client as `coach` for the Coach role only,
+ *    each class carries the row the Edit modal and the Cancel dialog read, and the dialog's booking count is the sum of the booked counts of
+ *    the sessions later than now;
  *  - the fallback is AD-21's 3-row skeleton;
  *  - a failed read -> the app's inline `common.loadError`;
  *  - zero classes -> AD-21's empty state and no client component;
@@ -31,8 +34,15 @@ vi.mock("@/lib/i18n/get-server-translation", () => ({
 }));
 
 const listMyClasses = vi.fn();
+const getClassesGymTimezone = vi.fn();
 vi.mock("@/services/classes", () => ({
   listMyClasses: (...args: unknown[]) => listMyClasses(...args),
+  getClassesGymTimezone: (...args: unknown[]) => getClassesGymTimezone(...args),
+}));
+
+const getDashboardShellContext = vi.fn();
+vi.mock("@/services/session", () => ({
+  getDashboardShellContext: (...args: unknown[]) => getDashboardShellContext(...args),
 }));
 
 vi.mock("./components/CoachClassesPageClient", () => ({
@@ -112,6 +122,12 @@ describe("/coach/classes", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-09-10T12:00:00Z"));
     listMyClasses.mockReset().mockResolvedValue({ data: [HIIT, WORKSHOP], error: null });
+    getClassesGymTimezone.mockReset().mockResolvedValue({ data: "Africa/Douala", error: null });
+    getDashboardShellContext.mockReset().mockResolvedValue({
+      data: { role: "coach", memberId: "member-coach", memberName: "Coach One" },
+      error: null,
+      suspended: null,
+    });
   });
 
   afterEach(() => {
@@ -146,13 +162,89 @@ describe("/coach/classes", () => {
     expect(findAll(tree, (el) => el.type === CoachClassesPageClient)).toHaveLength(0);
   });
 
-  it("shows AD-21's empty state, and no class list, when the Coach teaches no classes", async () => {
+  it("hands the client an empty list and the Coach when the Coach teaches no classes (the client draws the empty state with [+ Create class])", async () => {
     listMyClasses.mockResolvedValue({ data: [], error: null });
 
     const tree = await renderPage();
 
-    expect(textContent(tree)).toEqual(["coachPortal.classes.emptyNoClasses"]);
+    expect(tree.type).toBe(CoachClassesPageClient);
+    expect(tree.props).toMatchObject({ classes: [], coach: { id: "member-coach", name: "Coach One" }, gymTimezone: "Africa/Douala" });
+  });
+
+  it("passes the signed-in Coach from the shell context, never from anything the client sends", async () => {
+    const tree = await renderPage();
+
+    expect(tree.props).toMatchObject({ coach: { id: "member-coach", name: "Coach One" }, gymTimezone: "Africa/Douala" });
+    expect(getDashboardShellContext).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["owner", "manager", "supervisor", "receptionist"])("passes no Coach, and builds no edit row, for the %s role", async (role) => {
+    getDashboardShellContext.mockResolvedValue({ data: { role, memberId: "member-x", memberName: "Staff" }, error: null, suspended: null });
+
+    const tree = await renderPage();
+
+    expect((tree.props as { coach: unknown }).coach).toBeNull();
+    expect(getClassesGymTimezone).not.toHaveBeenCalled();
+    for (const view of (tree.props as { classes: CoachClassView[] }).classes) expect(view.editRow).toBeUndefined();
+  });
+
+  it("renders the inline load error, not a read-only list, when the shell read fails", async () => {
+    getDashboardShellContext.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" }, suspended: null });
+
+    const tree = await renderPage();
+
+    expect(textContent(tree)).toEqual(["common.loadError"]);
     expect(findAll(tree, (el) => el.type === CoachClassesPageClient)).toHaveLength(0);
+  });
+
+  it("passes no Coach when the shell has no member id", async () => {
+    getDashboardShellContext.mockResolvedValue({ data: { role: "coach", memberId: null, memberName: "" }, error: null, suspended: null });
+
+    const tree = await renderPage();
+
+    expect((tree.props as { coach: unknown }).coach).toBeNull();
+  });
+
+  it("builds each class's edit row: the Coach is its coach, and the cancel count is the booked sum of the sessions later than now", async () => {
+    listMyClasses.mockResolvedValue({
+      data: [
+        {
+          ...HIIT,
+          description: "Evening burn",
+          recurrenceStartDate: "2026-09-01",
+          sessions: [
+            { classSessionId: "session-past", scheduledAt: "2026-09-10T08:00:00Z", bookedCount: 7, matchesSlots: true },
+            { classSessionId: "session-1", scheduledAt: "2026-09-11T17:00:00Z", bookedCount: 11, matchesSlots: true },
+            { classSessionId: "session-2", scheduledAt: "2026-09-14T17:00:00Z", bookedCount: 4, matchesSlots: false },
+          ],
+        },
+      ],
+      error: null,
+    });
+
+    const [hiit] = await classViews();
+
+    expect(hiit.editRow).toMatchObject({
+      id: "class-hiit",
+      name: "HIIT Circuit",
+      description: "Evening burn",
+      coachId: "member-coach",
+      coachName: "Coach One",
+      capacity: 15,
+      scheduleType: "recurring",
+      recurrenceStartDate: "2026-09-01",
+      cancelledAt: null,
+      upcomingBookingCount: 15,
+      nextSessionId: "session-1",
+      nextSessionMatchesSlots: true,
+    });
+    expect(hiit.editRow?.slots).toHaveLength(3);
+  });
+
+  it("a class with no upcoming session has a zero cancel count and no next session", async () => {
+    const [, workshop] = await classViews();
+
+    expect(workshop.editRow).toMatchObject({ upcomingBookingCount: 0, nextSessionId: null, nextSessionAt: null, description: null });
   });
 
   it("hands the client component one view per class, in order", async () => {
@@ -255,5 +347,13 @@ describe("/coach/classes", () => {
 
     expect(tree.type).toBe(CoachClassesPageClient);
     expect(textContent(tree)).toEqual([]);
+  });
+
+  it("falls back to the first class's timezone when the gym's own read gives none", async () => {
+    getClassesGymTimezone.mockResolvedValue({ data: null, error: null });
+
+    const tree = await renderPage();
+
+    expect((tree.props as { gymTimezone: string | null }).gymTimezone).toBe("Africa/Douala");
   });
 });

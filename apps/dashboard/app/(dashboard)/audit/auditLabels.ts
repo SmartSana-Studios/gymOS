@@ -158,4 +158,7 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // ([{weekday, start_time}]), left_unchanged_count }. class_cancelled (cancel_class) metadata { class_name, bookings_cancelled }.
   class_times_changed: "audit.actionTypes.classTimesChanged",
   class_cancelled: "audit.actionTypes.classCancelled",
+  // Story 29.3 (UX AD-12 V1.8). Written by the dashboard action (create_class writes no audit row of its own) when the signed-in role is Coach; a
+  // Manager, Supervisor or Owner creating a class writes class_created, as before. Metadata { name, coach_id, capacity, schedule_type }.
+  class_created_by_coach: "audit.actionTypes.classCreatedByCoach",
 };

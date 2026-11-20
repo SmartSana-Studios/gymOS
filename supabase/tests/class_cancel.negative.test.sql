@@ -5,7 +5,7 @@
 -- Fixtures: 00000000-0000-0000-0294-*. Gym A and B active (Douala), S suspended.
 
 begin;
-select plan(58);
+select plan(55);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0294-000000000001', 'Cancel Neg Tier', 5000, 50000, 50);
@@ -93,10 +93,9 @@ select is(pg_temp.err(pg_temp.sql_update_slots()), 'permission denied', 'a Recep
 select is(pg_temp.err(pg_temp.sql_update_old()), 'permission denied', 'a Receptionist cannot update a class (old signature)');
 
 select pg_temp.as_role('00000000-0000-0000-0294-000000000203', '00000000-0000-0000-0294-0000000000a0', 'coach');
-select is(pg_temp.err(pg_temp.sql_cancel()), 'permission denied', 'a Coach cannot cancel a class (not even their own, before Story 29.3)');
-select is(pg_temp.err(pg_temp.sql_create_slots()), 'permission denied', 'a Coach cannot create a class with slots');
+-- Story 29.3 (0182) widens cancel_class and both p_slots overloads to a Coach for their OWN classes: those cases are coach_own_classes.test.sql and
+-- coach_own_classes.negative.test.sql. The old signatures stay Manager and above.
 select is(pg_temp.err(pg_temp.sql_create_old()), 'permission denied', 'a Coach cannot create a class (old signature)');
-select is(pg_temp.err(pg_temp.sql_update_slots()), 'permission denied', 'a Coach cannot update a class with slots');
 select is(pg_temp.err(pg_temp.sql_update_old()), 'permission denied', 'a Coach cannot update a class (old signature)');
 
 select pg_temp.as_role('00000000-0000-0000-0294-000000000205', '00000000-0000-0000-0294-0000000000a0', 'member');
@@ -140,7 +139,7 @@ select throws_like(pg_temp.sql_update_slots(), 'update_class: class % not found'
 select throws_like(pg_temp.sql_update_old(), 'update_class: class % not found', 'a gym B Manager cannot update gym A''s class (old signature)');
 select throws_like($$select cancel_class(null)$$, 'cancel_class: class % not found', 'a null class id is the same not-found');
 select pg_temp.as_role('00000000-0000-0000-0294-000000000212', '00000000-0000-0000-0294-0000000000b0', 'coach');
-select is(pg_temp.err(pg_temp.sql_cancel()), 'permission denied', 'a gym B Coach is refused on the role before the class is looked at');
+select is(pg_temp.err(pg_temp.sql_cancel()), 'cancel_class: coaches can only manage their own classes', 'a gym B Coach gets the Coach refusal for gym A''s class (Story 29.3: the same text as for a missing class)');
 reset role;
 
 -- ============================================================================

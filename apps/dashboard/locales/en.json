@@ -1093,7 +1093,11 @@
       "nothingLeft": "This class has already taken place, so there is nothing left to cancel."
     },
     "coach": {
-      "ownOnly": "You can only change your own classes."
+      "fixed": "Coach",
+      "fixedHelp": "Classes you create are taught by you.",
+      "ownOnly": "You can only change your own classes.",
+      "create": "+ Create class",
+      "empty": "You don't have any classes yet. Create one, or ask your manager to assign you to a class."
     }
   },
   "members": {
@@ -2127,7 +2131,8 @@
       "planCorrected": "Plan corrected",
       "sessionValidityChanged": "Session validity changed",
       "classTimesChanged": "Class weekly times changed",
-      "classCancelled": "Class cancelled"
+      "classCancelled": "Class cancelled",
+      "classCreatedByCoach": "Class created"
     },
     "disclosure": {
       "title": "Questions about this log",
@@ -2176,6 +2181,9 @@
     "classCancelled": {
       "details_one": "{{name}} · {{count}} booking cancelled",
       "details_other": "{{name}} · {{count}} bookings cancelled"
+    },
+    "classCreated": {
+      "details": "{{name}} · capacity {{capacity}}"
     }
   },
   "saasBilling": {
