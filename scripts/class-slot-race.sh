@@ -23,6 +23,13 @@
 #   Either the booking was made first: cancel_class counts it (bookings_cancelled 1), flags the session and leaves the booking on record. Or the
 #   cancel won: the booking attempt is refused "session ... is cancelled", the count is 0 and no booking exists. Never: a deadlock, a booking the
 #   count missed, an unflagged session, or an error from the cancel.
+# Case 5 (Story 29.2 review pass 2: mark_class_attendance, and the member's own cancel_class_booking, vs cancel_class on one booked session;
+#   at most 12 iterations per function, alternating "cancel first" with "the other call first", each holding its transaction open so the
+#   other call is queued behind it). Cancel first: the other call must be refused "is on a cancelled class", the booking stays, attendance is
+#   not set, the cancel counts 1. Other first: it succeeds, and the cancel counts what is left (1 after a mark, 0 after the member's cancel).
+#   Without the session lock before the cancelled_at read the "cancel first" order lets the other call through; shown able to fail by hand
+#   (2026-11-20): the `perform ... for no key update` line removed from mark_class_attendance and `for share of cs` removed from
+#   cancel_class_booking each fail this case. Redo that if either function is edited.
 set -uo pipefail
 DB=${DB_CONTAINER:-supabase_db_gym_os}
 N=${CLASS_SLOT_RACE_ITERATIONS:-50}
@@ -61,6 +68,8 @@ FN=private.apply_class_slots
 
 cleanup() {
   psql_ <<SQL >/dev/null
+delete from session_attempts where gym_id = '$G';
+delete from front_desk_alerts where gym_id = '$G';
 delete from class_bookings where gym_id = '$G';
 delete from class_sessions where gym_id = '$G';
 delete from classes where gym_id = '$G';
@@ -87,8 +96,8 @@ insert into members (id, gym_id, user_id, role, name, join_date) values
   ('$MEMBER_M', '$G', '$MEMBER_U', 'member', 'Slot Race Member', current_date),
   ('$MANAGER_M', '$G', '$MANAGER_U', 'manager', 'Slot Race Manager', current_date);
 insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days)
-  values ('$PLAN', '$G', 'Slot Race Plan', 'pay_per_session', 2000, 'XAF', 'monthly', null);
-insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expiry_date) values ('$G', '$MEMBER_M', '$PLAN', 'active', current_date, null);
+  values ('$PLAN', '$G', 'Slot Race Plan', 'monthly', 2000, 'XAF', 'monthly', 30);
+insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expiry_date) values ('$G', '$MEMBER_M', '$PLAN', 'active', current_date, current_date + 365);
 SQL
 
 if [ -n "$BROKEN" ]; then
@@ -277,6 +286,61 @@ SQL
   if [ "$N" -ge 6 ] && { [ "$n_booked_first" -lt 1 ] || [ "$n_cancel_first" -lt 1 ]; }; then
     echo "FAIL case 4: expected both outcomes to occur, got booked-first=$n_booked_first cancel-first=$n_cancel_first"; fail=1
   fi
+
+  # ---- case 5: attendance mark / the member's own booking cancel vs cancel_class ----
+  mark_sql() { # mark_sql <booking> <hold-seconds>: prints "OK <id>" as the manager
+    echo "begin; set local role authenticated; select set_config('request.jwt.claims', '{\"sub\":\"$MANAGER_U\",\"role\":\"authenticated\",\"gym_id\":\"$G\",\"app_role\":\"manager\"}', true); select 'OK ' || m.id from mark_class_attendance('$1') m; reset role; select pg_sleep($2); commit;"
+  }
+  member_cancel_sql() { # member_cancel_sql <booking> <hold-seconds>: prints "OK" as the member
+    echo "begin; set local role authenticated; select set_config('request.jwt.claims', '{\"sub\":\"$MEMBER_U\",\"role\":\"authenticated\",\"gym_id\":\"$G\",\"app_role\":\"member\"}', true); select cancel_class_booking('$1'); select 'OK'; reset role; select pg_sleep($2); commit;"
+  }
+  N5=$N; [ "$N5" -gt 12 ] && N5=12
+  for kind in mark member_cancel; do
+    base=200; [ "$kind" = member_cancel ] && base=220
+    for i in $(seq 1 "$N5"); do
+      C=$(cid $((base + i))); S=$(sid $((base + i)))
+      B=$(psql_ <<SQL | tail -n 1
+insert into classes (id, gym_id, name, coach_id, capacity, schedule_type, recurrence_days, recurrence_time, recurrence_start_date)
+  values ('$C', '$G', 'Cancel Race 5 $kind $i', '$COACH_M', 10, 'recurring', '{2}', '18:00', current_date);
+insert into class_sessions (id, gym_id, class_id, scheduled_at)
+  values ('$S', '$G', '$C', date_trunc('day', now()) + interval '2 days 7 hours 13 minutes' + make_interval(secs => $i));
+with b as (insert into class_bookings (gym_id, class_session_id, member_id) values ('$G', '$S', '$MEMBER_M') returning id) select id from b;
+SQL
+)
+      if [ "$kind" = mark ]; then other_sql() { mark_sql "$B" "$1"; }; else other_sql() { member_cancel_sql "$B" "$1"; }; fi
+      if [ $((i % 2)) = 0 ]; then
+        order="cancel first"
+        psql_ -c "$(cancel_sql "$C" "$HOLD_S")" > /tmp/cs-race-a.$$ 2>&1 & a=$!
+        sleep "$GAP_S"
+        psql_ -c "$(other_sql 0)" > /tmp/cs-race-b.$$ 2>&1 & b=$!
+      else
+        order="$kind first"
+        psql_ -c "$(other_sql "$HOLD_S")" > /tmp/cs-race-b.$$ 2>&1 & b=$!
+        sleep "$GAP_S"
+        psql_ -c "$(cancel_sql "$C" 0)" > /tmp/cs-race-a.$$ 2>&1 & a=$!
+      fi
+      wait "$a"; wait "$b"
+      flagged=$(psql_ -c "select count(*) from class_sessions where id = '$S' and cancelled_at is not null")
+      books=$(psql_ -c "select count(*) from class_bookings where id = '$B'")
+      attended=$(psql_ -c "select count(*) from class_bookings where id = '$B' and attended_at is not null")
+      counted=$(grep -o "^COUNT [0-9]*" /tmp/cs-race-a.$$ | cut -d' ' -f2)
+      other_ok=$(grep -c "^OK" /tmp/cs-race-b.$$)
+      refused=$(grep -c "is on a cancelled class" /tmp/cs-race-b.$$)
+      bad=$(cat /tmp/cs-race-a.$$ /tmp/cs-race-b.$$ | grep -ci "deadlock\|foreign key\|violates")
+      a_errors=$(grep -ci "error" /tmp/cs-race-a.$$)
+      # flagged/bookings left/attended/counted/other ok/other refused
+      if [ "$order" = "cancel first" ]; then want="1/1/0/1/0/1"; else
+        if [ "$kind" = mark ]; then want="1/1/1/1/1/0"; else want="1/0/0/0/1/0"; fi
+      fi
+      if [ "$flagged/$books/$attended/$counted/$other_ok/$refused" = "$want" ] && [ "$bad" = 0 ] && [ "$a_errors" = 0 ]; then
+        echo "ok   case 5 $kind iteration $i ($order): $want"
+      else
+        echo "FAIL case 5 $kind iteration $i ($order): flagged/bookings/attended/counted/other ok/refused = $flagged/$books/$attended/$counted/$other_ok/$refused, wanted $want, deadlock-or-fk=$bad, cancel errors=$a_errors"
+        cat /tmp/cs-race-a.$$ /tmp/cs-race-b.$$; fail=1
+      fi
+      rm -f /tmp/cs-race-a.$$ /tmp/cs-race-b.$$
+    done
+  done
 fi
 
 [ "$fail" = 0 ] && echo "race: all passed" || { echo "race: FAILED"; exit 1; }

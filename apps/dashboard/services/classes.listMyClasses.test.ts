@@ -200,10 +200,12 @@ describe("listMyClasses", () => {
   });
 
   it("reads slots, cancelled_at and a per-session matches_slots (Story 29.2)", async () => {
+    const inTwoDays = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+    const inFourDays = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString();
     rpcResult = {
       data: [
-        { ...sessionRow({ ...HIIT, cancelled_at: "2026-09-10T09:00:00+00:00" }, "session-1", "2026-09-11T17:00:00+00:00", 2), matches_slots: false },
-        { ...sessionRow({ ...HIIT, cancelled_at: "2026-09-10T09:00:00+00:00" }, "session-2", "2026-09-13T17:00:00+00:00", 0), matches_slots: true },
+        { ...sessionRow({ ...HIIT, cancelled_at: "2026-09-10T09:00:00+00:00" }, "session-1", inTwoDays, 2), matches_slots: false },
+        { ...sessionRow({ ...HIIT, cancelled_at: "2026-09-10T09:00:00+00:00" }, "session-2", inFourDays, 0), matches_slots: true },
       ],
       error: null,
     };
@@ -217,6 +219,22 @@ describe("listMyClasses", () => {
       { weekday: 5, startTime: "18:00" },
     ]);
     expect(result.data?.[0].sessions.map((s) => s.matchesSlots)).toEqual([false, true]);
+  });
+
+  it("never reports a session that has already started as off its times (no 'Old time' tag on a session that ran)", async () => {
+    const earlierToday = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    rpcResult = {
+      data: [
+        { ...sessionRow(HIIT, "session-1", earlierToday, 4), matches_slots: false },
+        { ...sessionRow(HIIT, "session-2", tomorrow, 4), matches_slots: false },
+      ],
+      error: null,
+    };
+
+    const result = await listMyClasses();
+
+    expect(result.data?.[0].sessions.map((s) => s.matchesSlots)).toEqual([true, false]);
   });
 
   it("returns an empty list, not an error, for zero rows", async () => {

@@ -1089,7 +1089,8 @@
       "toast": "{{name}} annulé.",
       "badge": "Annulé",
       "error": "Impossible d'annuler le cours. Réessayez.",
-      "already": "Ce cours a déjà été annulé."
+      "already": "Ce cours a déjà été annulé.",
+      "nothingLeft": "Ce cours a déjà eu lieu, il n'y a plus rien à annuler."
     },
     "coach": {
       "ownOnly": "Vous ne pouvez modifier que vos propres cours."

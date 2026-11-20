@@ -11,7 +11,8 @@
 --   * public.create_class(..., p_slots jsonb) and public.update_class(..., p_slots jsonb): new overloads (the old parameters in the old order
 --     plus a trailing p_slots with no default). A per-day class stores recurrence_days and recurrence_time as null. update_class returns
 --     { left_unchanged: [{class_session_id, scheduled_at, booked_count, capacity}] }, never an error for bookings, and writes the audit row
---     class_times_changed only when the times changed. Only a one-off class rescheduled over bookings keeps 0058's refusal; a switch between
+--     class_times_changed only when the weekly times changed, that is when a recurring side is involved (a one-off to one-off reschedule
+--     writes no such row: it is the dashboard's class_edited row that records it). Only a one-off class rescheduled over bookings keeps 0058's refusal; a switch between
 --     one-off and recurring follows the slot rule (a booked future session is kept and listed, an unbooked one is deleted, past ones are
 --     never touched).
 --   * public.update_class (the old 10-argument signature): now a thin wrapper, and NOT unchanged for the old dashboard. It turns the days and
@@ -21,6 +22,9 @@
 --     on their old time. public.create_class (the old signature) is not touched.
 --   * public.cancel_class(p_class_id): Manager, Supervisor, Owner (role read live). Flags the class and its future sessions, deletes nothing,
 --     returns { bookings_cancelled } and writes the audit row class_cancelled. No notification of any kind (owner decision 2026-11-15).
+--     A one-off class whose session is already past is refused ("has nothing left to cancel"); a recurring class is always cancellable.
+--     mark_class_attendance, cancel_class_booking and private.send_class_reminder lock the session row before they read cancelled_at, so a
+--     cancel_class committing at the same moment is seen, never missed.
 --   * a cancelled class is refused or skipped by: private.materialize_sessions_for_class (the daily job), materialize_class_sessions,
 --     update_class, book_class_session, cancel_class_booking, mark_class_attendance, list_bookable_class_sessions, run_class_reminder_job and
 --     private.send_class_reminder. list_my_class_bookings gains class_cancelled and reports can_cancel false for a cancelled session.
@@ -477,7 +481,7 @@ begin
     raise exception 'cancel_class: gym % is not active', v_gym_id;
   end if;
 
-  select c.name, c.cancelled_at
+  select c.name, c.cancelled_at, c.schedule_type, c.one_off_session_at
   into v_class
   from classes c
   where c.id = p_class_id and c.gym_id = v_gym_id
@@ -489,6 +493,10 @@ begin
 
   if v_class.cancelled_at is not null then
     raise exception 'cancel_class: class % is already cancelled', p_class_id;
+  end if;
+
+  if v_class.schedule_type = 'one_off' and v_class.one_off_session_at <= now() then
+    raise exception 'cancel_class: class % has nothing left to cancel', p_class_id;
   end if;
 
   select m.id into v_caller_member_id
@@ -771,7 +779,8 @@ begin
   select cb.id, cs.scheduled_at, cs.cancelled_at into v_found_id, v_scheduled_at, v_cancelled_at
   from class_bookings cb
   join class_sessions cs on cs.id = cb.class_session_id
-  where cb.id = p_booking_id and cb.gym_id = v_gym_id and cb.member_id = v_member_id;
+  where cb.id = p_booking_id and cb.gym_id = v_gym_id and cb.member_id = v_member_id
+  for share of cs;
 
   if v_found_id is null then
     raise exception 'cancel_class_booking: booking % not found', p_booking_id;
@@ -789,9 +798,10 @@ begin
     raise exception 'cancel_class_booking: cancellation cutoff has passed';
   end if;
 
-  -- No row lock needed here (unlike booking): freeing a spot has no
-  -- capacity race to guard against; a duplicate cancel attempt on an
-  -- already-deleted row simply re-hits the not-found branch above.
+  -- Freeing a spot has no capacity race to guard against; the session row is
+  -- locked FOR SHARE above only so a cancel_class that commits meanwhile is
+  -- seen (the cancelled_at read is the one after the lock). A duplicate cancel
+  -- attempt on an already-deleted row simply re-hits the not-found branch above.
   delete from class_bookings where id = v_found_id;
 end;
 $function$;
@@ -843,6 +853,8 @@ begin
   if v_booking_id is null then
     raise exception 'mark_class_attendance: booking % not found', p_booking_id;
   end if;
+
+  perform 1 from class_sessions cs where cs.id = v_class_session_id for no key update;
 
   if exists (select 1 from class_sessions cs where cs.id = v_class_session_id and cs.cancelled_at is not null) then
     raise exception 'mark_class_attendance: booking % is on a cancelled class', p_booking_id;
@@ -1101,6 +1113,8 @@ declare
   v_request_id bigint;
   v_delivery_count integer := 0;
 begin
+  perform 1 from class_sessions cs where cs.id = p_class_session_id for key share;
+
   if exists (select 1 from class_sessions cs where cs.id = p_class_session_id and cs.cancelled_at is not null) then
     return;
   end if;

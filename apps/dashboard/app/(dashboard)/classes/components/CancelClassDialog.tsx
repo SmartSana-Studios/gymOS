@@ -49,6 +49,8 @@ export function CancelClassDialog({
   }
 
   const alreadyCancelled = error?.code === "class_already_cancelled";
+  // Both refusals are final: a second confirm can only fail the same way.
+  const refusedForGood = alreadyCancelled || error?.code === "class_nothing_to_cancel";
 
   return (
     <dialog
@@ -78,7 +80,7 @@ export function CancelClassDialog({
           <Button type="button" variant="outline" onClick={() => dialogRef.current?.close()} disabled={submitting}>
             {t("classes.cancel.keep")}
           </Button>
-          {!alreadyCancelled && (
+          {!refusedForGood && (
             <Button type="button" variant="destructive" onClick={() => void handleConfirm()} disabled={submitting}>
               {t("classes.cancel.action")}
             </Button>

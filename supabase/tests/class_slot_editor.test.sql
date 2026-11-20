@@ -5,7 +5,7 @@
 -- Fixtures: 00000000-0000-0000-0292-*. Gym A is Africa/Douala (no DST), gym B Europe/Paris.
 
 begin;
-select plan(126);
+select plan(129);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0292-000000000001', 'Editor Tier', 5000, 50000, 50);
@@ -465,7 +465,13 @@ set local role authenticated;
 select pg_temp.owner();
 select throws_like($$select update_class(current_setting('test.old')::uuid, 'Old signature', null, '00000000-0000-0000-0292-000000000303', 10, 'recurring', null, array[]::smallint[], '19:15', current_date)$$,
   '%needs days and a time%', 'the old update_class keeps its own refusal for a recurring class with no days');
+select throws_like($$select update_class(current_setting('test.old')::uuid, 'Old signature', null, '00000000-0000-0000-0292-000000000303', 10, 'recurring', null, array[2,5]::smallint[], '07:00:30', current_date)$$,
+  '%whole minute, without seconds%', 'the old update_class refuses a recurring time with seconds');
 reset role;
+select is((select (recurrence_days, recurrence_time) from classes where id = current_setting('test.old')::uuid), (select (array[2,5]::smallint[], '19:15'::time)),
+  'and the refused edit changed neither the legacy columns');
+select set_eq($$select weekday, start_time from class_schedule_slots where class_id = current_setting('test.old')::uuid$$,
+  $$values (2::smallint, '19:15'::time), (5::smallint, '19:15'::time)$$, 'nor the slots');
 
 -- ============================================================================
 -- matches_slots (the single source of the "Old time" tag) and its isolation

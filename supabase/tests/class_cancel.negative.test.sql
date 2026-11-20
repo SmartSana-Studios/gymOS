@@ -5,7 +5,7 @@
 -- Fixtures: 00000000-0000-0000-0294-*. Gym A and B active (Douala), S suspended.
 
 begin;
-select plan(53);
+select plan(58);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0294-000000000001', 'Cancel Neg Tier', 5000, 50000, 50);
@@ -102,6 +102,7 @@ select is(pg_temp.err(pg_temp.sql_update_old()), 'permission denied', 'a Coach c
 select pg_temp.as_role('00000000-0000-0000-0294-000000000205', '00000000-0000-0000-0294-0000000000a0', 'member');
 select is(pg_temp.err(pg_temp.sql_cancel()), 'permission denied', 'a member cannot cancel a class');
 select is(pg_temp.err(pg_temp.sql_create_slots()), 'permission denied', 'a member cannot create a class with slots');
+select is(pg_temp.err(pg_temp.sql_create_old()), 'permission denied', 'a member cannot create a class (old signature)');
 select is(pg_temp.err(pg_temp.sql_update_slots()), 'permission denied', 'a member cannot update a class with slots');
 select is(pg_temp.err(pg_temp.sql_update_old()), 'permission denied', 'a member cannot update a class (old signature)');
 
@@ -165,13 +166,17 @@ select pg_temp.as_role('00000000-0000-0000-0294-000000000204', '00000000-0000-00
 select ok(pg_temp.blocked($$update classes set cancelled_at = now(), cancelled_by = '00000000-0000-0000-0294-000000000304' where id = '00000000-0000-0000-0294-000000000401'$$), 'a Receptionist cannot flag a class by a direct update');
 select ok(pg_temp.blocked($$update class_sessions set cancelled_at = now() where class_id = '00000000-0000-0000-0294-000000000401'$$), 'a Receptionist cannot flag a session by a direct update');
 select ok(pg_temp.blocked($$delete from class_sessions where class_id = '00000000-0000-0000-0294-000000000401'$$), 'a Receptionist cannot delete a session');
+select ok(pg_temp.blocked($$insert into classes (gym_id, name, coach_id, capacity, schedule_type, one_off_session_at) values ('00000000-0000-0000-0294-0000000000a0', 'Direct', '00000000-0000-0000-0294-000000000303', 5, 'one_off', now() + interval '1 day')$$), 'a Receptionist cannot insert a class directly');
+select ok(pg_temp.blocked($$insert into class_schedule_slots (class_id, gym_id, weekday, start_time) values ('00000000-0000-0000-0294-000000000401', '00000000-0000-0000-0294-0000000000a0', 6, '10:00')$$), 'a Receptionist cannot write a slot');
 select pg_temp.as_role('00000000-0000-0000-0294-000000000203', '00000000-0000-0000-0294-0000000000a0', 'coach');
 select ok(pg_temp.blocked($$update classes set cancelled_at = now(), cancelled_by = '00000000-0000-0000-0294-000000000303' where id = '00000000-0000-0000-0294-000000000401'$$), 'a Coach cannot flag a class by a direct update');
 select ok(pg_temp.blocked($$update class_sessions set cancelled_at = now() where class_id = '00000000-0000-0000-0294-000000000401'$$), 'a Coach cannot flag a session by a direct update');
 select ok(pg_temp.blocked($$insert into classes (gym_id, name, coach_id, capacity, schedule_type, one_off_session_at) values ('00000000-0000-0000-0294-0000000000a0', 'Direct', '00000000-0000-0000-0294-000000000303', 5, 'one_off', now() + interval '1 day')$$), 'a Coach cannot insert a class directly');
+select ok(pg_temp.blocked($$insert into class_schedule_slots (class_id, gym_id, weekday, start_time) values ('00000000-0000-0000-0294-000000000401', '00000000-0000-0000-0294-0000000000a0', 6, '10:00')$$), 'a Coach cannot write a slot');
 select pg_temp.as_role('00000000-0000-0000-0294-000000000205', '00000000-0000-0000-0294-0000000000a0', 'member');
 select ok(pg_temp.blocked($$update classes set cancelled_at = now() where id = '00000000-0000-0000-0294-000000000401'$$), 'a member cannot flag a class by a direct update');
 select ok(pg_temp.blocked($$update class_sessions set cancelled_at = now() where class_id = '00000000-0000-0000-0294-000000000401'$$), 'a member cannot flag a session by a direct update');
+select ok(pg_temp.blocked($$insert into classes (gym_id, name, coach_id, capacity, schedule_type, one_off_session_at) values ('00000000-0000-0000-0294-0000000000a0', 'Direct', '00000000-0000-0000-0294-000000000303', 5, 'one_off', now() + interval '1 day')$$), 'a member cannot insert a class directly');
 select ok(pg_temp.blocked($$insert into class_schedule_slots (class_id, gym_id, weekday, start_time) values ('00000000-0000-0000-0294-000000000401', '00000000-0000-0000-0294-0000000000a0', 6, '10:00')$$), 'a member cannot write a slot');
 reset role;
 

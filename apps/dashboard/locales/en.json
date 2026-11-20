@@ -1089,7 +1089,8 @@
       "toast": "{{name}} cancelled.",
       "badge": "Cancelled",
       "error": "Couldn't cancel the class. Try again.",
-      "already": "This class was already cancelled."
+      "already": "This class was already cancelled.",
+      "nothingLeft": "This class has already taken place, so there is nothing left to cancel."
     },
     "coach": {
       "ownOnly": "You can only change your own classes."

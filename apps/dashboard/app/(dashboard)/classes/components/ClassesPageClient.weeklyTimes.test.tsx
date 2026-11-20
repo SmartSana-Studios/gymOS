@@ -416,6 +416,23 @@ describe("the result view after an edit", () => {
     expect(await within(dialog()).findByText("classes.times.left.none")).toBeInTheDocument();
   });
 
+  it("an edit saved with a failed audit write still shows the result view, and [Done] passes the warning on", async () => {
+    editClass.mockResolvedValue({
+      data: { id: "e1", leftUnchanged: [{ classSessionId: "s1", scheduledAt: "2026-11-23T06:00:00+00:00", bookedCount: 8, capacity: 15 }] },
+      error: { code: "audit_log_failed", message: "W-audit" },
+    });
+    const user = userEvent.setup();
+    renderPage([recurring("e1", "EDIT", [[MON, "07:00"]])]);
+    await user.click(within(rowOf("EDIT")).getByRole("button", { name: "classes.edit" }));
+    await user.click(within(dialog()).getByRole("button", { name: "classes.modal.saveChanges" }));
+    const d = within(dialog());
+    expect(await d.findByRole("heading", { name: "classes.times.saved.title" })).toBeInTheDocument();
+    expect(d.getByText("classes.times.left.title1")).toBeInTheDocument();
+    await user.click(d.getByRole("button", { name: "classes.times.done" }));
+    expect(refresh).toHaveBeenCalled();
+    expect(await screen.findByText("W-audit")).toBeInTheDocument();
+  });
+
   it("[Done] refreshes the list and returns focus to the class's Edit button", async () => {
     const { user, editButton } = await saveEdit([]);
     await user.click(await within(dialog()).findByRole("button", { name: "classes.times.done" }));
@@ -465,6 +482,7 @@ describe("the Cancel class dialog", () => {
     await user.click(within(dialog()).getByRole("button", { name: "classes.cancel.keep" }));
     expect(cancelClassAction).not.toHaveBeenCalled();
     await waitFor(() => expect(document.querySelector("dialog[open]")).toBeNull());
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("confirming cancels, shows the success toast and refreshes", async () => {
@@ -482,6 +500,18 @@ describe("the Cancel class dialog", () => {
     await user.click(within(dialog()).getByRole("button", { name: "classes.cancel.action" }));
     expect(await within(dialog()).findByText("classes.cancel.already")).toBeInTheDocument();
     expect(within(dialog()).queryByRole("button", { name: "classes.cancel.action" })).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+    await user.click(within(dialog()).getByRole("button", { name: "classes.cancel.keep" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it("a class with nothing left to cancel shows its own message and no second confirm", async () => {
+    cancelClassAction.mockResolvedValue({ data: null, error: { code: "class_nothing_to_cancel", message: "classes.cancel.nothingLeft" } });
+    const user = await openCancel(withBookings);
+    await user.click(within(dialog()).getByRole("button", { name: "classes.cancel.action" }));
+    expect(await within(dialog()).findByText("classes.cancel.nothingLeft")).toBeInTheDocument();
+    expect(within(dialog()).queryByRole("button", { name: "classes.cancel.action" })).toBeNull();
+    expect(cancelClassAction).toHaveBeenCalledTimes(1);
   });
 
   it("any other failure shows the generic error and keeps the confirm available", async () => {

@@ -446,7 +446,8 @@ export async function listMyClasses(): Promise<{ data: CoachClassRow[] | null; e
         scheduledAt: row.scheduled_at,
         // bigint over PostgREST: normally a JSON number, but never trust it.
         bookedCount: Number(row.booked_count),
-        matchesSlots: row.matches_slots !== false,
+        // A session that has already started never carries the "Old time" tag (the page lists sessions from 00:00 today); listClasses does the same.
+        matchesSlots: row.matches_slots !== false || new Date(row.scheduled_at).getTime() <= Date.now(),
       });
     }
   }
@@ -665,7 +666,8 @@ function parseLeftUnchanged(raw: unknown): LeftUnchangedSession[] {
 /** Story 29.2: cancels a class through `cancel_class()` (0181). Flags the class and its future sessions on the server, deletes nothing, and
  * returns the server-counted number of bookings on those sessions. An already-cancelled class gets its own code
  * (`class_already_cancelled`, message `classes.cancel.already`); every other failure is `class_cancel_failed`
- * (`classes.cancel.error`), the real cause logged server-side only. */
+ * (`classes.cancel.error`), the real cause logged server-side only. A one-off class whose session is already past gets `class_nothing_to_cancel`
+ * (`classes.cancel.nothingLeft`). */
 export async function cancelClass(
   classId: string,
 ): Promise<{ data: { bookingsCancelled: number } | null; error: AppError | null }> {
@@ -676,6 +678,9 @@ export async function cancelClass(
     const already = await mapAlreadyCancelled(error);
     if (already) return { data: null, error: already };
     const { t } = await getServerTranslation(await getRequestLocale());
+    if (/nothing left to cancel/i.test(error.message ?? "")) {
+      return { data: null, error: { code: "class_nothing_to_cancel", message: t("classes.cancel.nothingLeft") } };
+    }
     console.error("[cancelClass] failed", error);
     return { data: null, error: { code: "class_cancel_failed", message: t("classes.cancel.error") } };
   }

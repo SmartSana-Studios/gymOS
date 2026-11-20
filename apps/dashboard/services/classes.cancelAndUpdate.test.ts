@@ -68,6 +68,14 @@ describe("cancelClass", () => {
     await expect(cancelClass("class-1")).resolves.toEqual({ data: null, error: ALREADY });
   });
 
+  it("maps the database's 'nothing left to cancel' message to class_nothing_to_cancel", async () => {
+    rpcResult = { data: null, error: { message: "cancel_class: class 00000000-0000-0000-0000-000000000001 has nothing left to cancel" } };
+    await expect(cancelClass("class-1")).resolves.toEqual({
+      data: null,
+      error: { code: "class_nothing_to_cancel", message: "classes.cancel.nothingLeft" },
+    });
+  });
+
   it("maps any other failure to class_cancel_failed", async () => {
     rpcResult = { data: null, error: { message: "permission denied" } };
     await expect(cancelClass("class-1")).resolves.toEqual({
