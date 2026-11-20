@@ -2,7 +2,7 @@
 title: '29-2 Per-day slot editor and cancel class'
 type: 'feature'
 created: '2026-11-20'
-status: 'in-review'
+status: 'done'
 baseline_commit: '236efca91f501c4ab869155f5025a9398d57b125'
 route: 'dispatch'
 review_loop_iteration: 0
