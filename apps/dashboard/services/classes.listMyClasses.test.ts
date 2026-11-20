@@ -21,12 +21,13 @@ type Row = {
   capacity: number;
   schedule_type: string;
   one_off_session_at: string | null;
-  recurrence_days: number[] | null;
-  recurrence_time: string | null;
+  slots: { weekday: number; start_time: string }[];
+  cancelled_at: string | null;
   gym_timezone: string;
   class_session_id: string | null;
   scheduled_at: string | null;
   booked_count: number | string;
+  matches_slots?: boolean | null;
 };
 
 type ClassColumns = Omit<Row, "class_session_id" | "scheduled_at" | "booked_count">;
@@ -58,8 +59,8 @@ const WORKSHOP: ClassColumns = {
   capacity: 10,
   schedule_type: "one_off",
   one_off_session_at: "2026-08-31T09:00:00+00:00",
-  recurrence_days: null,
-  recurrence_time: null,
+  slots: [],
+  cancelled_at: null,
   gym_timezone: "Africa/Douala",
 };
 
@@ -69,8 +70,12 @@ const HIIT: ClassColumns = {
   capacity: 15,
   schedule_type: "recurring",
   one_off_session_at: null,
-  recurrence_days: [1, 3, 5],
-  recurrence_time: "18:00:00",
+  slots: [
+    { weekday: 1, start_time: "18:00" },
+    { weekday: 3, start_time: "18:00" },
+    { weekday: 5, start_time: "18:00" },
+  ],
+  cancelled_at: null,
   gym_timezone: "Africa/Douala",
 };
 
@@ -80,15 +85,18 @@ const YOGA: ClassColumns = {
   capacity: 12,
   schedule_type: "recurring",
   one_off_session_at: null,
-  recurrence_days: [2, 4],
-  recurrence_time: "07:00:00",
+  slots: [
+    { weekday: 2, start_time: "07:00" },
+    { weekday: 4, start_time: "07:00" },
+  ],
+  cancelled_at: null,
   gym_timezone: "Africa/Douala",
 };
 
 function sessionRow(base: ClassColumns, sessionId: string | null, scheduledAt: string | null, booked: number | string): Row {
   return {
     ...base,
-    recurrence_days: base.recurrence_days ? [...base.recurrence_days] : null,
+    slots: base.slots.map((s) => ({ ...s })),
     class_session_id: sessionId,
     scheduled_at: scheduledAt,
     booked_count: booked,
@@ -129,8 +137,8 @@ describe("listMyClasses", () => {
           capacity: 10,
           scheduleType: "one_off",
           oneOffSessionAt: "2026-08-31T09:00:00+00:00",
-          recurrenceDays: null,
-          recurrenceTime: null,
+          slots: [],
+          cancelledAt: null,
           gymTimezone: "Africa/Douala",
           sessions: [],
         },
@@ -140,12 +148,16 @@ describe("listMyClasses", () => {
           capacity: 15,
           scheduleType: "recurring",
           oneOffSessionAt: null,
-          recurrenceDays: [1, 3, 5],
-          recurrenceTime: "18:00:00",
+          slots: [
+            { weekday: 1, startTime: "18:00" },
+            { weekday: 3, startTime: "18:00" },
+            { weekday: 5, startTime: "18:00" },
+          ],
+          cancelledAt: null,
           gymTimezone: "Africa/Douala",
           sessions: [
-            { classSessionId: "session-1", scheduledAt: "2026-09-09T23:00:00+00:00", bookedCount: 1 },
-            { classSessionId: "session-2", scheduledAt: "2026-09-11T17:00:00+00:00", bookedCount: 3 },
+            { classSessionId: "session-1", scheduledAt: "2026-09-09T23:00:00+00:00", bookedCount: 1, matchesSlots: true },
+            { classSessionId: "session-2", scheduledAt: "2026-09-11T17:00:00+00:00", bookedCount: 3, matchesSlots: true },
           ],
         },
         {
@@ -154,12 +166,15 @@ describe("listMyClasses", () => {
           capacity: 12,
           scheduleType: "recurring",
           oneOffSessionAt: null,
-          recurrenceDays: [2, 4],
-          recurrenceTime: "07:00:00",
+          slots: [
+            { weekday: 2, startTime: "07:00" },
+            { weekday: 4, startTime: "07:00" },
+          ],
+          cancelledAt: null,
           gymTimezone: "Africa/Douala",
           sessions: [
-            { classSessionId: "session-3", scheduledAt: "2026-09-15T06:00:00+00:00", bookedCount: 0 },
-            { classSessionId: "session-4", scheduledAt: "2026-09-17T06:00:00+00:00", bookedCount: 2 },
+            { classSessionId: "session-3", scheduledAt: "2026-09-15T06:00:00+00:00", bookedCount: 0, matchesSlots: true },
+            { classSessionId: "session-4", scheduledAt: "2026-09-17T06:00:00+00:00", bookedCount: 2, matchesSlots: true },
           ],
         },
       ],
@@ -182,6 +197,26 @@ describe("listMyClasses", () => {
     const result = await listMyClasses();
 
     expect(result.data?.[0].sessions[0].bookedCount).toBe(12);
+  });
+
+  it("reads slots, cancelled_at and a per-session matches_slots (Story 29.2)", async () => {
+    rpcResult = {
+      data: [
+        { ...sessionRow({ ...HIIT, cancelled_at: "2026-09-10T09:00:00+00:00" }, "session-1", "2026-09-11T17:00:00+00:00", 2), matches_slots: false },
+        { ...sessionRow({ ...HIIT, cancelled_at: "2026-09-10T09:00:00+00:00" }, "session-2", "2026-09-13T17:00:00+00:00", 0), matches_slots: true },
+      ],
+      error: null,
+    };
+
+    const result = await listMyClasses();
+
+    expect(result.data?.[0].cancelledAt).toBe("2026-09-10T09:00:00+00:00");
+    expect(result.data?.[0].slots).toEqual([
+      { weekday: 1, startTime: "18:00" },
+      { weekday: 3, startTime: "18:00" },
+      { weekday: 5, startTime: "18:00" },
+    ]);
+    expect(result.data?.[0].sessions.map((s) => s.matchesSlots)).toEqual([false, true]);
   });
 
   it("returns an empty list, not an error, for zero rows", async () => {

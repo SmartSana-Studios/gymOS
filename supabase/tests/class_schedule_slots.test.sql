@@ -56,8 +56,8 @@ select is(
 select ok(exists (select 1 from pg_indexes where tablename = 'class_schedule_slots' and indexdef like '%(gym_id)%'), 'an index on gym_id');
 select is(
   (select count(*)::int from information_schema.columns where table_name in ('classes', 'class_sessions', 'class_bookings')
-     and table_schema = 'public' and column_name in ('slot_id', 'cancelled_at', 'class_schedule_slot_id')),
-  0, 'no column was added to classes, class_sessions or class_bookings');
+     and table_schema = 'public' and column_name in ('slot_id', 'class_schedule_slot_id')),
+  0, 'no slot reference column was added to classes, class_sessions or class_bookings (the cancelled_at columns of 0181 are covered by class_slot_editor.test.sql)');
 select is(
   (select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'classes' and column_name in ('recurrence_days', 'recurrence_time', 'recurrence_start_date')),
   3, 'recurrence_days, recurrence_time and recurrence_start_date stay on classes');
@@ -434,7 +434,7 @@ select throws_like($$select materialize_class_sessions('00000000-0000-0000-0180-
 reset role;
 
 -- ============================================================================
--- A type change over a booked future session keeps the 0058 refusal (the guard is: old type one-off OR new type one-off).
+-- A type change over a booked future session follows the slot rule since 0181 (it no longer raises); only one-off to one-off keeps the 0058 refusal.
 -- ============================================================================
 insert into classes (id, gym_id, name, coach_id, capacity, schedule_type, recurrence_days, recurrence_time, recurrence_start_date) values
   ('00000000-0000-0000-0180-000000000409', '00000000-0000-0000-0180-0000000000a0', 'Rec to one-off', '00000000-0000-0000-0180-000000000303', 10, 'recurring', '{2}', '10:00', current_date);
@@ -448,23 +448,23 @@ from classes c where c.id in ('00000000-0000-0000-0180-000000000409', '00000000-
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0180-000000000201","role":"authenticated","gym_id":"00000000-0000-0000-0180-0000000000a0","app_role":"owner"}', true);
-select throws_like(
+select lives_ok(
   $$select update_class('00000000-0000-0000-0180-000000000409', 'Rec to one-off', null, '00000000-0000-0000-0180-000000000303', 10, 'one_off', now() + interval '9 days', null, null, null)$$,
-  '%cannot reschedule%', 'update_class refuses to turn a recurring class with a booked future session into a one-off class');
-select throws_like(
+  'update_class turns a recurring class with a booked future session into a one-off class (0181: the slot rule, no refusal)');
+select lives_ok(
   $$select update_class('00000000-0000-0000-0180-000000000410', 'One-off to rec', null, '00000000-0000-0000-0180-000000000303', 10, 'recurring', null, array[3]::smallint[], '10:00', current_date)$$,
-  '%cannot reschedule%', 'update_class refuses to turn a one-off class with a booked session into a recurring class');
+  'update_class turns a one-off class with a booked session into a recurring class (0181: the slot rule, no refusal)');
 reset role;
 select ok(
   exists (select 1 from class_bookings b join class_sessions s on s.id = b.class_session_id where s.class_id = '00000000-0000-0000-0180-000000000409' and s.scheduled_at > now())
-  and (select count(*) from class_schedule_slots where class_id = '00000000-0000-0000-0180-000000000409') = 1
-  and (select schedule_type from classes where id = '00000000-0000-0000-0180-000000000409') = 'recurring',
-  'the refused recurring-to-one-off change left the booking, the session, the slot and the class type alone');
+  and (select count(*) from class_schedule_slots where class_id = '00000000-0000-0000-0180-000000000409') = 0
+  and (select schedule_type from classes where id = '00000000-0000-0000-0180-000000000409') = 'one_off',
+  'the recurring-to-one-off change kept the booked session and its booking, dropped the slot and set the class type');
 select ok(
   exists (select 1 from class_bookings b join class_sessions s on s.id = b.class_session_id where s.class_id = '00000000-0000-0000-0180-000000000410' and s.scheduled_at > now())
-  and (select count(*) from class_schedule_slots where class_id = '00000000-0000-0000-0180-000000000410') = 0
-  and (select schedule_type from classes where id = '00000000-0000-0000-0180-000000000410') = 'one_off',
-  'the refused one-off-to-recurring change left the booking, the session, the class type and the (absent) slots alone');
+  and (select count(*) from class_schedule_slots where class_id = '00000000-0000-0000-0180-000000000410') = 1
+  and (select schedule_type from classes where id = '00000000-0000-0000-0180-000000000410') = 'recurring',
+  'the one-off-to-recurring change kept the booked session and its booking, created the slot and set the class type');
 
 -- ============================================================================
 -- Gym time zone changed: the next materializer run uses the new zone and moves no existing session.

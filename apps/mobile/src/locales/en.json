@@ -242,6 +242,7 @@
       "errorLoadFailed": "Couldn't load your bookings. Check your connection and try again.",
       "cancel": "Cancel",
       "cancellationClosed": "Cancellation closed",
+      "cancelled": "Cancelled",
       "cancelConfirmTitle": "Cancel this booking?",
       "cancelConfirmAction": "Cancel booking",
       "cancelConfirmKeep": "Keep",

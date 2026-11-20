@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Info } from "lucide-react";
@@ -9,29 +9,39 @@ import { TablePagination } from "@/components/TablePagination";
 import { useClientPagination } from "@/hooks/use-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { summarizeSlots } from "@/lib/classTimes";
 import type { ClassRow, SessionBookingRow } from "@/services/classes";
 import type { CoachRow } from "@/services/coaches";
 import type { MemberRole } from "@/services/session";
 import { getSessionBookingsAction, markAttendanceAction } from "../actions";
+import { CancelClassDialog } from "./CancelClassDialog";
 import { ClassModal } from "./ClassModal";
 import { RecordSessionPaymentDialog } from "@/components/shared/RecordSessionPaymentDialog";
-
-const DAY_KEY = ["classes.days.sun", "classes.days.mon", "classes.days.tue", "classes.days.wed", "classes.days.thu", "classes.days.fri", "classes.days.sat"];
 
 export function ClassesPageClient({
   initialClasses,
   coaches,
   role,
+  gymTimezone = null,
 }: {
   initialClasses: ClassRow[];
   coaches: CoachRow[];
   role: MemberRole;
+  gymTimezone?: string | null;
 }) {
   const { t, i18n } = useTranslation();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const pg = useClientPagination(initialClasses);
+  // Story 29.2: a cancelled class stays listed (past attendance stays reachable) but sorts below the live ones; the order within each part is kept.
+  const sortedClasses = useMemo(
+    () => [...initialClasses.filter((c) => !c.cancelledAt), ...initialClasses.filter((c) => c.cancelledAt)],
+    [initialClasses],
+  );
+  const pg = useClientPagination(sortedClasses);
+  const [cancellingClass, setCancellingClass] = useState<ClassRow | null>(null);
+  const editButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const cancelButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
 
@@ -144,22 +154,31 @@ export function ClassesPageClient({
     setModalOpen(true);
   }
 
-  function scheduleSummary(cls: ClassRow): string {
+  // Story 29.2: the recurring times grouped by identical hour, Monday first, three groups then "+N more" (the full list in the tooltip).
+  function scheduleSummary(cls: ClassRow): { text: string; full: string } {
     if (cls.scheduleType === "one_off") {
-      return cls.oneOffSessionAt
+      const text = cls.oneOffSessionAt
         ? new Date(cls.oneOffSessionAt).toLocaleString(i18n.language, {
             dateStyle: "medium",
             timeStyle: "short",
           })
         : "";
+      return { text, full: text };
     }
-    const days = (cls.recurrenceDays ?? []).map((d) => t(DAY_KEY[d])).join(", ");
-    // Postgres's `time` column round-trips as "HH:mm:ss" -- slice to "HH:mm"
-    // to match ClassModal's formFromClass (Review fix: this previously
-    // interpolated the raw value, showing "18:00:00" here while the modal
-    // correctly showed "18:00").
-    const time = cls.recurrenceTime ? cls.recurrenceTime.slice(0, 5) : "";
-    return t("classes.recurringSummary", { days, time });
+    const summary = summarizeSlots(cls.slots, t);
+    return { text: summary.text, full: summary.full };
+  }
+
+  // Story 29.2: the "Old time" tag marks the expanded row's session when it still has bookings but no longer matches the class's times.
+  // (`nextSessionMatchesSlots` is only set for a session that has not started: see listClasses.)
+  function showsOldTimeTag(cls: ClassRow): boolean {
+    return cls.nextSessionMatchesSlots === false && cls.bookedCount > 0;
+  }
+
+  function closeCancelDialog(cls: ClassRow, opts?: { refresh?: boolean }) {
+    setCancellingClass(null);
+    if (opts?.refresh) router.refresh();
+    requestAnimationFrame(() => (cancelButtonRefs.current.get(cls.id) ?? editButtonRefs.current.get(cls.id))?.focus());
   }
 
   function nextSessionLabel(cls: ClassRow): string {
@@ -219,31 +238,68 @@ export function ClassesPageClient({
                     role={canMarkAttendance ? "button" : undefined}
                     aria-expanded={canMarkAttendance ? expandedClassId === cls.id : undefined}
                   >
-                    <td className="p-3 font-medium">{cls.name}</td>
+                    <td className="p-3 font-medium">
+                      {cls.name}
+                      {cls.cancelledAt && (
+                        <Badge variant="secondary" className="ml-2 align-middle">
+                          {t("classes.cancel.badge")}
+                        </Badge>
+                      )}
+                    </td>
                     <td className="p-3">{cls.coachName}</td>
-                    <td className="p-3">{scheduleSummary(cls)}</td>
+                    <td className="p-3">
+                      <span title={scheduleSummary(cls).full}>{scheduleSummary(cls).text}</span>
+                    </td>
                     <td className="p-3">{nextSessionLabel(cls)}</td>
                     <td className="p-3">
                       {cls.bookedCount} / {cls.capacity}
                     </td>
                     {canManage && (
                       <td className="p-3 text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEdit(cls);
-                          }}
-                        >
-                          {t("classes.edit")}
-                        </Button>
+                        {!cls.cancelledAt && (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              ref={(el) => {
+                                if (el) editButtonRefs.current.set(cls.id, el);
+                                else editButtonRefs.current.delete(cls.id);
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(cls);
+                              }}
+                            >
+                              {t("classes.edit")}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              ref={(el) => {
+                                if (el) cancelButtonRefs.current.set(cls.id, el);
+                                else cancelButtonRefs.current.delete(cls.id);
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCancellingClass(cls);
+                              }}
+                            >
+                              {t("classes.cancel.action")}
+                            </Button>
+                          </div>
+                        )}
                       </td>
                     )}
                   </tr>
                   {canMarkAttendance && expandedClassId === cls.id && (
                     <tr key={`${cls.id}-attendance`}>
                       <td colSpan={canManage ? 6 : 5} className="bg-muted/10 p-4">
+                        {showsOldTimeTag(cls) && (
+                          <p className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                            <Badge variant="outline">{t("classes.times.oldTimeTag")}</Badge>
+                            <span>{nextSessionLabel(cls)}</span>
+                          </p>
+                        )}
                         {bookingsLoading ? (
                           <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
                             <span className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
@@ -348,12 +404,27 @@ export function ClassesPageClient({
           open={modalOpen}
           onClose={() => setModalOpen(false)}
           onSaved={(warning) => {
+            const savedClass = editingClass;
             setModalOpen(false);
             if (warning) showToast(warning);
             router.refresh();
+            if (savedClass) requestAnimationFrame(() => editButtonRefs.current.get(savedClass.id)?.focus());
           }}
           editingClass={editingClass}
           coaches={coaches}
+          gymTimezone={gymTimezone}
+        />
+      )}
+
+      {canManage && cancellingClass && (
+        <CancelClassDialog
+          cls={cancellingClass}
+          onClose={(opts) => closeCancelDialog(cancellingClass, opts)}
+          onDone={(name) => {
+            setCancellingClass(null);
+            showToast(t("classes.cancel.toast", { name }));
+            router.refresh();
+          }}
         />
       )}
 

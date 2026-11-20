@@ -5,8 +5,8 @@
  * Pinned here: a head COUNT, never a row fetch (unlike `listClasses()`, which
  * fetches rows and counts in JS); scoped to the caller's gym; and a half-open
  * `scheduled_at` range over the UTC instants the caller passes -- the
- * gym-local day bounds from `gym_local_period_bounds()`. No cancellation
- * filter exists to apply: `class_sessions` has no such column. The query
+ * gym-local day bounds from `gym_local_period_bounds()`. A cancelled session
+ * (`cancelled_at` set, Story 29.2) is not counted. The query
  * builder is a recording stub: every call is appended to `calls`, and
  * awaiting the builder resolves to `result`.
  */
@@ -76,6 +76,7 @@ describe("countClassSessionsBetween", () => {
       ["from", "class_sessions"],
       ["select", "id", { count: "exact", head: true }],
       ["eq", "gym_id", "gym-1"],
+      ["is", "cancelled_at", null],
       ["gte", "scheduled_at", DAY_START],
       ["lt", "scheduled_at", NEXT_DAY_START],
     ]);

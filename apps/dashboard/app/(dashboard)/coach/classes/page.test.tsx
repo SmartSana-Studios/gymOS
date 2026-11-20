@@ -83,10 +83,14 @@ const HIIT: CoachClassRow = {
   capacity: 15,
   scheduleType: "recurring",
   oneOffSessionAt: null,
-  recurrenceDays: [1, 3, 5],
-  recurrenceTime: "18:00:00",
+  slots: [
+    { weekday: 1, startTime: "18:00" },
+    { weekday: 3, startTime: "18:00" },
+    { weekday: 5, startTime: "18:00" },
+  ],
+  cancelledAt: null,
   gymTimezone: "Africa/Douala",
-  sessions: [{ classSessionId: "session-1", scheduledAt: "2026-09-11T17:00:00Z", bookedCount: 11 }],
+  sessions: [{ classSessionId: "session-1", scheduledAt: "2026-09-11T17:00:00Z", bookedCount: 11, matchesSlots: true }],
 };
 
 const WORKSHOP: CoachClassRow = {
@@ -95,8 +99,8 @@ const WORKSHOP: CoachClassRow = {
   capacity: 10,
   scheduleType: "one_off",
   oneOffSessionAt: "2026-08-31T09:00:00Z",
-  recurrenceDays: null,
-  recurrenceTime: null,
+  slots: [],
+  cancelledAt: null,
   gymTimezone: "Africa/Douala",
   sessions: [],
 };
@@ -166,6 +170,27 @@ describe("/coach/classes", () => {
     expect(hiit.scheduleLabel).toBe(
       'classes.recurringSummary|{"days":"classes.days.mon, classes.days.wed, classes.days.fri","time":"18:00"}',
     );
+  });
+
+  it("tags a cancelled class and a session kept on an old time (Story 29.2)", async () => {
+    listMyClasses.mockResolvedValue({
+      data: [
+        {
+          ...HIIT,
+          cancelledAt: "2026-09-10T09:00:00Z",
+          sessions: [{ classSessionId: "session-1", scheduledAt: "2026-09-11T17:00:00Z", bookedCount: 11, matchesSlots: false }],
+        },
+        HIIT,
+      ],
+      error: null,
+    });
+
+    const [cancelled, live] = await classViews();
+
+    expect(cancelled.cancelledLabel).toBe("classes.cancel.badge");
+    expect(cancelled.sessions[0].oldTimeLabel).toBe("classes.times.oldTimeTag");
+    expect(live.cancelledLabel).toBeUndefined();
+    expect(live.sessions[0].oldTimeLabel).toBeUndefined();
   });
 
   it("formats capacity and the booked count as locale numbers inside their keys", async () => {

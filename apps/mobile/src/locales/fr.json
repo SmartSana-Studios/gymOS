@@ -242,6 +242,7 @@
       "errorLoadFailed": "Impossible de charger vos réservations. Vérifiez votre connexion et réessayez.",
       "cancel": "Annuler",
       "cancellationClosed": "Annulation fermée",
+      "cancelled": "Annulé",
       "cancelConfirmTitle": "Annuler cette réservation ?",
       "cancelConfirmAction": "Annuler la réservation",
       "cancelConfirmKeep": "Garder",

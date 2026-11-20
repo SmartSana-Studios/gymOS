@@ -2,11 +2,13 @@
 
 import { classSchema, type AppError } from "@gymos/types";
 import {
+  cancelClass,
   insertClass,
   listSessionBookings,
   logClassChange,
   markAttendance,
   updateClass,
+  type LeftUnchangedSession,
   type SessionBookingRow,
 } from "@/services/classes";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -41,8 +43,7 @@ export async function createClass(
     capacity: cls.capacity,
     scheduleType: cls.scheduleType,
     oneOffSessionAt: cls.oneOffSessionAt,
-    recurrenceDays: cls.recurrenceDays,
-    recurrenceTime: cls.recurrenceTime,
+    slots: cls.slots,
     recurrenceStartDate: cls.recurrenceStartDate,
   });
   if (error || !data) {
@@ -65,19 +66,14 @@ export async function createClass(
   return { data, error: null };
 }
 
-/** Class Edit. `scheduleChanged` (used only for the audit log's own
- * metadata) is derived from `update_class`'s own atomic, typed comparison
- * against the pre-update row -- see that RPC's Dev Notes in migration 0057.
- * Review fix: previously this comparison ran here, in JS, against a
- * pre-edit row read via a separate service-layer read -- comparing serialized
- * timestamp/time strings across the client/DB boundary that mismatched in
- * format (timestamptz "+00:00" vs ISO "Z", time "HH:mm:ss" vs "HH:mm") on
- * nearly every edit, making `scheduleChanged` a near-permanent false
- * positive that needlessly regenerated `class_sessions` on every save. */
+/** Class Edit. Calls `update_class` (the `p_slots` overload, 0181), which compares the old and new schedule inside the database and
+ * returns the future sessions with bookings it left on their old time (`leftUnchanged`, shown in the modal's result view). The weekly-times
+ * audit row (`class_times_changed`) is written by the database itself, only when the times changed; the `class_edited` row written here
+ * carries no schedule comparison. */
 export async function editClass(
   classId: string,
   input: unknown,
-): Promise<{ data: { id: string } | null; error: AppError | null }> {
+): Promise<{ data: { id: string; leftUnchanged: LeftUnchangedSession[] } | null; error: AppError | null }> {
   const { t } = await getServerTranslation(await getRequestLocale());
   const parsed = classSchema.safeParse(input);
   if (!parsed.success) {
@@ -88,20 +84,20 @@ export async function editClass(
   }
   const cls = parsed.data;
 
-  const { error } = await updateClass(classId, {
+  const { data: updated, error } = await updateClass(classId, {
     name: cls.name,
     description: cls.description ?? null,
     coachId: cls.coachId,
     capacity: cls.capacity,
     scheduleType: cls.scheduleType,
     oneOffSessionAt: cls.oneOffSessionAt,
-    recurrenceDays: cls.recurrenceDays,
-    recurrenceTime: cls.recurrenceTime,
+    slots: cls.slots,
     recurrenceStartDate: cls.recurrenceStartDate,
   });
-  if (error) {
+  if (error || !updated) {
     return { data: null, error };
   }
+  const leftUnchanged = updated.leftUnchanged;
 
   const { error: auditError } = await logClassChange("class_edited", classId, {
     name: cls.name,
@@ -111,12 +107,20 @@ export async function editClass(
   });
   if (auditError) {
     return {
-      data: { id: classId },
+      data: { id: classId, leftUnchanged },
       error: { code: "audit_log_failed", message: t("classes.errors.auditLogFailedEdit") },
     };
   }
 
-  return { data: { id: classId }, error: null };
+  return { data: { id: classId, leftUnchanged }, error: null };
+}
+
+/** Story 29.2: cancels a class (Manager, Supervisor, Owner; the database refuses everyone else). The audit row `class_cancelled` is written by
+ * `cancel_class()` itself, so there is no separate audit call here. `{ data, error }` never throws, like the other class actions. */
+export async function cancelClassAction(
+  classId: string,
+): Promise<{ data: { bookingsCancelled: number } | null; error: AppError | null }> {
+  return cancelClass(classId);
 }
 
 // No deleteClass action -- not in scope (no delete feature, no AC asks for one).

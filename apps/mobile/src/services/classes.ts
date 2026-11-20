@@ -162,6 +162,8 @@ export interface MyClassBooking {
   className: string;
   scheduledAt: string;
   canCancel: boolean;
+  /** Story 29.2: the class was cancelled; the booking stays on record and shows a neutral "Cancelled" badge. */
+  classCancelled: boolean;
 }
 
 interface MyClassBookingRow {
@@ -169,6 +171,7 @@ interface MyClassBookingRow {
   class_name: string;
   scheduled_at: string;
   can_cancel: boolean;
+  class_cancelled?: boolean;
 }
 
 /** Lists the caller's own upcoming class bookings via
@@ -188,6 +191,7 @@ export async function listMyClassBookings(): Promise<MyClassBooking[] | null> {
       className: row.class_name,
       scheduledAt: row.scheduled_at,
       canCancel: row.can_cancel,
+      classCancelled: row.class_cancelled === true,
     }));
   } catch {
     return null;

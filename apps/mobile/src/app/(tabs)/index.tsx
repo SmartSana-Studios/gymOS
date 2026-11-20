@@ -29,6 +29,7 @@ import {
   type GuestSessionRow,
 } from '@/lib/sessionState';
 import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
+import { upcomingClassesForHome } from '@/lib/classBookings';
 import { listMyClassBookings, type MyClassBooking } from '@/services/classes';
 import { getOwnLoyalty } from '@/services/loyalty';
 import type { RewardsData } from '@/lib/rewards';
@@ -383,7 +384,7 @@ export default function HomeScreen() {
       // upcoming classes": render nothing.
       try {
         const bookings = await listMyClassBookings();
-        if (isCurrent()) setUpcomingClasses((bookings ?? []).slice(0, UPCOMING_CLASSES_LIMIT));
+        if (isCurrent()) setUpcomingClasses(upcomingClassesForHome(bookings ?? [], UPCOMING_CLASSES_LIMIT));
       } catch {
         if (isCurrent()) setUpcomingClasses([]);
       }

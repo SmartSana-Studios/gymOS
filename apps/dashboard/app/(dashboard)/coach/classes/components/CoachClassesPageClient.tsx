@@ -14,6 +14,8 @@ export interface CoachClassSessionView {
   classSessionId: string;
   label: string;
   bookedLabel: string;
+  /** Story 29.2: set (the translated tag) when the session was kept on an old time after a weekly-times edit. */
+  oldTimeLabel?: string;
 }
 
 export interface CoachClassView {
@@ -21,6 +23,8 @@ export interface CoachClassView {
   className: string;
   scheduleLabel: string;
   capacityLabel: string;
+  /** Story 29.2: set (the translated badge text) for a cancelled class. */
+  cancelledLabel?: string;
   sessions: CoachClassSessionView[];
 }
 
@@ -138,6 +142,7 @@ export function CoachClassesPageClient({ classes }: { classes: CoachClassView[] 
                   {isOpen ? "▾" : "▸"}
                 </span>
                 <span className="font-semibold">{cls.className}</span>
+                {cls.cancelledLabel && <Badge variant="secondary">{cls.cancelledLabel}</Badge>}
                 <span className="text-muted-foreground">{cls.scheduleLabel}</span>
                 <span className="ml-auto text-muted-foreground">{cls.capacityLabel}</span>
               </button>
@@ -164,6 +169,7 @@ export function CoachClassesPageClient({ classes }: { classes: CoachClassView[] 
                             {isExpanded ? "▾" : "▸"}
                           </span>
                           <span>{session.label}</span>
+                          {session.oldTimeLabel && <Badge variant="outline">{session.oldTimeLabel}</Badge>}
                           <span className="ml-auto text-muted-foreground">{session.bookedLabel}</span>
                         </button>
                         <div id={rosterId} hidden={!isExpanded} className="pb-3 pl-6">

@@ -108,13 +108,14 @@ export default async function globalTeardown(): Promise<void> {
   }
 
   await tryDelete("payments delete", admin.from("payments").delete().eq("gym_id", fixtures.gymId));
-  await tryDelete("class_bookings delete", admin.from("class_bookings").delete().eq("class_session_id", fixtures.classSessionId));
+  await tryDelete("class_bookings delete", admin.from("class_bookings").delete().eq("gym_id", fixtures.gymId));
   await tryDelete("progress_photos delete", admin.from("progress_photos").delete().in("member_id", memberIds));
   await tryDelete("progress_entries delete", admin.from("progress_entries").delete().in("member_id", memberIds));
   await tryDelete("coach_assignments delete", admin.from("coach_assignments").delete().in("member_id", memberIds));
   await tryDelete("subscriptions delete", admin.from("subscriptions").delete().in("member_id", memberIds));
-  await tryDelete("class_sessions delete", admin.from("class_sessions").delete().eq("id", fixtures.classSessionId));
-  await tryDelete("classes delete", admin.from("classes").delete().eq("id", fixtures.classId));
+  await tryDelete("class_sessions delete", admin.from("class_sessions").delete().eq("gym_id", fixtures.gymId));
+  // by gym, not by id: the class-weekly-times spec (Story 29.2) creates a class of its own; its slots go with it (on delete cascade).
+  await tryDelete("classes delete", admin.from("classes").delete().eq("gym_id", fixtures.gymId));
   await tryDelete("gym_payment_credentials delete", admin.from("gym_payment_credentials").delete().eq("gym_id", fixtures.gymId));
   await tryDelete("members delete", admin.from("members").delete().eq("gym_id", fixtures.gymId));
   // by gym, not by id: the desk-fixes spec seeds a second (Pay-per-session) plan
