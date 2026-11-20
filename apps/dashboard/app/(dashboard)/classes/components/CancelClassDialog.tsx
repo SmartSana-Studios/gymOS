@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import type { ClassRow } from "@/services/classes";
 import { cancelClassAction } from "../actions";
 
+/** What the dialog needs of a class: the admin list and a Coach's My Classes page both build one (Story 29.3). */
+export type CancelClassTarget = Pick<ClassRow, "id" | "name" | "upcomingBookingCount">;
+
 /**
  * Story 29.2 (UX AD-18): the Cancel class dialog. Escape is disabled (the destructive-confirmation rule, as DeactivateStaffDialog), the buttons are
  * named by action ([Keep class] / [Cancel class], never the generic [Cancel]), and the body shows how many bookings the cancel will take with it
@@ -18,7 +21,7 @@ export function CancelClassDialog({
   onClose,
   onDone,
 }: {
-  cls: ClassRow;
+  cls: CancelClassTarget;
   onClose: (opts?: { refresh?: boolean }) => void;
   onDone: (className: string) => void;
 }) {
@@ -49,11 +52,15 @@ export function CancelClassDialog({
   }
 
   const alreadyCancelled = error?.code === "class_already_cancelled";
+  // Story 29.3: a Coach whose class was reassigned in another tab is refused with the own-only message; the list is stale there too.
+  const notYours = error?.code === "class_coach_own_only";
+  // These refusals are final: a second confirm can only fail the same way.
+  const refusedForGood = alreadyCancelled || notYours || error?.code === "class_nothing_to_cancel";
 
   return (
     <dialog
       ref={dialogRef}
-      onClose={() => onClose({ refresh: alreadyCancelled })}
+      onClose={() => onClose({ refresh: alreadyCancelled || notYours })}
       onCancel={(e) => e.preventDefault()}
       aria-labelledby="cancelClassTitle"
       className="w-full max-w-[420px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
@@ -78,7 +85,7 @@ export function CancelClassDialog({
           <Button type="button" variant="outline" onClick={() => dialogRef.current?.close()} disabled={submitting}>
             {t("classes.cancel.keep")}
           </Button>
-          {!alreadyCancelled && (
+          {!refusedForGood && (
             <Button type="button" variant="destructive" onClick={() => void handleConfirm()} disabled={submitting}>
               {t("classes.cancel.action")}
             </Button>

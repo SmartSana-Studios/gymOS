@@ -11,6 +11,7 @@ import {
   type LeftUnchangedSession,
   type SessionBookingRow,
 } from "@/services/classes";
+import { getDashboardShellContext } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
@@ -36,10 +37,20 @@ export async function createClass(
   }
   const cls = parsed.data;
 
+  // Story 29.3: a Coach creates only their own classes. The audit action is chosen here from the server-resolved role (the claim of the
+  // signed-in session, as the shell reads it) because create_class writes no audit row of its own; the database stays the authority on who may
+  // write. A Coach's class is always assigned to their own member id from the same shell context, whatever the client sent.
+  const { data: shell, error: shellError } = await getDashboardShellContext();
+  if (shellError || !shell) {
+    return { data: null, error: { code: "load_failed", message: t("common.loadError") } };
+  }
+  const isCoach = shell.role === "coach";
+  const coachId = isCoach && shell.memberId ? shell.memberId : cls.coachId;
+
   const { data, error } = await insertClass({
     name: cls.name,
     description: cls.description ?? null,
-    coachId: cls.coachId,
+    coachId,
     capacity: cls.capacity,
     scheduleType: cls.scheduleType,
     oneOffSessionAt: cls.oneOffSessionAt,
@@ -50,9 +61,9 @@ export async function createClass(
     return { data: null, error };
   }
 
-  const { error: auditError } = await logClassChange("class_created", data.id, {
+  const { error: auditError } = await logClassChange(isCoach ? "class_created_by_coach" : "class_created", data.id, {
     name: cls.name,
-    coach_id: cls.coachId,
+    coach_id: coachId,
     capacity: cls.capacity,
     schedule_type: cls.scheduleType,
   });
@@ -115,7 +126,7 @@ export async function editClass(
   return { data: { id: classId, leftUnchanged }, error: null };
 }
 
-/** Story 29.2: cancels a class (Manager, Supervisor, Owner; the database refuses everyone else). The audit row `class_cancelled` is written by
+/** Story 29.2: cancels a class (Manager, Supervisor, Owner, and since Story 29.3 a Coach for their own classes; the database refuses everyone else). The audit row `class_cancelled` is written by
  * `cancel_class()` itself, so there is no separate audit call here. `{ data, error }` never throws, like the other class actions. */
 export async function cancelClassAction(
   classId: string,

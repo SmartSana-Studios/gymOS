@@ -5,7 +5,7 @@
 -- Fixtures: 00000000-0000-0000-0293-*. Gym A is Africa/Douala.
 
 begin;
-select plan(57);
+select plan(63);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0293-000000000001', 'Cancel Tier', 5000, 50000, 50);
@@ -237,6 +237,25 @@ select lives_ok($$select create_class('Spin', null, '00000000-0000-0000-0293-000
   'a new class can reuse a cancelled class''s name');
 reset role;
 select is((select count(*)::int from classes where name = 'SPIN' and cancelled_at is null), 1, 'exactly one live Spin exists next to the cancelled one');
+
+-- A one-off class whose session is already past has nothing left to cancel; a recurring class is always cancellable, even before its first session exists.
+insert into classes (id, gym_id, name, coach_id, capacity, schedule_type, one_off_session_at) values
+  ('00000000-0000-0000-0293-000000000601', '00000000-0000-0000-0293-0000000000a0', 'Finished one-off', '00000000-0000-0000-0293-000000000303', 5, 'one_off', now() - interval '3 days');
+insert into class_sessions (id, gym_id, class_id, scheduled_at) values
+  ('00000000-0000-0000-0293-000000000602', '00000000-0000-0000-0293-0000000000a0', '00000000-0000-0000-0293-000000000601', now() - interval '3 days');
+set local role authenticated;
+select pg_temp.manager();
+select throws_like($$select cancel_class('00000000-0000-0000-0293-000000000601')$$, '%has nothing left to cancel%', 'a one-off class whose session is past is refused');
+reset role;
+select is((select cancelled_at from classes where id = '00000000-0000-0000-0293-000000000601'), null, 'and it is not flagged');
+select is((select count(*)::int from audit_log where target_entity_id = '00000000-0000-0000-0293-000000000601' and action_type = 'class_cancelled'), 0, 'and it wrote no audit row');
+set local role authenticated;
+select pg_temp.manager();
+select lives_ok($$select create_class('Later', null, '00000000-0000-0000-0293-000000000303', 5, 'recurring', null, null, null, current_date + 60, '[{"weekday":2,"start_time":"10:00"}]'::jsonb)$$,
+  'a recurring class that starts in two months (no session yet)');
+select lives_ok($$select cancel_class((select id from classes where name = 'LATER'))$$, 'is still cancellable');
+reset role;
+select isnt((select cancelled_at from classes where name = 'LATER'), null, 'and flagged');
 
 select * from finish();
 rollback;

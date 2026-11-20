@@ -118,3 +118,26 @@ describe("audit Details of a weekly-times change", () => {
     expect(cellsOf("class_times_changed", { old_slots: [], new_slots: [], left_unchanged_count: 1 }).details).toBe("old_slots: [], new_slots: [], left_unchanged_count: 1");
   });
 });
+
+describe("audit row of a class a Coach created (Story 29.3)", () => {
+  const created = { name: "PUMP", coach_id: "coach-1", capacity: 12, schedule_type: "recurring" };
+
+  it("EN: the label and 'NAME · capacity N'", () => {
+    language = "en";
+    const { action, details } = cellsOf("class_created_by_coach", created);
+    expect(action).toBe("Class created");
+    expect(details).toBe("PUMP · capacity 12");
+  });
+
+  it("FR", () => {
+    language = "fr";
+    const { action, details } = cellsOf("class_created_by_coach", created);
+    expect(action).toBe("Cours créé");
+    expect(details).toBe("PUMP · capacité 12");
+  });
+
+  it("falls back to the generic cell when the metadata is malformed", () => {
+    language = "en";
+    expect(cellsOf("class_created_by_coach", { name: "PUMP", capacity: "twelve" }).details).toBe("name: PUMP, capacity: twelve");
+  });
+});

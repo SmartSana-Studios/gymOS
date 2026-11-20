@@ -87,6 +87,64 @@ context:
 - Given Story 29.2's criteria in `epics.md` (7209-7281), when pgTAP, vitest, the E2E spec and `scripts/ci-local.sh` (via `bash`) run, then every criterion has a named passing test, existing suites pass without edit except the tests this spec names, and no new `claim-only` entry or guardrail failure appears.
 - Given the rollout window, when the old dashboard calls the old signatures after the migration, then behaviour is unchanged.
 
+### Review Findings
+
+Code review pass 2 of the merged story (2026-11-20, `git diff 46d90ae 0bd84f8`), chunk 1 of 2: `supabase/` and `scripts/` only. The dashboard, mobile and types chunk is not yet reviewed. Four layers (Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor); 34 raw findings, 2 decision-needed (both resolved, now patches), 4 patch, 0 defer, rest rejected.
+
+- [x] [Review][Patch] (decided 2026-11-20: refuse) `cancel_class` accepts a class with nothing left to cancel (BH, EC) — a finished one-off, or any class with no future session, is flagged cancelled, returns `bookings_cancelled: 0` and writes a `class_cancelled` audit row. Fix: raise `cancel_class: class % has nothing left to cancel` when no session has `scheduled_at > now()`, with a pgTAP case (finished one-off refused, nothing flagged, no audit row) and a dashboard check that the refusal maps to a readable error. [supabase/migrations/0181_class_slot_editor_and_cancel.sql:502-511]
+- [x] [Review][Patch] (decided 2026-11-20: leave as is, say so) A one-off to one-off reschedule writes no `class_times_changed` row (BH, EC, AA) — `class_edited` already records it and the label reads "weekly times". Fix: state in the 0181 header and `docs/decisions.md` that `class_times_changed` is written only when a recurring side is involved; no behavior change. [supabase/migrations/0181_class_slot_editor_and_cancel.sql:1-45]
+- [x] [Review][Patch] `cancelled_at` is read without the session lock in `mark_class_attendance`, `cancel_class_booking` and `private.send_class_reminder`, so a `cancel_class` committing in between is missed (BH, EC, VG) — worst case: attendance marked and a guest session consumed on a cancelled session, a booking deleted after it was counted, a reminder sent. Fix: take the session lock (`for no key update` / `for update of cs`, same order as `book_class_session`) before the check, or recheck after it; add the cases to `scripts/class-slot-race.sh` and show them able to fail. [supabase/migrations/0181_class_slot_editor_and_cancel.sql:771, 847, 891, and `send_class_reminder`]
+- [x] [Review][Patch] The old 10-argument `update_class` wrapper's "whole minute, without seconds" refusal has no test (VG) — deleting the guard leaves 28 class, support and suspension files green, and `classes.recurrence_time` then reads 07:00:30 while the slot and sessions are 07:00. Add a `throws_like` with `'07:00:30'` on a recurring class and assert slots and `recurrence_time` unchanged; bump `plan(126)`. [supabase/migrations/0181_class_slot_editor_and_cancel.sql:430, supabase/tests/class_slot_editor.test.sql:467]
+- [x] [Review][Patch] The per-role negative matrix is narrower than the AC (AA) — missing for Receptionist, Coach and member: direct write to `class_schedule_slots` (member only today), direct `insert into classes` (Coach only), `create_class` old signature as a member. Add the missing assertions and bump the plan. [supabase/tests/class_cancel.negative.test.sql:90-111, 161-175]
+- [x] [Review][Patch] The rollback guard reads the cancelled and per-day state with no table lock, so a `cancel_class` or per-day edit committing before the column drops is lost silently (BH, EC) — take `lock table public.classes, public.class_sessions in share row exclusive mode` before the guard. [scripts/rollback-0181-class-slot-editor-and-cancel.sql:139-166]
+
+#### Rejected
+
+- `mark_class_attendance` refuses a cancelled session before the already-attended early return (EC) — false: the spec refuses attendance on a cancelled class, a retry on one is meant to error.
+- `list_my_classes` shows a session earlier today under a cancelled class (EC) — false: `cancel_class` flags only future sessions, so a session that already ran is a real session and stays listed.
+- One-off legacy columns nulled by the old wrapper (EC) — false: `classes_schedule_matches_type` requires `recurrence_days` and `recurrence_time` null on a one-off.
+- Null `p_recurrence_start_date` creates a recurring class with no sessions and no error (BH) — false: the same constraint requires `recurrence_start_date` on a recurring class, so the insert fails.
+- `date_trunc('minute', time) <> time` relies on a fragile cast (BH) — false: it works and runs in the passing suites.
+- `race.sh` case 4 breaks above 115 iterations (EC) — low: only with an env override, default is 50.
+- Coach roster `list_my_class_session_roster` has no cancelled marker (EC) — low: it is not touched by 0181 and the coach list never offers a cancelled session.
+- `matches_slots` is true for leftover recurring sessions after a switch to one-off (BH) — low: the spec's table says "one-off always true"; the result view lists those sessions at edit time.
+- The seconds refusal and the extra audit row on the old wrapper are not in the header (AA) — low: header wording only, behavior follows the slot rule.
+- Existing suites edited beyond those the spec names (AA) — low: recorded in `docs/decisions.md`.
+- `create_class` writes no audit row though the AC says it does (AA) — low: the spec's own constraint says `class_created` covers it; the spec wins.
+- `bookings_cancelled` naming, no un-cancel, rollback refusing after the first cancel (BH) — low: named by the spec, rollback refuses by design so data is not lost.
+- Capacity cut below bookings not reported, old-client `list_my_classes` columns, validation gaps (unknown slot keys, coach role), no index on `classes.cancelled_by`, weak `$verify$` position checks, hard-coded plan counts, race cleanup deleting audit rows, `ci-local.sh` comment (BH) — low: pre-existing semantics, already disclosed in the header or deferred-work, or a developer-only cosmetic with a fix that adds more than it saves.
+- Roster, comment and claim-only items from the Edge Case Hunter that repeat the race finding above — merged into it.
+
+#### Review pass 2, chunk 2 of 2 (apps/ and packages/, 2026-11-20)
+
+Same four layers; about 42 raw findings, 0 decision-needed, 6 patch, 1 defer, the rest rejected. The diff was `git diff 46d90ae -- apps packages`, which includes the uncommitted nothing-left mapping from chunk 1.
+
+- [x] [Review][Patch] After a `class_nothing_to_cancel` refusal the Cancel dialog still offers [Cancel class], which can only fail again (AA, EC) — a result of the chunk 1 patch. Hide the confirm button for that code too (like `class_already_cancelled`) and cover it with a component test. [apps/dashboard/app/(dashboard)/classes/components/CancelClassDialog.tsx:51]
+- [x] [Review][Patch] `listClasses()` derived fields have no test that reads their values (VG, BH) — the `cancelled_at` filter on the sessions fetch, `upcomingBookingCount` (only sessions with `scheduled_at > now`, what `cancel_class` counts), `nextSessionMatchesSlots` (null for a session that has started), the `slots` mapping. Removing the `> now` guard or the filter fails nothing. Add `services/classes.listClasses.test.ts` on the recording-stub pattern of `classes.countClassSessionsBetween.test.ts`. [apps/dashboard/services/classes.ts:174-285]
+- [x] [Review][Patch] The `audit_log_failed` edit path (class saved, audit write failed) is untested (VG) — the result view with its warning, [Done] calling `onSaved(warning)`, and `editClass` returning `leftUnchanged` when `logClassChange` fails. Add the case to `ClassesPageClient.weeklyTimes.test.tsx` and a small `editClass` action test. [apps/dashboard/app/(dashboard)/classes/components/ClassModal.tsx:322-345]
+- [x] [Review][Patch] The "already cancelled" refresh is unverified (VG) — after the message, [Keep class] must call `router.refresh()`, and the ordinary [Keep class] must not. Extend the existing test. [apps/dashboard/app/(dashboard)/classes/components/ClassesPageClient.weeklyTimes.test.tsx]
+- [x] [Review][Patch] The Coach My Classes page can show "Old time" on a session that already ran today (EC) — `listMyClasses` maps `matchesSlots: row.matches_slots !== false` and the page lists sessions from 00:00 today, while `listClasses` suppresses the tag once a session has started. Treat a started session as matching, with a test in `classes.listMyClasses.test.ts`. [apps/dashboard/services/classes.ts:449]
+- [x] [Review][Patch] `locales/en.json` and `locales/fr.json` lost their trailing newline in this story (BH, VG, AA) — the base commit has one. Restore it. [apps/dashboard/locales/en.json, fr.json]
+- [x] [Review][Defer] `listClasses()` is unbounded against `max_rows = 1000` and the dialog count now depends on it (EC, BH) — deferred: the query is pre-existing, its consequence is new; recorded in deferred-work.md with what would settle it.
+
+##### Rejected (chunk 2)
+
+- Edit of a class cancelled in another tab keeps an unsavable Save and does not refresh (EC) — low: the message shows, the stale-tab case is rare and the fix adds a refresh path.
+- Re-sort on row blur can swallow the click that caused the blur (BH, EC) — low here: sorting on blur is required by AD-19 and the worst case is a repeated click (no handler runs); a note for the owner's browser QA, not a code change.
+- `setAnnouncement` inside the `setForm` updater (EC) — low: same component, same string, no demonstrated harm; the story's first triage already rejected it.
+- Focus after Remove, after a successful cancel, after create, and not moved to the first invalid row on a failed submit (BH, EC) — low: the first triage rejected "focus after Remove"; the rest are the same class and a browser-QA item.
+- Second Escape closes the Cancel dialog in Chromium (EC) — maybe-false and low: browser behavior, a note for browser QA.
+- `formatLeftRow` can throw on an invalid zone (EC), `getClassesGymTimezone` error dropped and an extra query (BH, AA), `slotsFromMetadata` weekday range (EC, BH), `parseLeftUnchanged` NaN (BH) — low: the zone and the metadata come from validated database columns and server functions; the gymTimezone wiring test is already deferred.
+- `mapAlreadyCancelled` too broad, or text-based instead of a code (EC, BH) — false for the first (only class functions raise "already cancelled"); the second follows the repo's convention.
+- Dialog count is a page-load snapshot and the toast omits the server count (EC, BH) — low: the UX toast text is "{{name}} cancelled."; the real count is in the audit row. The consequence beyond 1000 sessions is the deferred item.
+- Unused `classes.coach.ownOnly` key (BH) — low: Group F baseline for Story 29.3, which uses it.
+- 14 hard-coded in copy, French "cours" for session, separate `left.title` / `title1` keys (BH) — low: the copy is the UX Group F text (AA checked every string against it).
+- Mobile Cancelled badge reuses `STATUS_COLORS.no_plan` (BH) — low: a recorded decision in `docs/decisions.md`.
+- Coach overview or caseload may show cancelled sessions (BH) — false: `list_my_classes` excludes cancelled sessions in SQL and `coach/classes/page.test.tsx` covers the badge.
+- Left-unchanged sessions visible only in the one-time result view (BH) — low: the spec's Design Notes decide it.
+- Weak or narrow tests: four slots sliced to three, no `rowsFromSlots` or `compareSlots` cases, audit cells read by index, English e2e strings, no receptionist e2e, UTC start date in the e2e (BH) — low: the component and unit suites cover the role DOM absence and the rules; none is a defect.
+- Invented strings outside Group F (`times.error.summary`, `times.done`, day names), no [✕] on the Cancel dialog, result view after every edit, sort-on-save announcement lost on success, existing component tests edited for the new shape, the time-zone line vanishing on a failed read (AA) — low: reasonable copy or defensible readings with no acceptance criterion broken; the Escape-less dialog follows `DeactivateStaffDialog`.
+
 ## Implementation Notes
 
 ## Spec Change Log

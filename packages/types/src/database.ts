@@ -3646,9 +3646,11 @@ export type Database = {
           class_id: string
           class_name: string
           class_session_id: string | null
+          description: string | null
           gym_timezone: string
           matches_slots: boolean | null
           one_off_session_at: string | null
+          recurrence_start_date: string | null
           schedule_type: string
           scheduled_at: string | null
           slots: Json

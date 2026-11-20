@@ -373,6 +373,9 @@ export interface CoachClassSessionRow {
 export interface CoachClassRow {
   classId: string;
   className: string;
+  /** Story 29.3: the Edit modal's description and start date (`list_my_classes()`, 0182). Optional so a reader of the Overview caseload need not carry them. */
+  description?: string | null;
+  recurrenceStartDate?: string | null;
   capacity: number;
   scheduleType: "one_off" | "recurring";
   oneOffSessionAt: string | null;
@@ -430,6 +433,8 @@ export async function listMyClasses(): Promise<{ data: CoachClassRow[] | null; e
       cls = {
         classId: row.class_id,
         className: row.class_name,
+        description: row.description,
+        recurrenceStartDate: row.recurrence_start_date,
         capacity: row.capacity,
         scheduleType: row.schedule_type as CoachClassRow["scheduleType"],
         oneOffSessionAt: row.one_off_session_at,
@@ -446,7 +451,8 @@ export async function listMyClasses(): Promise<{ data: CoachClassRow[] | null; e
         scheduledAt: row.scheduled_at,
         // bigint over PostgREST: normally a JSON number, but never trust it.
         bookedCount: Number(row.booked_count),
-        matchesSlots: row.matches_slots !== false,
+        // A session that has already started never carries the "Old time" tag (the page lists sessions from 00:00 today); listClasses does the same.
+        matchesSlots: row.matches_slots !== false || new Date(row.scheduled_at).getTime() <= Date.now(),
       });
     }
   }
@@ -585,7 +591,7 @@ export async function insertClass(
   });
 
   if (error || !data) {
-    return { data: null, error: await mapAndLog(error) };
+    return { data: null, error: (error ? await mapCoachOwnOnly(error) : null) ?? (await mapAndLog(error)) };
   }
 
   return { data: { id: data }, error: null };
@@ -622,7 +628,7 @@ export async function updateClass(
   });
 
   if (error) {
-    return { data: null, error: (await mapAlreadyCancelled(error)) ?? (await mapAndLog(error)) };
+    return { data: null, error: (await mapCoachOwnOnly(error)) ?? (await mapAlreadyCancelled(error)) ?? (await mapAndLog(error)) };
   }
 
   return { data: { leftUnchanged: parseLeftUnchanged(data) }, error: null };
@@ -634,6 +640,15 @@ async function mapAlreadyCancelled(error: { message?: string | null }): Promise<
   if (!/already cancelled/i.test(error.message ?? "")) return null;
   const { t } = await getServerTranslation(await getRequestLocale());
   return { code: "class_already_cancelled", message: t("classes.cancel.already") };
+}
+
+/** Story 29.3: `create_class`, `update_class` and `cancel_class` raise "... coaches can only manage their own classes" when a Coach touches a class
+ * (or names a coach) that is not theirs: another coach's class, another gym's class and a missing class all read the same. That is its own code,
+ * `class_coach_own_only`, message `classes.coach.ownOnly`. Null for any other error. */
+async function mapCoachOwnOnly(error: { message?: string | null }): Promise<AppError | null> {
+  if (!/coaches can only manage their own classes/i.test(error.message ?? "")) return null;
+  const { t } = await getServerTranslation(await getRequestLocale());
+  return { code: "class_coach_own_only", message: t("classes.coach.ownOnly") };
 }
 
 /** Story 29.2: a future session an edit left alone because it has bookings (`update_class`'s `left_unchanged`). */
@@ -665,7 +680,8 @@ function parseLeftUnchanged(raw: unknown): LeftUnchangedSession[] {
 /** Story 29.2: cancels a class through `cancel_class()` (0181). Flags the class and its future sessions on the server, deletes nothing, and
  * returns the server-counted number of bookings on those sessions. An already-cancelled class gets its own code
  * (`class_already_cancelled`, message `classes.cancel.already`); every other failure is `class_cancel_failed`
- * (`classes.cancel.error`), the real cause logged server-side only. */
+ * (`classes.cancel.error`), the real cause logged server-side only. A one-off class whose session is already past gets `class_nothing_to_cancel`
+ * (`classes.cancel.nothingLeft`). */
 export async function cancelClass(
   classId: string,
 ): Promise<{ data: { bookingsCancelled: number } | null; error: AppError | null }> {
@@ -673,9 +689,14 @@ export async function cancelClass(
   const { data, error } = await supabase.rpc("cancel_class", { p_class_id: classId });
 
   if (error) {
+    const ownOnly = await mapCoachOwnOnly(error);
+    if (ownOnly) return { data: null, error: ownOnly };
     const already = await mapAlreadyCancelled(error);
     if (already) return { data: null, error: already };
     const { t } = await getServerTranslation(await getRequestLocale());
+    if (/nothing left to cancel/i.test(error.message ?? "")) {
+      return { data: null, error: { code: "class_nothing_to_cancel", message: t("classes.cancel.nothingLeft") } };
+    }
     console.error("[cancelClass] failed", error);
     return { data: null, error: { code: "class_cancel_failed", message: t("classes.cancel.error") } };
   }
@@ -690,7 +711,7 @@ export async function cancelClass(
  * gym, resolved internally rather than trusted from a caller-supplied
  * value. */
 export async function logClassChange(
-  actionType: "class_created" | "class_edited",
+  actionType: "class_created" | "class_created_by_coach" | "class_edited",
   classId: string,
   metadata: Record<string, unknown>,
 ): Promise<{ error: AppError | null }> {

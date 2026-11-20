@@ -8,7 +8,7 @@ import en from "@/locales/en.json";
 import fr from "@/locales/fr.json";
 import { AUDIT_ACTION_TYPE_LABEL_KEY } from "./auditLabels";
 
-const EPIC_29_ACTION_TYPES = ["class_times_changed", "class_cancelled"];
+const EPIC_29_ACTION_TYPES = ["class_times_changed", "class_cancelled", "class_created_by_coach"];
 
 function resolve(locale: unknown, key: string): unknown {
   return key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], locale);
@@ -32,6 +32,12 @@ describe("audit labels for Epic 29 action types", () => {
     expect(resolve(en, AUDIT_ACTION_TYPE_LABEL_KEY.class_cancelled)).toBe("Class cancelled");
     expect(resolve(fr, AUDIT_ACTION_TYPE_LABEL_KEY.class_times_changed)).toBe("Horaires du cours modifiés");
     expect(resolve(fr, AUDIT_ACTION_TYPE_LABEL_KEY.class_cancelled)).toBe("Cours annulé");
+    expect(resolve(en, AUDIT_ACTION_TYPE_LABEL_KEY.class_created_by_coach)).toBe("Class created");
+    expect(resolve(fr, AUDIT_ACTION_TYPE_LABEL_KEY.class_created_by_coach)).toBe("Cours créé");
+  });
+
+  it("the class-created-by-coach label key is audit.actionTypes.classCreatedByCoach (Story 29.3)", () => {
+    expect(AUDIT_ACTION_TYPE_LABEL_KEY.class_created_by_coach).toBe("audit.actionTypes.classCreatedByCoach");
   });
 
   it("has the Details wording in both locales, singular and plural", () => {
@@ -40,6 +46,7 @@ describe("audit labels for Epic 29 action types", () => {
       "audit.classTimes.details_other",
       "audit.classCancelled.details_one",
       "audit.classCancelled.details_other",
+      "audit.classCreated.details",
     ]) {
       expect(typeof resolve(en, key), key).toBe("string");
       expect(typeof resolve(fr, key), key).toBe("string");

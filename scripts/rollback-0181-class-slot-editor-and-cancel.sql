@@ -13,6 +13,10 @@
 -- Audit rows already written (class_cancelled, class_times_changed) stay: the audit log is append-only.
 set local lock_timeout = '5s';
 
+-- The guard below reads the cancelled and per-day state, and the column drops come much later in the same transaction: without this lock a
+-- cancel_class or a per-day edit committing in between would be lost silently. SHARE ROW EXCLUSIVE lets readers through and blocks every writer.
+lock table public.classes, public.class_sessions in share row exclusive mode;
+
 do $guard$
 declare
   v_bad text;
