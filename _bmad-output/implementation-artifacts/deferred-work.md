@@ -2171,3 +2171,39 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-28-1-session-validity-setting-and-session-record-changes.md`
   summary: the platform visit-limit control entry above says "decide before or at Story 28.2"; by the Epic 22 retro rule (deferrals naming a later story are acceptance criteria) it belongs in Story 28.2's criteria.
   evidence: deferred-work.md entry for 28-1 (no Super Admin UI or runbook for `single_use_visit_limit_minutes`). Fix edits epics.md, so it is recorded here rather than patched.
+
+## Deferred from: build of spec-29-1-class-schedule-slots-foundation (2026-11-20)
+
+- **Clean-up migration: drop `classes.recurrence_days` and `classes.recurrence_time`.** Story 29.1 keeps both columns (spine AD-57): `create_class` and `update_class` still write them next to the slots, `list_my_classes` (0096) and the dashboard still read them, and the recurring-class CHECK now lets them be null. Drop them only after Story 29.2 has moved every reader and writer to the slots (`list_my_classes` output, `services/classes.ts`, the Classes page and the Coach My Classes page), and after `scripts/rollback-0180-class-schedule-slots.sql` is retired (it needs the columns to restore). Until then a class that has a second time on one weekday or a different time per day (possible from 29.2) has slots that the legacy columns cannot describe.
+- **The materializer's rolling window is the server date, not the gym's local day.** `private.materialize_sessions_for_class` still builds `current_date .. current_date + 4 weeks` from the database server's date (UTC) and compares gym-local dates inside it, so for a gym far from UTC the window's first and last local day can be off by one around midnight. Existing behaviour since 0057, deliberately unchanged by 29.1 (the daily job at 02:00 UTC makes it rarely visible); fix by deriving the window from the gym's local date if a gym ever reports a missing first or last session.
+- **A migrated class whose `recurrence_time` has seconds, or is 24:00 or later, or has a day outside 0..6, is refused by 0180's pre-flight.** The slot CHECK is minute precision (UX AD-19) and the expansion copies `recurrence_time` as is, so such a legacy row cannot be expanded. The `$preflight$` block at the top of 0180 refuses before any DDL and names the class ids, so nothing is half-applied. The create form only offers minutes, so none is expected; the snapshot rehearsal before the production apply is where it would show (see the pre-flight test entry under the code review heading below).
+
+## Deferred from: review of spec-29-1-class-schedule-slots-foundation (2026-11-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: a direct UPDATE of `classes.recurrence_days`, `recurrence_time` or `recurrence_start_date` does not refresh the slots. `classes_derive_slots` is AFTER INSERT only; every app writer goes through `create_class` / `update_class`, which write both.
+  evidence: 0180 trigger list. Story 29.2 stops writing the legacy columns, so decide there whether to revoke column UPDATE on them or add an UPDATE trigger.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: after a gym time-zone change, a later slot edit (`private.apply_class_slots`) judges existing sessions in the NEW zone. Unbooked sessions generated in the old zone are deleted and regenerated at the new zone's instants, and booked ones are all listed as left unchanged. The daily job alone moves nothing (proved in `class_schedule_slots.test.sql`).
+  evidence: 0180 `apply_class_slots` match rule (instant of `(local date + slot time) at time zone <current gym zone>`). Decide in 29.2 whether the editor's result view needs to say why many sessions are listed after a zone change.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: `apply_class_slots` compares `recurrence_start_date` with the gym-local date of each session, while the materializer's window is built from the server date (`current_date`). Around local midnight in a gym far from UTC the two can disagree by a day at the window edges.
+  evidence: 0180 sections 7 and 8; related to the existing "rolling window server-date imprecision" entry for this story.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: `update_class`'s type-change branch and the one-off `materialize_class_sessions(id, true)` reschedule check for bookings and then delete future sessions without locking them. A booking landing between the check and the delete gives an FK error. Pre-existing since 0058; the recurring path through `apply_class_slots` locks and re-checks and is not affected.
+  evidence: 0180 `update_class` else-branch and `materialize_class_sessions` one-off branch. Lock the sessions in `scheduled_at` order after the class lock (AD-21) if one-off reschedules over bookings stay reachable.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: the backfill INSERT is proven only by the migration's own `do $verify$` block (the pgTAP test re-runs the same statement on fixtures, and local databases have no recurring classes). Before production, rehearse the migration file against a snapshot that has recurring classes with bookings, and rehearse `scripts/rollback-0180-class-schedule-slots.sql` once (apply, rollback, re-apply). The local apply, rollback and re-apply on an empty database was done 2026-11-20.
+  evidence: `docs` runbook for prod migrations (nightly R2 dump is the backup; trigger it before the migration).
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: the materializer equivalence test crosses a daylight-saving transition only when the 4-week window contains one (`current_date` cannot be injected). The DST gap case is covered separately by `apply_class_slots` matching a session inserted at the next real transition, which is date-independent.
+  evidence: `supabase/tests/class_schedule_slots.test.sql` equivalence and DST sections.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: `private.apply_class_slots` does no payload validation beyond what the table constraints give (a null, empty or non-array payload is refused; weekday, seconds and 24:00 are refused by CHECKs with raw constraint messages; duplicates are collapsed). Story 29.2 must validate the slot payload and return its stable messages before calling it.
+  evidence: 0180 `apply_class_slots`; the 29.2 acceptance criteria list the stable messages.
+
+## Deferred from: code review of spec-29-1-class-schedule-slots-foundation (2026-11-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: the `$preflight$` block at the top of 0180 (seconds or 24:00 in `recurrence_time`, a day outside 0..6) has no automated test: pgTAP databases have no recurring classes when the migration runs, so the refusal never has a row to reject. Low; a one-shot guard.
+  evidence: 0180 `$preflight$`. Would settle it: on the pre-deploy snapshot rehearsal, insert a recurring class with `recurrence_time` `18:00:30` and one with a day of 7 and confirm the migration refuses and names both ids.

@@ -123,6 +123,8 @@ stage_pgtap() {
   bash "$ROOT/scripts/session-refund-race.sh" || return 1
   # Single-use consumption: two simultaneous scans, a stale visit, refund vs scan (two real sessions; Story 28.2, NFR-021).
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/single-use-race.sh" || return 1
+  # Book vs slot edit (50 iterations), the 14th vs 15th slot, and a materializer run behind a slot edit (two real sessions; Story 29.1, FR-244).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/class-slot-race.sh" || return 1
   # Member lock on every check-in, charging or not; a second scan must wait behind it (two real sessions; Story 27.2, NFR-021).
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/check-in-member-lock-race.sh" || return 1
   # The plan correction against complete_verified_payment, confirm_renewal, the Tara initiation and the lifecycle job, both orders (two real sessions; Story 27.4, NFR-021).

@@ -49,8 +49,8 @@ where policyname = 'tenant_active_gate';
 
 select is(
   (select count(*)::int from gated_tables),
-  25,
-  'tenant_active_gate covers 25 tables (0073''s 17 + public.notifications from 0084 + the three workout-plan tables from 0091 + public.guest_sessions from 0107 + public.session_attempts from 0111 + public.loyalty_events and public.loyalty_progress from 0117) -- if this changes, the exclusion reasoning below needs re-reading, not just the number'
+  26,
+  'tenant_active_gate covers 26 tables (0073''s 17 + public.notifications from 0084 + the three workout-plan tables from 0091 + public.guest_sessions from 0107 + public.session_attempts from 0111 + public.loyalty_events and public.loyalty_progress from 0117 + public.class_schedule_slots from 0180) -- if this changes, the exclusion reasoning below needs re-reading, not just the number'
 );
 
 -- ============================================================================
@@ -152,6 +152,13 @@ values
   -- functions this story already gates.
   ('private', 'create_default_member_preferences', 'after-insert trigger on members, reachable only behind create_staff_member() which IS gated; gating it here would also fire on Super-Admin-driven inserts'),
   ('private', 'materialize_sessions_for_class',    'service_role internal helper reachable by authenticated only via create_class/update_class/materialize_class_sessions, all gated; also called directly by run_class_session_materializer_job()'),
+
+  -- 0180 (Story 29.1): the slot regeneration path and the legacy-insert compatibility trigger. Neither is callable by a client: apply_class_slots is
+  -- granted to service_role only and reached by authenticated callers solely through update_class / materialize_class_sessions (both guarded);
+  -- classes_derive_slots is an AFTER INSERT trigger behind the gated classes insert. A guard here would also break the service_role path
+  -- (no JWT, so no gym status) that the slot race script and Story 29.2's functions use.
+  ('private', 'apply_class_slots',   'service_role internal helper reachable by authenticated only via update_class/materialize_class_sessions, both gated'),
+  ('private', 'classes_derive_slots', 'after-insert trigger on classes, reachable only behind the gated classes insert (RLS tenant_active_gate) or create_class, which is gated'),
 
   -- Cron-owned notification senders. They write the now-gated notifications
   -- table but run under service_role from run_*_job(); the quiet-gym and
