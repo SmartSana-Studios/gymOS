@@ -364,6 +364,46 @@ export type Database = {
           },
         ]
       }
+      class_schedule_slots: {
+        Row: {
+          class_id: string
+          created_at: string
+          gym_id: string
+          id: string
+          start_time: string
+          weekday: number
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          gym_id: string
+          id?: string
+          start_time: string
+          weekday: number
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          gym_id?: string
+          id?: string
+          start_time?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_schedule_slots_class_id_fkey"
+            columns: ["class_id"]
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_schedule_slots_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_sessions: {
         Row: {
           class_id: string

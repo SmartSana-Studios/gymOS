@@ -2,7 +2,7 @@
 title: '29-1 Class schedule slots foundation (no UI change)'
 type: 'feature'
 created: '2026-11-19'
-status: 'in-progress'
+status: 'done'
 baseline_commit: 'be28607701a52559dad76bb5c41a22f244c6b887'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -100,6 +100,29 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+Pass 1 (blind / edge-case / verification-gap). Verdict, then route.
+
+| Finding | Verdict | Route | Evidence |
+|---|---|---|---|
+| Snapshot/verify race on live traffic (blind, edge) | medium | patch | md5/count compared with no lock; a booking or the 02:00 job in the window rolls back a correct migration. Fix: share lock before the snapshot. |
+| Seconds in legacy recurrence_time fails raw after DDL (blind, edge) | medium | patch | Prod is live; pre-flight at top naming class ids. |
+| `24:00` passes the minute CHECK (edge) | low | patch | One-line CHECK bound, direct correction. |
+| update_class type-change refusal over bookings untested (gap) | medium | patch | Removing either half of the `or` leaves every test green. |
+| I/O matrix row "gym time zone changed" untested (blind, edge, gap) | medium | patch | Matrix audit: a row needs a covering test. |
+| Direct UPDATE of legacy columns leaves slots stale (blind, edge) | low | defer | No app writer updates classes directly (grep); 29.2 stops writing the columns. |
+| Slot edit after a zone change judges sessions in the new zone (edge, blind, claim) | low | defer | Daily job unchanged; follows from the design. Recorded. |
+| Type-change/one-off delete without session locks (edge) | low | defer | Pre-existing since 0058; the FK has no cascade, so the failure is an error, not data loss. |
+| Backfill INSERT proven only by $verify$; rollback unexercised (gap, blind) | low | defer | One-shot; rehearsal before prod recorded. Implementer proved the rollback guard and a clean rollback by hand. |
+| DST equivalence window-limited (blind) | low | defer | current_date not injectable. |
+| apply_class_slots has no payload validation (blind) | low | defer | Definer callers build the payload; 29.2 validates. |
+| Recurring reschedule over bookings now succeeds silently (blind) | false | rejected | The acceptance criteria require exactly this reversal; Epic 29 merges to master as one unit, so 29.2's result view ships with it. |
+| Cap trigger runs before tenancy trigger (edge) | false | rejected | Only definer functions and superuser fixtures can insert; no client path reaches it. |
+| Race script fragility: fixed /tmp paths, loose greps, case 3 weak (blind, edge) | low | rejected | Test infrastructure; collisions need two concurrent runs; fix is more than a correction. |
+| "Lock before count" test is source-text; in-place start_time edit allowed (blind) | false | rejected | Race script case 2 is the real proof (fails without the lock); the spec only forbids moving class or gym. |
+| Component test proves little; Code Map path wrong (blind) | low | rejected | The spec asks for an unchanged-screen component test; the path is cosmetic. |
+| Start date beyond window, cascade delete, booked-matching in race untested (blind) | low | rejected | Behaviour unchanged from 0057 or handled (`not found` branch); not matrix rows. |
+| Verification evidence incomplete (blind) | low | rejected | Not a code defect; the checks are re-run on this side. |
 
 ## Design Notes
 
