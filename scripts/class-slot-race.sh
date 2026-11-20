@@ -7,6 +7,9 @@
 #   CLASS_SLOT_RACE_BROKEN=1 scripts/class-slot-race.sh
 #       installs a deliberately broken regeneration function (no session lock, the booking check made before a pause and the delete after it)
 #       and runs the same cases against it: the verdict MUST be "race: FAILED". Proof that the cases can fail. Not part of ci-local.sh.
+#       The broken function covers case 1 only. Cases 2 and 3 were shown to fail by hand (2026-11-20 review): with the class-row FOR UPDATE
+#       removed from private.class_schedule_slots_cap, case 2 ends with 15 slots and no refusal; with `for key share of c` removed from
+#       private.materialize_sessions_for_class, case 3 leaves a session at the removed weekday. Redo that if either function is edited.
 #
 # Case 1 (book_class_session vs apply_class_slots on one unbooked session that matches no slot; CLASS_SLOT_RACE_ITERATIONS, default 50,
 #   a third apply first, a third book first, a third started together). Valid outcomes are exactly two. Either the booking is made, the session is

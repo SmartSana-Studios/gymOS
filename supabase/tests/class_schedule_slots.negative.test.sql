@@ -4,7 +4,7 @@
 -- Fixtures: 00000000-0000-0000-0181-* (gym A active, B active, S suspended; Douala).
 
 begin;
-select plan(65);
+select plan(69);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0181-000000000001', 'Slots Neg Tier', 5000, 50000, 50);
@@ -65,6 +65,16 @@ select ok(
 select throws_like(
   $$select * from private.apply_class_slots('00000000-0000-0000-0181-000000000401', (select jsonb_agg(jsonb_build_object('weekday', 1 + (n % 6), 'start_time', ('11:' || lpad(n::text, 2, '0')))) from generate_series(1, 15) n))$$,
   '%at most 14 weekly times%', 'replacing the slots with 15 refuses (the apply path cannot exceed the cap either)');
+select is((select count(*)::int from class_schedule_slots where class_id = '00000000-0000-0000-0181-000000000401'), 14, 'the refused 15-slot replacement left the 14 slots alone');
+select lives_ok(
+  $$select * from private.apply_class_slots('00000000-0000-0000-0181-000000000401', (select jsonb_agg(jsonb_build_object('weekday', weekday, 'start_time', to_char(start_time, 'HH24:MI'))) from class_schedule_slots where class_id = '00000000-0000-0000-0181-000000000401'))$$,
+  'a class holding 14 slots can be given its own 14 slots again (the cap counts new slots, not stored ones)');
+select lives_ok(
+  $$select * from private.apply_class_slots('00000000-0000-0000-0181-000000000401',
+    (select jsonb_agg(jsonb_build_object('weekday', weekday, 'start_time', to_char(start_time, 'HH24:MI'))) from class_schedule_slots where class_id = '00000000-0000-0000-0181-000000000401' and start_time <> '23:00')
+    || jsonb_build_array(jsonb_build_object('weekday', 2, 'start_time', '22:00')))$$,
+  'swapping one slot of a 14-slot class for a new one stays at 14');
+select is((select count(*)::int from class_schedule_slots where class_id = '00000000-0000-0000-0181-000000000401'), 14, 'the swap left 14 slots');
 
 -- ============================================================================
 -- Duplicate, seconds, weekday range

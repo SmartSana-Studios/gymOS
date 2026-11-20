@@ -6,7 +6,7 @@
 -- Fixtures: deterministic UUIDs under 00000000-0000-0000-0180-*. Gym A is Africa/Douala (no DST), gym B Europe/Paris, gym C America/New_York.
 
 begin;
-select plan(81);
+select plan(86);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0180-000000000001', 'Slots Test Tier', 5000, 50000, 50);
@@ -277,12 +277,15 @@ select is(
      and not exists (select 1 from class_bookings b where b.class_session_id = s.id)),
   0, 'unbooked future sessions before a later start date are removed');
 
--- Daylight saving: a session inside the next transition keeps matching its own slot (instants are compared, not clock times).
+-- Daylight saving: a session generated in the next spring-forward gap keeps matching its own slot (instants are compared, not clock times).
+-- The date is the next one on which 02:30 does not exist in Paris (it does not round-trip), so this is a gap date in every season: on a
+-- fall-back date 02:30 exists and a clock-time comparison would pass too.
 create temp table dst as
 select d::date as dt, extract(dow from d::date)::smallint as dow
 from generate_series(current_date + 1, current_date + 400, interval '1 day') d
-where ((d::date + time '12:00') at time zone 'Europe/Paris') - (((d::date - 1) + time '12:00') at time zone 'Europe/Paris') <> interval '1 day'
+where ((d::date + time '02:30') at time zone 'Europe/Paris') at time zone 'Europe/Paris' <> (d::date + time '02:30')
 order by d limit 1;
+select is((select count(*)::int from dst), 1, 'the daylight-saving fixture found a gap date');
 insert into class_sessions (id, gym_id, class_id, scheduled_at)
 select '00000000-0000-0000-0180-000000000503', '00000000-0000-0000-0180-0000000000b0', '00000000-0000-0000-0180-000000000411', (dt + time '02:30') at time zone 'Europe/Paris' from dst;
 update classes set recurrence_days = array[(select dow from dst)] where id = '00000000-0000-0000-0180-000000000411';
@@ -372,6 +375,29 @@ select set_eq($$select scheduled_at from class_sessions where class_id = '000000
   'after a time change the future sessions equal the new time''s set');
 select set_eq($$select weekday, start_time from class_schedule_slots where class_id = '00000000-0000-0000-0180-000000000402'$$,
   $$values (2::smallint, '19:00'::time), (4::smallint, '19:00'::time)$$, 'and the slots carry the new time');
+
+-- Start date through update_class (the only public path that moves it): later removes the earlier unbooked sessions, earlier brings them back.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0180-000000000201","role":"authenticated","gym_id":"00000000-0000-0000-0180-0000000000a0","app_role":"owner"}', true);
+select lives_ok(
+  $$select update_class('00000000-0000-0000-0180-000000000402', 'Tue Thu', null, '00000000-0000-0000-0180-000000000303', 10, 'recurring', null, array[2,4]::smallint[], '19:00', current_date + 14)$$,
+  'update_class moves a recurring class''s start date later');
+reset role;
+select is(
+  (select count(*)::int from class_sessions s where s.class_id = '00000000-0000-0000-0180-000000000402' and s.scheduled_at > now()
+     and (s.scheduled_at at time zone 'Africa/Douala')::date < current_date + 14
+     and not exists (select 1 from class_bookings b where b.class_session_id = s.id)),
+  0, 'update_class with a later start date removes the earlier unbooked sessions');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0180-000000000201","role":"authenticated","gym_id":"00000000-0000-0000-0180-0000000000a0","app_role":"owner"}', true);
+select lives_ok(
+  $$select update_class('00000000-0000-0000-0180-000000000402', 'Tue Thu', null, '00000000-0000-0000-0180-000000000303', 10, 'recurring', null, array[2,4]::smallint[], '19:00', current_date)$$,
+  'update_class moves the start date back to today');
+reset role;
+select ok(
+  exists (select 1 from class_sessions s where s.class_id = '00000000-0000-0000-0180-000000000402' and s.scheduled_at > now()
+     and (s.scheduled_at at time zone 'Africa/Douala')::date < current_date + 14),
+  'update_class with an earlier start date generates the earlier sessions again');
 
 -- One-off to recurring and back, with the deferred presence check forced immediate.
 set local role authenticated;

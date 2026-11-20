@@ -168,6 +168,15 @@ as $$
 begin
   perform 1 from classes c where c.id = new.class_id for update;
 
+  -- A slot that is already stored is not a new one: `insert ... on conflict do nothing` fires this BEFORE trigger before it detects the
+  -- duplicate, so without this a class holding 14 slots could not be given its own set again.
+  if exists (
+    select 1 from class_schedule_slots s
+    where s.class_id = new.class_id and s.weekday = new.weekday and s.start_time = new.start_time
+  ) then
+    return new;
+  end if;
+
   if (select count(*) from class_schedule_slots s where s.class_id = new.class_id) >= 14 then
     raise exception 'a class can have at most 14 weekly times'
       using errcode = '23514';
