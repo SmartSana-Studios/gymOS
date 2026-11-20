@@ -2207,3 +2207,25 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
   summary: the `$preflight$` block at the top of 0180 (seconds or 24:00 in `recurrence_time`, a day outside 0..6) has no automated test: pgTAP databases have no recurring classes when the migration runs, so the refusal never has a row to reject. Low; a one-shot guard.
   evidence: 0180 `$preflight$`. Would settle it: on the pre-deploy snapshot rehearsal, insert a recurring class with `recurrence_time` `18:00:30` and one with a day of 7 and confirm the migration refuses and names both ids.
+
+## Deferred from: bmad-build of spec-29-2-per-day-slot-editor-and-cancel-class (2026-11-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: a direct UPDATE of `classes.recurrence_days` / `recurrence_time` still does not refresh the slots (29.1 deferral). 29.2 stops the dashboard writing them (the new overloads store null, the old `update_class` wrapper still writes them for the rollout window), so the legacy columns are now dead weight; the clean-up migration that drops them (and revokes column UPDATE meanwhile) is still owed.
+  evidence: 0181 `update_class` old signature; `deferred-work.md` 29.1 entry.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: the previous dashboard release reads `recurrence_days`/`recurrence_time` directly. Until the new dashboard is deployed, (1) a per-day class created by the new release shows no days on its admin Classes page, (2) its Coach My Classes page shows a blank schedule for every class, because `list_my_classes()` no longer returns those two columns, and (3) its edits go through the old `update_class`, which follows the new slot rule on a one-off/recurring switch and returns void, so it never shows the sessions an edit left on their old time. Accepted for the rollout window; deploy the dashboard right after the migration.
+  evidence: 0181 header (comments); `docs/decisions.md` 2026-11-20 entry.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: after a gym time-zone change the result view lists many sessions with no explanation (the 29.1 deferral on `apply_class_slots` judging sessions in the new zone). Not addressed in the result view.
+  evidence: 29.1 deferral "after a gym time-zone change".
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: `update_class` re-runs `apply_class_slots` on every edit of a recurring class, so a name-only edit of a class that holds booked old-time sessions shows the result view listing them again. Idempotent by design (the spec's repeat-edit rule); a quieter result view for an unchanged time list is a UX call.
+  evidence: 0181 `update_class` (p_slots).
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: Time fields of the weekly-times editor are text inputs (HH:MM, tidied on blur) rather than `<input type="time">`, to guarantee 24-hour entry on every OS locale. Check on a real phone browser during the Epic 29 browser QA.
+  evidence: `WeeklyTimesEditor.tsx`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: Nothing tests that the Classes page passes `getClassesGymTimezone()` through to the modal, so the "Times are in the gym time zone" line can disappear unnoticed.
+  evidence: Review pass 1 (verification-gap): `ClassesPageClient.weeklyTimes.test.tsx` passes `gymTimezone` as a prop and `class-weekly-times.spec.ts` never asserts the line; dropping the prop in `classes/page.tsx` fails no test. Cosmetic; one e2e assertion on the open dialog closes it.

@@ -984,7 +984,7 @@
     "columnNextSession": "Prochain cours",
     "columnBooked": "Réservé",
     "noUpcomingSession": "Aucun cours à venir",
-    "recurringSummary": "{{days}} à {{time}}",
+    "recurringSummary": "{{days}} {{time}}",
     "days": {
       "sun": "Dim",
       "mon": "Lun",
@@ -1008,7 +1008,6 @@
       "recurring": "Récurrent",
       "date": "Date *",
       "time": "Heure *",
-      "daysOfWeek": "Jours de la semaine *",
       "startDate": "Date de début *",
       "saveChanges": "Enregistrer les modifications",
       "errors": {
@@ -1017,7 +1016,7 @@
         "capacityInvalid": "Saisissez une capacité d'au moins 1",
         "oneOffDateTimeRequired": "Saisissez une date et une heure de séance",
         "oneOffDateTimeInPast": "La date et l'heure de la séance doivent être dans le futur",
-        "recurringFieldsRequired": "Sélectionnez au moins un jour, une heure et une date de début"
+        "recurringFieldsRequired": "Choisissez une date de début"
       }
     },
     "errors": {
@@ -1034,6 +1033,66 @@
       "noSession": "Ce cours n'a aucune séance à venir pour laquelle marquer la présence.",
       "loadingBookings": "Chargement des membres inscrits…",
       "recordSessionPayment": "Enregistrer le paiement de la séance"
+    },
+    "times": {
+      "label": "Horaires de la semaine",
+      "counter": "{{n}} sur 14",
+      "day": "Jour",
+      "time": "Heure",
+      "add": "+ Ajouter un horaire",
+      "remove": "Supprimer",
+      "removeAria": "Supprimer {{day}} {{time}}",
+      "limit": "Un cours peut avoir jusqu'à 14 horaires par semaine.",
+      "timezone": "Les heures sont dans le fuseau horaire de la salle ({{zone}}).",
+      "error": {
+        "none": "Ajoutez au moins un jour et une heure.",
+        "day": "Choisissez un jour.",
+        "time": "Saisissez une heure, par exemple 18:30.",
+        "duplicate": "Ce jour et cette heure figurent déjà dans la liste.",
+        "summary": "Corrigez les horaires signalés ci-dessous avant d'enregistrer."
+      },
+      "dayNames": {
+        "sun": "Dimanche",
+        "mon": "Lundi",
+        "tue": "Mardi",
+        "wed": "Mercredi",
+        "thu": "Jeudi",
+        "fri": "Vendredi",
+        "sat": "Samedi"
+      },
+      "editNotice": "Les changements s'appliquent aux prochains cours sans réservation. Les cours réservés restent inchangés, et vous les verrez après l'enregistrement.",
+      "saved": {
+        "title": "Cours enregistré",
+        "summary": "Horaires : {{summary}}"
+      },
+      "left": {
+        "title": "{{n}} cours réservés n'ont pas été modifiés",
+        "title1": "1 cours réservé n'a pas été modifié",
+        "help": "Ils gardent leur ancien horaire et leurs réservations.",
+        "row": "{{day}} {{date}} · {{time}} · {{n}} / {{capacity}} réservations",
+        "none": "Rien n'a été laissé tel quel. Les prochains cours suivent les nouveaux horaires."
+      },
+      "done": "Terminé",
+      "oldTimeTag": "Ancien horaire",
+      "sorted": "Horaires triés",
+      "summary": {
+        "more": "+{{n}} autres"
+      }
+    },
+    "cancel": {
+      "action": "Annuler le cours",
+      "title": "Annuler {{name}} ?",
+      "body_one": "Tous les prochains cours sont annulés, ainsi que {{count}} réservation. Les cours passés et les présences restent enregistrés.",
+      "body_other": "Tous les prochains cours sont annulés, ainsi que {{count}} réservations. Les cours passés et les présences restent enregistrés.",
+      "bodyNoBookings": "Tous les prochains cours sont annulés. Personne n'a encore réservé.",
+      "keep": "Conserver le cours",
+      "toast": "{{name}} annulé.",
+      "badge": "Annulé",
+      "error": "Impossible d'annuler le cours. Réessayez.",
+      "already": "Ce cours a déjà été annulé."
+    },
+    "coach": {
+      "ownOnly": "Vous ne pouvez modifier que vos propres cours."
     }
   },
   "members": {
@@ -2065,7 +2124,9 @@
       "staffCheckInRejected": "Arrivée par le personnel refusée",
       "staffCheckInVoided": "Arrivée par le personnel annulée",
       "planCorrected": "Formule corrigée",
-      "sessionValidityChanged": "Validité de la séance modifiée"
+      "sessionValidityChanged": "Validité de la séance modifiée",
+      "classTimesChanged": "Horaires du cours modifiés",
+      "classCancelled": "Cours annulé"
     },
     "disclosure": {
       "title": "Questions sur ce journal",
@@ -2106,6 +2167,14 @@
       "details": "{{oldPlan}} → {{newPlan}} · {{oldPrice}} → {{newPrice}} XAF · {{expiry}} · Motif : {{reason}}",
       "expiry": "expire le {{old}} → {{new}}",
       "noExpiry": "sans expiration"
+    },
+    "classTimes": {
+      "details_one": "{{name}} · {{old}} → {{new}} · {{count}} cours réservé non modifié",
+      "details_other": "{{name}} · {{old}} → {{new}} · {{count}} cours réservés non modifiés"
+    },
+    "classCancelled": {
+      "details_one": "{{name}} · {{count}} réservation annulée",
+      "details_other": "{{name}} · {{count}} réservations annulées"
     }
   },
   "saasBilling": {

@@ -9,9 +9,19 @@ const MAX_INT4 = 2147483647;
 
 export const scheduleTypeSchema = z.enum(["one_off", "recurring"]);
 
-// Mirrors classes_schedule_matches_type (0057) exactly -- Zod is the
-// friendly first line, the DB constraint is the backstop, same pairing
-// plan.ts/0017 already establish.
+/** A class can have at most this many weekly times (0181: the cap trigger on class_schedule_slots and private.validate_class_slots). */
+export const MAX_CLASS_SLOTS = 14;
+
+/** One weekly time: weekday 0 = Sunday .. 6 = Saturday (Postgres extract(dow)), start time "HH:mm" in the gym's time zone. */
+export const classSlotSchema = z.object({
+  weekday: z.number().int().min(0).max(6),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a time in HH:mm format"),
+});
+
+export type ClassSlot = z.infer<typeof classSlotSchema>;
+
+// Mirrors classes_schedule_matches_type (0180: a recurring class needs only its start date; its times are the slots) -- Zod is the
+// friendly first line, the DB constraint and private.validate_class_slots are the backstop, same pairing plan.ts/0017 already establish.
 export const classSchema = z
   .object({
     name: z.string().trim().min(1, "Class name is required"),
@@ -34,14 +44,8 @@ export const classSchema = z
     scheduleType: scheduleTypeSchema,
     // ISO datetime string -- required and only valid for one_off.
     oneOffSessionAt: z.string().datetime().nullable(),
-    // 0 = Sunday .. 6 = Saturday, matching Postgres's own extract(dow from
-    // ...) convention the materializer reads directly (see 0057's Dev
-    // Notes) -- required and only valid for recurring.
-    recurrenceDays: z.array(z.number().int().min(0).max(6)).nullable(),
-    recurrenceTime: z
-      .string()
-      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a time in HH:mm format")
-      .nullable(),
+    // Story 29.2: one to fourteen weekly times, required and only valid for recurring (null for a one-off class).
+    slots: z.array(classSlotSchema).max(MAX_CLASS_SLOTS, "A class can have at most 14 weekly times").nullable(),
     recurrenceStartDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a date in YYYY-MM-DD format")
@@ -60,18 +64,26 @@ export const classSchema = z
   .refine(
     (data) =>
       data.scheduleType === "recurring"
-        ? data.recurrenceDays !== null &&
-          data.recurrenceDays.length >= 1 &&
-          data.recurrenceTime !== null &&
-          data.recurrenceStartDate !== null
-        : data.recurrenceDays === null &&
-          data.recurrenceTime === null &&
-          data.recurrenceStartDate === null,
+        ? data.slots !== null && data.slots.length >= 1 && data.recurrenceStartDate !== null
+        : data.slots === null && data.recurrenceStartDate === null,
     {
       message:
-        "A recurring class requires at least one day of the week, a time, and a start date, and these must be empty for a one-off class",
-      path: ["recurrenceDays"],
+        "A recurring class requires at least one weekly time and a start date, and these must be empty for a one-off class",
+      path: ["slots"],
     },
+  )
+  .refine(
+    (data) => {
+      if (data.slots === null) return true;
+      const seen = new Set<string>();
+      for (const s of data.slots) {
+        const key = `${s.weekday}|${s.startTime}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+      }
+      return true;
+    },
+    { message: "The same day and time appears twice", path: ["slots"] },
   );
 
 export type ClassInput = z.infer<typeof classSchema>;

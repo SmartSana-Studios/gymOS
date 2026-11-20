@@ -984,7 +984,7 @@
     "columnNextSession": "Next Session",
     "columnBooked": "Booked",
     "noUpcomingSession": "No upcoming session",
-    "recurringSummary": "{{days}} at {{time}}",
+    "recurringSummary": "{{days}} {{time}}",
     "days": {
       "sun": "Sun",
       "mon": "Mon",
@@ -1008,7 +1008,6 @@
       "recurring": "Recurring",
       "date": "Date *",
       "time": "Time *",
-      "daysOfWeek": "Days of the Week *",
       "startDate": "Start Date *",
       "saveChanges": "Save Changes",
       "errors": {
@@ -1017,7 +1016,7 @@
         "capacityInvalid": "Enter a capacity of at least 1",
         "oneOffDateTimeRequired": "Enter a session date and time",
         "oneOffDateTimeInPast": "Session date and time must be in the future",
-        "recurringFieldsRequired": "Select at least one day, a time, and a start date"
+        "recurringFieldsRequired": "Choose a start date"
       }
     },
     "errors": {
@@ -1034,6 +1033,66 @@
       "noSession": "This class has no upcoming session to mark attendance for.",
       "loadingBookings": "Loading booked members…",
       "recordSessionPayment": "Record session payment"
+    },
+    "times": {
+      "label": "Weekly times",
+      "counter": "{{n}} of 14",
+      "day": "Day",
+      "time": "Time",
+      "add": "+ Add a time",
+      "remove": "Remove",
+      "removeAria": "Remove {{day}} {{time}}",
+      "limit": "A class can have up to 14 weekly times.",
+      "timezone": "Times are in the gym's time zone ({{zone}}).",
+      "error": {
+        "none": "Add at least one day and time.",
+        "day": "Choose a day.",
+        "time": "Enter a time, for example 18:30.",
+        "duplicate": "This day and time is already in the list.",
+        "summary": "Fix the weekly times marked below before saving."
+      },
+      "dayNames": {
+        "sun": "Sunday",
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday"
+      },
+      "editNotice": "Changes apply to upcoming sessions that nobody has booked. Sessions with bookings stay as they are, and you'll see them after you save.",
+      "saved": {
+        "title": "Class saved",
+        "summary": "Weekly times: {{summary}}"
+      },
+      "left": {
+        "title": "{{n}} sessions with bookings were left unchanged",
+        "title1": "1 session with bookings was left unchanged",
+        "help": "They keep their old time and their bookings.",
+        "row": "{{day}} {{date}} · {{time}} · {{n}} / {{capacity}} booked",
+        "none": "Nothing was left unchanged. Upcoming sessions follow the new times."
+      },
+      "done": "Done",
+      "oldTimeTag": "Old time",
+      "sorted": "Weekly times sorted",
+      "summary": {
+        "more": "+{{n}} more"
+      }
+    },
+    "cancel": {
+      "action": "Cancel class",
+      "title": "Cancel {{name}}?",
+      "body_one": "All upcoming sessions are cancelled, and {{count}} booking is cancelled. Past sessions and attendance stay on record.",
+      "body_other": "All upcoming sessions are cancelled, and {{count}} bookings are cancelled. Past sessions and attendance stay on record.",
+      "bodyNoBookings": "All upcoming sessions are cancelled. Nobody has booked yet.",
+      "keep": "Keep class",
+      "toast": "{{name}} cancelled.",
+      "badge": "Cancelled",
+      "error": "Couldn't cancel the class. Try again.",
+      "already": "This class was already cancelled."
+    },
+    "coach": {
+      "ownOnly": "You can only change your own classes."
     }
   },
   "members": {
@@ -2065,7 +2124,9 @@
       "staffCheckInRejected": "Staff check-in not accepted",
       "staffCheckInVoided": "Staff check-in voided",
       "planCorrected": "Plan corrected",
-      "sessionValidityChanged": "Session validity changed"
+      "sessionValidityChanged": "Session validity changed",
+      "classTimesChanged": "Class weekly times changed",
+      "classCancelled": "Class cancelled"
     },
     "disclosure": {
       "title": "Questions about this log",
@@ -2106,6 +2167,14 @@
       "details": "{{oldPlan}} → {{newPlan}} · {{oldPrice}} → {{newPrice}} XAF · {{expiry}} · Reason: {{reason}}",
       "expiry": "expires {{old}} → {{new}}",
       "noExpiry": "no expiry"
+    },
+    "classTimes": {
+      "details_one": "{{name}} · {{old}} → {{new}} · {{count}} session with bookings left unchanged",
+      "details_other": "{{name}} · {{old}} → {{new}} · {{count}} sessions with bookings left unchanged"
+    },
+    "classCancelled": {
+      "details_one": "{{name}} · {{count}} booking cancelled",
+      "details_other": "{{name}} · {{count}} bookings cancelled"
     }
   },
   "saasBilling": {

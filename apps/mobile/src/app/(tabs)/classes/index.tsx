@@ -4,15 +4,18 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { IconChip } from '@/components/ui/IconChip';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import { STATUS_COLORS } from '@/constants/subscription-status';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { useTheme } from '@/hooks/use-theme';
 import { getContrastTextColor } from '@/lib/color-contrast';
+import { bookingRowState } from '@/lib/classBookings';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import {
   bookClassSession,
@@ -435,9 +438,11 @@ export default function ClassesScreen() {
                         </ThemedText>
                       </View>
                       <View style={styles.rowAction}>
-                        {cancelBusyId === item.bookingId ? (
+                        {bookingRowState(item) === 'cancelled' ? (
+                          <Badge label={t('classes.bookings.cancelled')} colors={STATUS_COLORS.no_plan} />
+                        ) : cancelBusyId === item.bookingId ? (
                           <ActivityIndicator size="small" color={theme.textSecondary} />
-                        ) : item.canCancel ? (
+                        ) : bookingRowState(item) === 'cancellable' ? (
                           <Pressable
                             accessibilityRole="button"
                             disabled={!isConnected}

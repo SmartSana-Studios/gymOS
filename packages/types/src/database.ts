@@ -406,6 +406,7 @@ export type Database = {
       }
       class_sessions: {
         Row: {
+          cancelled_at: string | null
           class_id: string
           created_at: string
           gym_id: string
@@ -413,6 +414,7 @@ export type Database = {
           scheduled_at: string
         }
         Insert: {
+          cancelled_at?: string | null
           class_id: string
           created_at?: string
           gym_id: string
@@ -420,6 +422,7 @@ export type Database = {
           scheduled_at: string
         }
         Update: {
+          cancelled_at?: string | null
           class_id?: string
           created_at?: string
           gym_id?: string
@@ -443,6 +446,8 @@ export type Database = {
       }
       classes: {
         Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
           capacity: number
           coach_id: string
           created_at: string
@@ -457,6 +462,8 @@ export type Database = {
           schedule_type: string
         }
         Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           capacity: number
           coach_id: string
           created_at?: string
@@ -471,6 +478,8 @@ export type Database = {
           schedule_type: string
         }
         Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           capacity?: number
           coach_id?: string
           created_at?: string
@@ -485,6 +494,12 @@ export type Database = {
           schedule_type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "classes_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classes_coach_id_fkey"
             columns: ["coach_id"]
@@ -2701,6 +2716,30 @@ export type Database = {
           },
         ]
       }
+      class_sessions_with_match: {
+        Row: {
+          cancelled_at: string | null
+          class_id: string | null
+          class_session_id: string | null
+          gym_id: string | null
+          matches_slots: boolean | null
+          scheduled_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_sessions_class_id_fkey"
+            columns: ["class_id"]
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_sessions_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_visit_days: {
         Row: {
           gym_id: string | null
@@ -2820,6 +2859,7 @@ export type Database = {
         }
       }
       caller_has_membership: { Args: never; Returns: boolean }
+      cancel_class: { Args: { p_class_id: string }; Returns: Json }
       cancel_class_booking: {
         Args: { p_booking_id: string }
         Returns: undefined
@@ -2981,20 +3021,36 @@ export type Database = {
           subscription_id: string
         }[]
       }
-      create_class: {
-        Args: {
-          p_capacity: number
-          p_coach_id: string
-          p_description: string
-          p_name: string
-          p_one_off_session_at: string
-          p_recurrence_days: number[]
-          p_recurrence_start_date: string
-          p_recurrence_time: string
-          p_schedule_type: string
-        }
-        Returns: string
-      }
+      create_class:
+        | {
+            Args: {
+              p_capacity: number
+              p_coach_id: string
+              p_description: string
+              p_name: string
+              p_one_off_session_at: string
+              p_recurrence_days: number[]
+              p_recurrence_start_date: string
+              p_recurrence_time: string
+              p_schedule_type: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_capacity: number
+              p_coach_id: string
+              p_description: string
+              p_name: string
+              p_one_off_session_at: string
+              p_recurrence_days: number[]
+              p_recurrence_start_date: string
+              p_recurrence_time: string
+              p_schedule_type: string
+              p_slots: Json
+            }
+            Returns: string
+          }
       create_staff_member: {
         Args: {
           p_name: string
@@ -3568,6 +3624,7 @@ export type Database = {
         Returns: {
           booking_id: string
           can_cancel: boolean
+          class_cancelled: boolean
           class_name: string
           scheduled_at: string
         }[]
@@ -3584,16 +3641,17 @@ export type Database = {
         Args: never
         Returns: {
           booked_count: number
+          cancelled_at: string | null
           capacity: number
           class_id: string
           class_name: string
           class_session_id: string | null
           gym_timezone: string
+          matches_slots: boolean | null
           one_off_session_at: string | null
-          recurrence_days: number[] | null
-          recurrence_time: string | null
           schedule_type: string
           scheduled_at: string | null
+          slots: Json
         }[]
       }
       list_own_active_gym_memberships: {
@@ -3855,21 +3913,38 @@ export type Database = {
         Args: { p_aliases?: string[]; p_city_id: string; p_lat?: number; p_lng?: number; p_name: string; p_slug?: string }
         Returns: undefined
       }
-      update_class: {
-        Args: {
-          p_capacity: number
-          p_class_id: string
-          p_coach_id: string
-          p_description: string
-          p_name: string
-          p_one_off_session_at: string
-          p_recurrence_days: number[]
-          p_recurrence_start_date: string
-          p_recurrence_time: string
-          p_schedule_type: string
-        }
-        Returns: undefined
-      }
+      update_class:
+        | {
+            Args: {
+              p_capacity: number
+              p_class_id: string
+              p_coach_id: string
+              p_description: string
+              p_name: string
+              p_one_off_session_at: string
+              p_recurrence_days: number[]
+              p_recurrence_start_date: string
+              p_recurrence_time: string
+              p_schedule_type: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_capacity: number
+              p_class_id: string
+              p_coach_id: string
+              p_description: string
+              p_name: string
+              p_one_off_session_at: string
+              p_recurrence_days: number[]
+              p_recurrence_start_date: string
+              p_recurrence_time: string
+              p_schedule_type: string
+              p_slots: Json
+            }
+            Returns: Json
+          }
       update_messaging_instance: {
         Args: { p_instance_id: string }
         Returns: undefined

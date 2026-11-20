@@ -3,17 +3,13 @@ import { Suspense } from "react";
 import type { Locale } from "@/lib/i18n/config";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { summarizeSlots } from "@/lib/classTimes";
 import { listMyClasses, type CoachClassRow } from "@/services/classes";
 import { gymDateFormatter } from "../gymTime";
 import { CoachClassesPageClient, type CoachClassView } from "./components/CoachClassesPageClient";
 import CoachClassesLoading from "./loading";
 
 type Translate = Awaited<ReturnType<typeof getServerTranslation>>["t"];
-
-// Postgres's extract(dow) order, the one classes.recurrence_days stores
-// (0057) -- copied from ClassesPageClient.tsx rather than imported from a
-// client component, per this app's per-file-copy convention.
-const DAY_KEY = ["classes.days.sun", "classes.days.mon", "classes.days.tue", "classes.days.wed", "classes.days.thu", "classes.days.fri", "classes.days.sat"];
 
 /**
  * Story 17.4: AD-21, the Coach Portal's My Classes page (FR-145) -- the
@@ -83,6 +79,7 @@ function toClassViews(classes: CoachClassRow[], locale: Locale, t: Translate): C
       className: cls.className,
       scheduleLabel: scheduleLabel(cls, formatDate, t),
       capacityLabel: t("coachPortal.classes.capacity", { capacity }),
+      ...(cls.cancelledAt ? { cancelledLabel: t("classes.cancel.badge") } : {}),
       sessions: cls.sessions.map((session) => ({
         classSessionId: session.classSessionId,
         label: formatDate(session.scheduledAt),
@@ -90,6 +87,7 @@ function toClassViews(classes: CoachClassRow[], locale: Locale, t: Translate): C
           booked: session.bookedCount.toLocaleString(locale),
           capacity,
         }),
+        ...(session.matchesSlots !== false ? {} : { oldTimeLabel: t("classes.times.oldTimeTag") }),
       })),
     };
   });
@@ -99,9 +97,6 @@ function scheduleLabel(cls: CoachClassRow, formatDate: (iso: string) => string, 
   if (cls.scheduleType === "one_off") {
     return cls.oneOffSessionAt ? formatDate(cls.oneOffSessionAt) : "";
   }
-  const days = (cls.recurrenceDays ?? []).map((d) => t(DAY_KEY[d])).join(", ");
-  // recurrence_time is already gym-local wall-clock time, round-tripped as
-  // "HH:mm:ss" -- sliced, never timezone-converted.
-  const time = cls.recurrenceTime ? cls.recurrenceTime.slice(0, 5) : "";
-  return t("classes.recurringSummary", { days, time });
+  // Slot start times are gym-local wall-clock times ("HH:mm"), never timezone-converted; grouped by hour, Monday first (Story 29.2).
+  return summarizeSlots(cls.slots, t).full;
 }

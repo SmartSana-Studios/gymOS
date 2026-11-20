@@ -2,7 +2,7 @@
 title: '29-2 Per-day slot editor and cancel class'
 type: 'feature'
 created: '2026-11-20'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '236efca91f501c4ab869155f5025a9398d57b125'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -76,12 +76,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/0181_*.sql` and `scripts/rollback-0181-*.sql` -- columns, overloads, `cancel_class`, guards in the listed functions, view, `list_my_classes`, audit rows, verify block -- the whole data half
-- [ ] `supabase/tests/class_slot_editor.test.sql`, `class_cancel.test.sql` and `.negative.test.sql` -- the I/O matrix, per-role refusals incl. gym B Manager, no notification row, reminder, old signatures, view isolation; update 29.1's type-change refusal test for the new rule; extend `support_capabilities.test.sql`
-- [ ] `packages/types` (schema, `database.ts`), `apps/dashboard/services/classes.ts`, `classes/actions.ts` -- slots through the stack, `cancelClassAction`, error mapping
-- [ ] `ClassesPageClient.tsx`, `ClassModal.tsx` (+ result view, cancel dialog components), coach page, audit labels and details -- the UI, with component tests (fixtures: one, three, four groups, one-off, migrated; Receptionist DOM; modal rows, counter, limit, duplicate, sort announce, result view, dialog Escape)
-- [ ] `apps/mobile` services, MA-16, Home, locales -- Cancelled badge, Home drops cancelled before its `.slice`, a `classes.test.ts` service test (rpc mock as in `checkin.test.ts`) and pure-helper tests
-- [ ] `apps/dashboard/e2e/class-weekly-times.spec.ts`, EN and FR locales, `docs/decisions.md`, `deferred-work.md`, `sprint-status.yaml` -- E2E golden path, strings, records
+- [x] `supabase/migrations/0181_*.sql` and `scripts/rollback-0181-*.sql` -- columns, overloads, `cancel_class`, guards in the listed functions, view, `list_my_classes`, audit rows, verify block -- the whole data half
+- [x] `supabase/tests/class_slot_editor.test.sql`, `class_cancel.test.sql` and `.negative.test.sql` -- the I/O matrix, per-role refusals incl. gym B Manager, no notification row, reminder, old signatures, view isolation; update 29.1's type-change refusal test for the new rule; extend `support_capabilities.test.sql`
+- [x] `packages/types` (schema, `database.ts`), `apps/dashboard/services/classes.ts`, `classes/actions.ts` -- slots through the stack, `cancelClassAction`, error mapping
+- [x] `ClassesPageClient.tsx`, `ClassModal.tsx` (+ result view, cancel dialog components), coach page, audit labels and details -- the UI, with component tests (fixtures: one, three, four groups, one-off, migrated; Receptionist DOM; modal rows, counter, limit, duplicate, sort announce, result view, dialog Escape)
+- [x] `apps/mobile` services, MA-16, Home, locales -- Cancelled badge, Home drops cancelled before its `.slice`, a `classes.test.ts` service test (rpc mock as in `checkin.test.ts`) and pure-helper tests
+- [x] `apps/dashboard/e2e/class-weekly-times.spec.ts`, EN and FR locales, `docs/decisions.md`, `deferred-work.md`, `sprint-status.yaml` -- E2E golden path, strings, records
 
 **Acceptance Criteria:**
 - Given Story 29.2's criteria in `epics.md` (7209-7281), when pgTAP, vitest, the E2E spec and `scripts/ci-local.sh` (via `bash`) run, then every criterion has a named passing test, existing suites pass without edit except the tests this spec names, and no new `claim-only` entry or guardrail failure appears.
@@ -92,6 +92,35 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+Pass 1 (blind / edge-case / verification-gap). Verdict, then route. Layers: blind-hunter (BH), edge-case-hunter (EC), verification-gap (VG).
+
+| Finding | Verdict | Route | Evidence |
+|---|---|---|---|
+| Overview "Today's classes" still counts cancelled sessions (BH, EC) | medium | patch | `countClassSessionsBetween` has no `cancelled_at` filter; the flag this story adds makes the count wrong the moment a class is cancelled. Fix is one filter plus the test that pins "no cancellation filter". |
+| `updateClass` does not map "already cancelled": a stale-tab edit of a just-cancelled class shows a generic error (EC) | medium | patch | `services/classes.ts` maps the phrase only in `cancelClass` (line 667); `update_class` raises `class % is already cancelled`. |
+| Time input: `inputMode="numeric"` has no colon key on a phone, and `normalizeTime` rejects digits without a colon (BH) | medium | patch | `weeklyRows.ts:31` requires `:`; WeeklyTimesEditor.tsx:126 sets numeric. Accepting 3-4 digits fixes it. |
+| `class_cancelled` / `class_times_changed` Details cell has no rendering test (VG, BH) | medium | patch | Only label keys are tested (`auditLabels.epic29.test.ts`); renaming a metadata key breaks the cell with no failure. |
+| `cancelClass` "already cancelled" regex has no test against the DB wording (VG) | low | patch | Folded into the `updateClass` mapping fix: one service test covers both. |
+| Start-date-only edit and the view's start-date clause never exercised (VG) | medium | patch | Every `update_class` call in `class_slot_editor.test.sql` passes `current_date`; dropping the clause fails nothing. |
+| `class-slot-race.sh` leaves ~50 `class_cancelled` audit rows with a nulled gym (EC) | low | patch | `single-use-race.sh:48` deletes audit_log by gym; this script does not. Direct correction. |
+| `toHourMinute` has no callers; `editClass` docblock still describes `scheduleChanged` (BH) | low | patch | grep: only the definition. Direct deletion and rewording. |
+| 0181 header says old signatures keep "same behaviour"; the old `update_class` now follows the slot rule on type switches, and `list_my_classes` drops the legacy columns so the old Coach page shows a blank schedule until the dashboard deploys (BH, EC) | low | patch | Behaviour is by the spec's own rule and the AC; the header, `decisions.md` and `deferred-work.md` must say so, and the rollout note must name the Coach page too. Text only. |
+| `decisions.md` "only ones" list omits three edited suites or fixtures (EC) | low | patch | `support_excluded_from_counts`, `support_request_path` and `teardown.ts` are in the diff and not in the list. Text only. |
+| `gymTimezone` wiring from page to modal untested (VG) | low | defer | Cosmetic line; one e2e assertion would close it. Recorded in deferred-work.md. |
+| Manager can PATCH `classes.cancelled_at` directly (EC) | low | rejected | A Manager already holds the RLS update policy on every `classes` column (schedule type, times); the UI never does it. The guard needs a trigger. |
+| `mark_class_attendance` cancelled guard before the already-attended return (EC) | low | rejected | Only future sessions are flagged; an attended booking is on a started session. Unreachable in practice. |
+| `send_class_reminder` race with a concurrent cancel (EC) | low | rejected | A window of milliseconds on a reminder; fix adds a lock. |
+| one-off to one-off edit races a booking, no session lock (EC) | false | rejected | Pre-existing since 0058 and already deferred in 29-1's triage (the FK refuses, no data loss). |
+| Mobile stale list: book or cancel on a just-cancelled session shows the generic error (EC) | low | rejected | Cancelled sessions leave the bookable list at once; needs a stale list and new statuses and strings. |
+| `listClasses` sessions fetch can pass the 1000-row cap (BH, EC) | low | rejected | The sessions fetch is unchanged from before this story; reaching the cap needs about 18 classes at 14 times each. Fix is paging. |
+| recurring to one-off bypasses `apply_class_slots` (EC) | false | rejected | `apply_class_slots` refuses a non-recurring class by design; the Design Notes name this branch. |
+| Rollback refuses once any class has null legacy columns (BH) | false | rejected | Required by the spec; refusing is the safe choice, and 0180's rollback already says so. |
+| Kept old-time sessions stay bookable and are listed only once (BH) | false | rejected | The AC keeps booked sessions; the Old-time tag scope was decided with the product owner. |
+| Cancel dialog copy: "bookings cancelled", no notify line, a class with no future sessions can be cancelled (BH) | false | rejected | Copy is the UX-prescribed text; the no-notification rule is the owner decision; cancel on a class with nothing ahead is allowed by the AC. |
+| Two audit rows for one edit (`class_edited` and `class_times_changed`) (BH) | false | rejected | Both are specified. |
+| Cancel dialog count is read at page load, not by the server at the moment of cancel (not raised; noted in triage) | low | rejected | The toast and audit carry the server count; the spec asks the dialog to show a server number. |
+| Row buttons share names, focus after Remove, announcement in an updater, 14 in locale strings, `scheduleSummary` twice, Badge colour reuse, trailing newline, rollback duplicates old bodies, older mobile builds, cancel-vs-update race untested, French copy untested (BH) | low | rejected | Cosmetic or unlikely, and each fix adds behaviour or a test harness the story does not need. |
 
 ## Design Notes
 

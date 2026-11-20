@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { listClasses } from "@/services/classes";
+import { getClassesGymTimezone, listClasses } from "@/services/classes";
 import { listCoaches } from "@/services/coaches";
 import { getDashboardShellContext } from "@/services/session";
 import { ClassesPageClient } from "./components/ClassesPageClient";
@@ -30,8 +30,12 @@ export default function ClassesPage() {
 }
 
 async function ClassesData() {
-  const [{ data: classes, error: classesError }, { data: coaches, error: coachesError }, { data: shell, error: shellError }] =
-    await Promise.all([listClasses(), listCoaches(), getDashboardShellContext()]);
+  const [
+    { data: classes, error: classesError },
+    { data: coaches, error: coachesError },
+    { data: shell, error: shellError },
+    { data: gymTimezone },
+  ] = await Promise.all([listClasses(), listCoaches(), getDashboardShellContext(), getClassesGymTimezone()]);
 
   if (classesError || coachesError || shellError || !shell) {
     const { t } = await getServerTranslation(await getRequestLocale());
@@ -43,6 +47,7 @@ async function ClassesData() {
       initialClasses={classes ?? []}
       coaches={coaches ?? []}
       role={shell.role}
+      gymTimezone={gymTimezone}
     />
   );
 }

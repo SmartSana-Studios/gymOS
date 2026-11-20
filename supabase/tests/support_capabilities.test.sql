@@ -158,6 +158,7 @@ insert into cls (kind, name, support) values
   ('policy', 'workout_plan_exercises.manager_or_owner_read_own_workout_plan_exercises', 'excludes'),
   ('policy', 'workout_plans.manager_or_owner_read_own_workout_plan', 'excludes'),
   ('function', 'assign_coach', 'excludes'),
+  ('function', 'cancel_class', 'excludes'),
   ('function', 'capability_roles', 'excludes'),
   ('function', 'check_out_member', 'excludes'),
   ('function', 'create_class', 'excludes'),

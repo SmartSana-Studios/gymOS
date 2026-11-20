@@ -153,4 +153,9 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // Supervisor, or "GymOS Support". Metadata { old_validity, new_validity }, each whole_day | single_use. The Details cell reads
   // "Whole day → Single use" (AuditLogPageClient).
   session_validity_changed: "audit.actionTypes.sessionValidityChanged",
+  // Story 29.2 (0181, UX AD-12 V1.8). Both are written by the database functions themselves, gym-scoped, target = the class. class_times_changed
+  // (update_class, only when the weekly times changed) metadata { class_name, old_schedule_type, new_schedule_type, old_slots, new_slots
+  // ([{weekday, start_time}]), left_unchanged_count }. class_cancelled (cancel_class) metadata { class_name, bookings_cancelled }.
+  class_times_changed: "audit.actionTypes.classTimesChanged",
+  class_cancelled: "audit.actionTypes.classCancelled",
 };
