@@ -274,6 +274,9 @@ select is(
   --                             behind public_site.pages and page_media, whose predicate (gym status active) is the suspension gate for the public
   --                             site. Written only by publish_gym_page (status-guarded for a non-Super-Admin), unpublish_gym_page (deliberately NOT
   --                             guarded: an Owner of a suspended gym can always take the page down), the refresh triggers and the page-name sweep
+  --   member_weekly_goals     - 30.1: RLS on, no client policy, no client grant; written only by set_weekly_goal() (status-guarded: it raises the
+  --                             `is not active` phrase for a suspended gym) and read only by my_weekly_goal() (no row for a suspended gym), so a
+  --                             restrictive policy would be a structural no-op (the page_names reasoning)
   --   page_names              - 24.7: RLS on, no client policy, no client grant; written only by claim_page_name() (Owner or Super Admin,
   --                             active gym required for the Owner) and the Super Admin/lifecycle functions, which must keep working for a
   --                             suspended gym (the idle clock and the sweep run on suspension by design)
@@ -301,7 +304,7 @@ select is(
   -- ever needs to close its coach INSERT, add a SEPARATE, narrower
   -- RESTRICTIVE ... FOR INSERT policy under a DIFFERENT name -- reusing
   -- `tenant_active_gate` would silently change assertion 1's count above.
-  'audit_disclosure_requests, exercise_library, gym_data_escalations, gym_page_media, gym_pages, gym_payment_credentials, page_names, saas_billing_notices, saas_billing_payments, staff_notices, support_action_identity, support_assignments, support_staff_review',
+  'audit_disclosure_requests, exercise_library, gym_data_escalations, gym_page_media, gym_pages, gym_payment_credentials, member_weekly_goals, page_names, saas_billing_notices, saas_billing_payments, staff_notices, support_action_identity, support_assignments, support_staff_review',
   'the set of gym_id-bearing tables WITHOUT tenant_active_gate is unchanged -- a new one is invisible to the guardrail above, so it must be justified here (Story 11.8 code review)'
 );
 

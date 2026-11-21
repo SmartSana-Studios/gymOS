@@ -492,5 +492,145 @@
       "initiateFailed": "Something went wrong. Try again."
     },
     "coversDay": "Covers the whole day."
+  },
+  "engage": {
+    "ring": {
+      "title": "This week",
+      "unit": "days",
+      "goalLabel_one": "Goal: {{count}} day",
+      "goalLabel_other": "Goal: {{count}} days",
+      "goalPending_one": "Changes to {{count}} day on {{date}}",
+      "goalPending_other": "Changes to {{count}} days on {{date}}",
+      "goalHint": {
+        "default": "We started you at 3 days a week. Change it any time; a new goal starts next Monday."
+      },
+      "caption": {
+        "progress_one": "{{count}} more visit closes your ring.",
+        "progress_other": "{{count}} more visits close your ring.",
+        "fresh_one": "A fresh week. {{count}} visit closes your ring.",
+        "fresh_other": "A fresh week. {{count}} visits close your ring.",
+        "met": "Goal met. Nice week.",
+        "metStreak_one": "Goal met. Your streak becomes {{count}} week when the week ends.",
+        "metStreak_other": "Goal met. Your streak becomes {{count}} weeks when the week ends.",
+        "extra_one": "{{count}} extra visit this week.",
+        "extra_other": "{{count}} extra visits this week."
+      },
+      "pendingSync_one": "{{count}} visit waiting to sync",
+      "pendingSync_other": "{{count}} visits waiting to sync"
+    },
+    "streak": {
+      "weeks_one": "{{count}} week in a row",
+      "weeks_other": "{{count}} weeks in a row",
+      "first": "First week done",
+      "firstWeek": "Close your ring to start your streak.",
+      "startsMonday": "Your streak starts next Monday. This week's visits still show on your calendar.",
+      "nextShield_one": "{{count}} more week to your next Shield",
+      "nextShield_other": "{{count}} more weeks to your next Shield",
+      "shieldMax": "You're holding the maximum of {{max}} Shields.",
+      "daily": "{{n}} days in a row",
+      "best_one": "Best: {{count}} week",
+      "best_other": "Best: {{count}} weeks"
+    },
+    "goal": {
+      "title": "Weekly goal",
+      "prompt": "How many days a week do you want to come?",
+      "option": {
+        "a11y_one": "{{count}} day a week",
+        "a11y_other": "{{count}} days a week"
+      },
+      "current": "current",
+      "effective": "Starts Monday {{date}}. This week stays at {{current}}.",
+      "noChange": "This is your current goal.",
+      "pending": "Your goal changes to {{n}} on {{date}}.",
+      "why": "A change starts next Monday, so this week's result stays fair.",
+      "cta": {
+        "save": "Save goal"
+      },
+      "saved": "Goal saved. Starts {{date}}.",
+      "error": "Couldn't save your goal. Try again.",
+      "offline": "You're offline. Connect to change your goal."
+    },
+    "shield": {
+      "chip_one": "{{count}} Shield",
+      "chip_other": "{{count}} Shields",
+      "saved": {
+        "week_one": "Your Shield saved the week of {{date}}. Your streak is still {{count}} week.",
+        "week_other": "Your Shield saved the week of {{date}}. Your streak is still {{count}} weeks.",
+        "day": "Your Shield saved {{date}}. Your run goes on."
+      },
+      "earned": "You earned a Shield. It will keep a missed week from ending your streak.",
+      "explainer": {
+        "title": "Streak Shield",
+        "body": "Every 4 weeks in a row earns a Shield. If you miss a week, a Shield keeps your streak going on its own. You can hold up to {{max}}. Shields can't be bought or given."
+      },
+      "gotIt": "Got it",
+      "mascot": ""
+    },
+    "comeback": {
+      "title": "Let's get going again",
+      "best_one": "Your best streak: {{count}} week. It stays on your record.",
+      "best_other": "Your best streak: {{count}} weeks. It stays on your record.",
+      "goal": "Visit {{n}} times in {{days}} days to get back on track.",
+      "progress": "{{done}} of {{total}} visits",
+      "windowRestart": "Your {{days}} days start again with your next visit.",
+      "restored": {
+        "title": "You're back.",
+        "body": "Your new streak starts the first week you close your ring."
+      },
+      "mascot": ""
+    },
+    "updatedAt": "Updated {{time}}",
+    "celebration": {
+      "7": {
+        "headline": "7 visits",
+        "sub": "Seven visits at {{gym}}. The habit is taking shape."
+      },
+      "30": {
+        "headline": "30 visits",
+        "sub": "Thirty visits at {{gym}}. You've built something."
+      },
+      "100": {
+        "headline": "100 visits",
+        "sub": "One hundred visits at {{gym}}. That's a lasting habit."
+      },
+      "unit": "visits",
+      "cta": {
+        "share": "Share",
+        "continue": "Keep going",
+        "badges": "See your badges"
+      },
+      "a11y": "Milestone: {{n}} visits at {{gym}}.",
+      "mascot": {
+        "7": "",
+        "30": "",
+        "100": ""
+      }
+    },
+    "profile": {
+      "section": "Training",
+      "goal": {
+        "row": "Weekly goal",
+        "value_one": "{{count}} day",
+        "value_other": "{{count}} days",
+        "pending_one": "{{count}} day, then {{next}} from {{date}}",
+        "pending_other": "{{count}} days, then {{next}} from {{date}}"
+      },
+      "reminder": {
+        "label": "Streak reminder",
+        "helper": "One reminder at {{time}}, only when a visit today keeps your week or run going."
+      }
+    }
+  },
+  "n08": {
+    "weekly": {
+      "title": "Your week is in reach",
+      "body_one": "Come in today: {{count}} visit left to close your ring.",
+      "body_other": "Come in today: {{count}} visits left to close your ring."
+    },
+    "daily": {
+      "title": "Your {{n}}-day run",
+      "body": "Come in today to keep it going."
+    },
+    "mascot": ""
   }
 }

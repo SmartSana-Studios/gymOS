@@ -1327,6 +1327,43 @@ export type Database = {
           },
         ]
       }
+      member_weekly_goals: {
+        Row: {
+          created_at: string
+          effective_week: string
+          goal: number
+          gym_id: string
+          member_id: string
+        }
+        Insert: {
+          created_at?: string
+          effective_week: string
+          goal: number
+          gym_id: string
+          member_id: string
+        }
+        Update: {
+          created_at?: string
+          effective_week?: string
+          goal?: number
+          gym_id?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_weekly_goals_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_weekly_goals_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           birth_year: number | null
@@ -1830,6 +1867,45 @@ export type Database = {
             referencedColumns: ["subscription_id"]
           },
         ]
+      }
+      platform_engagement_config: {
+        Row: {
+          comeback_visits: number
+          comeback_window_days: number
+          daily_streak_min: number
+          goal_default: number
+          goal_max: number
+          goal_min: number
+          id: string
+          release_week_start: string | null
+          shield_cap: number
+          shield_every_weeks: number
+        }
+        Insert: {
+          comeback_visits: number
+          comeback_window_days: number
+          daily_streak_min: number
+          goal_default: number
+          goal_max: number
+          goal_min: number
+          id?: string
+          release_week_start?: string | null
+          shield_cap: number
+          shield_every_weeks: number
+        }
+        Update: {
+          comeback_visits?: number
+          comeback_window_days?: number
+          daily_streak_min?: number
+          goal_default?: number
+          goal_max?: number
+          goal_min?: number
+          id?: string
+          release_week_start?: string | null
+          shield_cap?: number
+          shield_every_weeks?: number
+        }
+        Relationships: []
       }
       platform_session_config: {
         Row: {
@@ -3835,6 +3911,18 @@ export type Database = {
         Returns: undefined
       }
       member_occupancy_band: { Args: never; Returns: string }
+      my_weekly_goal: {
+        Args: never
+        Returns: {
+          current_goal: number
+          current_goal_is_default: boolean
+          goal_max: number
+          goal_min: number
+          next_effective_week: string
+          pending_effective_week: string | null
+          pending_goal: number | null
+        }[]
+      }
       phone_has_membership: { Args: { p_phone: string }; Returns: boolean }
       platform_metrics: {
         Args: never
@@ -3957,6 +4045,15 @@ export type Database = {
       set_session_validity: {
         Args: { p_gym_id: string; p_validity: string }
         Returns: undefined
+      }
+      set_weekly_goal: {
+        Args: { p_goal: number }
+        Returns: {
+          current_goal: number
+          current_goal_is_default: boolean
+          effective_week: string | null
+          goal: number
+        }[]
       }
       staff_account_for_reset: {
         Args: { p_member_id: string }

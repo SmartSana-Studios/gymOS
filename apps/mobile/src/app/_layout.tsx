@@ -134,6 +134,11 @@ function RootNavigator() {
         <Stack.Screen name="renew" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="pay-session" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="notifications" options={{ presentation: 'modal', headerShown: false }} />
+        {/* Story 30.1 (MA-23): the weekly goal bottom sheet, up to 60% of the screen. Swipe down or Android back dismisses without saving. */}
+        <Stack.Screen
+          name="goal"
+          options={{ presentation: 'formSheet', headerShown: false, sheetAllowedDetents: [0.6], sheetGrabberVisible: true }}
+        />
         {/* Review finding: was never registered here despite being reachable
             via router.push('/workout-plan') from Home -- an unregistered
             top-level route still resolves via expo-router's file-based

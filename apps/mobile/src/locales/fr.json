@@ -492,5 +492,145 @@
       "initiateFailed": "Une erreur s'est produite. Réessayez."
     },
     "coversDay": "Couvre toute la journée."
+  },
+  "engage": {
+    "ring": {
+      "title": "Cette semaine",
+      "unit": "jours",
+      "goalLabel_one": "Objectif : {{count}} jour",
+      "goalLabel_other": "Objectif : {{count}} jours",
+      "goalPending_one": "Passe à {{count}} jour le {{date}}",
+      "goalPending_other": "Passe à {{count}} jours le {{date}}",
+      "goalHint": {
+        "default": "Nous démarrons à 3 jours par semaine. Changez-le quand vous voulez ; un nouvel objectif commence lundi prochain."
+      },
+      "caption": {
+        "progress_one": "Encore {{count}} visite pour fermer votre cercle.",
+        "progress_other": "Encore {{count}} visites pour fermer votre cercle.",
+        "fresh_one": "Nouvelle semaine. {{count}} visite pour fermer votre cercle.",
+        "fresh_other": "Nouvelle semaine. {{count}} visites pour fermer votre cercle.",
+        "met": "Objectif atteint. Belle semaine.",
+        "metStreak_one": "Objectif atteint. Votre série passera à {{count}} semaine à la fin de la semaine.",
+        "metStreak_other": "Objectif atteint. Votre série passera à {{count}} semaines à la fin de la semaine.",
+        "extra_one": "{{count}} visite en plus cette semaine.",
+        "extra_other": "{{count}} visites en plus cette semaine."
+      },
+      "pendingSync_one": "{{count}} visite en attente de synchronisation",
+      "pendingSync_other": "{{count}} visites en attente de synchronisation"
+    },
+    "streak": {
+      "weeks_one": "{{count}} semaine d'affilée",
+      "weeks_other": "{{count}} semaines d'affilée",
+      "first": "Première semaine réussie",
+      "firstWeek": "Fermez votre cercle pour lancer votre série.",
+      "startsMonday": "Votre série démarre lundi prochain. Les visites de cette semaine figurent déjà dans votre calendrier.",
+      "nextShield_one": "Encore {{count}} semaine avant votre prochain bouclier",
+      "nextShield_other": "Encore {{count}} semaines avant votre prochain bouclier",
+      "shieldMax": "Vous détenez le maximum de {{max}} boucliers.",
+      "daily": "{{n}} jours d'affilée",
+      "best_one": "Meilleure série : {{count}} semaine",
+      "best_other": "Meilleure série : {{count}} semaines"
+    },
+    "goal": {
+      "title": "Objectif hebdomadaire",
+      "prompt": "Combien de jours par semaine voulez-vous venir ?",
+      "option": {
+        "a11y_one": "{{count}} jour par semaine",
+        "a11y_other": "{{count}} jours par semaine"
+      },
+      "current": "actuel",
+      "effective": "Commence le lundi {{date}}. Cette semaine reste à {{current}}.",
+      "noChange": "C'est votre objectif actuel.",
+      "pending": "Votre objectif passe à {{n}} le {{date}}.",
+      "why": "Le changement commence lundi prochain, pour que le résultat de cette semaine reste équitable.",
+      "cta": {
+        "save": "Enregistrer l'objectif"
+      },
+      "saved": "Objectif enregistré. Commence le {{date}}.",
+      "error": "Impossible d'enregistrer votre objectif. Réessayez.",
+      "offline": "Vous êtes hors ligne. Connectez-vous pour changer d'objectif."
+    },
+    "shield": {
+      "chip_one": "{{count}} bouclier",
+      "chip_other": "{{count}} boucliers",
+      "saved": {
+        "week_one": "Votre bouclier a sauvé la semaine du {{date}}. Votre série reste à {{count}} semaine.",
+        "week_other": "Votre bouclier a sauvé la semaine du {{date}}. Votre série reste à {{count}} semaines.",
+        "day": "Votre bouclier a sauvé le {{date}}. Votre série continue."
+      },
+      "earned": "Vous avez gagné un bouclier. Il évitera qu'une semaine manquée mette fin à votre série.",
+      "explainer": {
+        "title": "Bouclier de série",
+        "body": "Chaque tranche de 4 semaines d'affilée vous rapporte un bouclier. Si vous manquez une semaine, un bouclier maintient votre série tout seul. Vous pouvez en détenir {{max}} au maximum. Les boucliers ne s'achètent pas et ne se donnent pas."
+      },
+      "gotIt": "Compris",
+      "mascot": ""
+    },
+    "comeback": {
+      "title": "On s'y remet",
+      "best_one": "Votre meilleure série : {{count}} semaine. Elle reste à votre palmarès.",
+      "best_other": "Votre meilleure série : {{count}} semaines. Elle reste à votre palmarès.",
+      "goal": "Venez {{n}} fois en {{days}} jours pour reprendre votre élan.",
+      "progress": "{{done}} visites sur {{total}}",
+      "windowRestart": "Vos {{days}} jours repartent à votre prochaine visite.",
+      "restored": {
+        "title": "Vous voilà de retour.",
+        "body": "Votre nouvelle série démarre la première semaine où vous fermez votre cercle."
+      },
+      "mascot": ""
+    },
+    "updatedAt": "Mis à jour à {{time}}",
+    "celebration": {
+      "7": {
+        "headline": "7 visites",
+        "sub": "Sept visites chez {{gym}}. L'habitude s'installe."
+      },
+      "30": {
+        "headline": "30 visites",
+        "sub": "Trente visites chez {{gym}}. Vous avez construit quelque chose."
+      },
+      "100": {
+        "headline": "100 visites",
+        "sub": "Cent visites chez {{gym}}. C'est une habitude solide."
+      },
+      "unit": "visites",
+      "cta": {
+        "share": "Partager",
+        "continue": "Continuer",
+        "badges": "Voir vos badges"
+      },
+      "a11y": "Étape franchie : {{n}} visites chez {{gym}}.",
+      "mascot": {
+        "7": "",
+        "30": "",
+        "100": ""
+      }
+    },
+    "profile": {
+      "section": "Entraînement",
+      "goal": {
+        "row": "Objectif hebdomadaire",
+        "value_one": "{{count}} jour",
+        "value_other": "{{count}} jours",
+        "pending_one": "{{count}} jour, puis {{next}} dès le {{date}}",
+        "pending_other": "{{count}} jours, puis {{next}} dès le {{date}}"
+      },
+      "reminder": {
+        "label": "Rappel de série",
+        "helper": "Un rappel à {{time}}, seulement quand une visite aujourd'hui permet de garder votre semaine ou votre série."
+      }
+    }
+  },
+  "n08": {
+    "weekly": {
+      "title": "Votre semaine est à portée",
+      "body_one": "Venez aujourd'hui : encore {{count}} visite pour fermer votre cercle.",
+      "body_other": "Venez aujourd'hui : encore {{count}} visites pour fermer votre cercle."
+    },
+    "daily": {
+      "title": "Votre série de {{n}} jours",
+      "body": "Venez aujourd'hui pour la prolonger."
+    },
+    "mascot": ""
   }
 }

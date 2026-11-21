@@ -1,13 +1,15 @@
 import { profileSetupSchema } from '@gymos/types';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LogEntrySheet } from '@/components/LogEntrySheet';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { IconChip } from '@/components/ui/IconChip';
 import { ListItem } from '@/components/ui/ListItem';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -16,11 +18,14 @@ import { useTheme } from '@/hooks/use-theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { getContrastTextColor } from '@/lib/color-contrast';
 import type { MobileLocale } from '@/lib/i18n';
+import { consumePendingToast } from '@/lib/pendingToast';
 import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
+import { profileGoalValue } from '@/lib/weeklyGoalSheet';
 import { getMemberPreferences, updateMemberPreferences } from '@/services/notificationPreferences';
 import { clearCachedProgressPayload } from '@/services/progress';
 import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
+import { getMyWeeklyGoal, type WeeklyGoal } from '@/services/weeklyGoal';
 
 // Narrows the untyped embedded-select response, same discipline as
 // onboarding/plan.tsx's `isSubscriptionRow` (Review finding there) -- a
@@ -81,6 +86,35 @@ export default function ProfileScreen() {
   const [notificationsLoadError, setNotificationsLoadError] = useState(false);
 
   const [logEntrySheetVisible, setLogEntrySheetVisible] = useState(false);
+
+  // Story 30.1 (FR-219): the Training card's weekly goal, re-read whenever the screen takes focus (the /goal sheet closes onto it), and the
+  // one-shot toast the sheet leaves behind.
+  const [weeklyGoal, setWeeklyGoal] = useState<WeeklyGoal | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const message = consumePendingToast();
+      if (message) {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        setToast(message);
+        toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+      }
+      let cancelled = false;
+      void getMyWeeklyGoal().then((result) => {
+        if (!cancelled && result.status === 'success') setWeeklyGoal(result.goal);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -362,6 +396,9 @@ export default function ProfileScreen() {
     ]);
   }
 
+  const goalRowValue = weeklyGoal ? profileGoalValue(weeklyGoal, t, i18n.language === 'fr' ? 'fr' : 'en') : null;
+  const goalRowLabel = goalRowValue ? `${t('engage.profile.goal.row')}, ${goalRowValue}` : null;
+
   const displayPhotoUri = editing ? (editPhotoUri ?? photoUrl) : photoUrl;
   const isDirty = editName.trim() !== (displayName ?? '') || editPhotoUri !== null;
   const canSaveEdit = isDirty && editName.trim().length > 0 && !editSubmitting;
@@ -518,6 +555,32 @@ export default function ProfileScreen() {
               </View>
             </Card>
 
+            {/* Story 30.1 (MA-12, FR-219): the Training card, between the account card and the rest. One row for now: the weekly goal, which
+                opens the MA-23 sheet. The Badges and Anonymous rows come with later stories. */}
+            <ThemedText type="default">{t('engage.profile.section')}</ThemedText>
+            <Card variant="flat">
+              {/* Not a ListItem: its title is a single line and its meta a short label, and this row's value ("3 days, then 4 from Mon 24 Nov") and
+                  French title must wrap rather than clip at 360pt and large text sizes. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={goalRowLabel ?? t('engage.profile.goal.row')}
+                onPress={() => router.push('/goal')}
+                style={styles.goalRow}>
+                <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  <IconChip icon="flag" tint="primary" />
+                </View>
+                <View style={styles.goalRowText}>
+                  <ThemedText type="smallBold">{t('engage.profile.goal.row')}</ThemedText>
+                  {goalRowValue && (
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {goalRowValue}
+                    </ThemedText>
+                  )}
+                </View>
+                <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
+              </Pressable>
+            </Card>
+
             {/* Story 10.1 AC #2's "or visit Progress at any later time" --
                 an interim entry point before Story 10.3 formally adds this
                 to the Progress tab. Reuses /onboarding/body-profile itself
@@ -607,6 +670,17 @@ export default function ProfileScreen() {
           </>
           )}
         </ScrollView>
+
+        {toast && (
+          <View
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            style={[styles.toast, { bottom: insets.bottom + BottomTabInset + Spacing.three }]}>
+            <ThemedText type="small" style={styles.toastText}>
+              {toast}
+            </ThemedText>
+          </View>
+        )}
       </SafeAreaView>
       <LogEntrySheet
         visible={logEntrySheetVisible}
@@ -681,6 +755,29 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: Spacing.two,
     marginBottom: Spacing.two,
+  },
+  goalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    minHeight: 44,
+  },
+  goalRowText: {
+    flex: 1,
+    gap: Spacing.half,
+  },
+  toast: {
+    position: 'absolute',
+    left: Spacing.four,
+    right: Spacing.four,
+    backgroundColor: '#1F2937',
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+  },
+  toastText: {
+    color: '#F9FAFB',
   },
   languageToggle: {
     flexDirection: 'row',

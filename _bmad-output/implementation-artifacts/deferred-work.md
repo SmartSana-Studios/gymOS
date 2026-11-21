@@ -2268,3 +2268,10 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: none
   summary: `apps/dashboard/e2e/class-weekly-times.spec.ts` (Story 29.2) fails its first attempt whenever it runs after the first slot of the day has passed, and only passes on the CI retry.
   evidence: Seen on 2026-11-21 at 12:12 gym time (Saturday) in four full ci-local runs and alone with retries off; the spec books the class's soonest bookable session and then expects the expanded row's first session to carry the Old time tag. At 12:12 on a Saturday the class's Sat 09:00 and 09:30 sessions are past, so the soonest session is Monday's and the first listed one is the new, tag-less Saturday session. It passed first time around 02:00 gym time the same day. Settle by booking the session that the row lists first, or by choosing the weekday and times relative to now.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`
+  summary: Story 30.4 must consume the one-shot `pendingToast` on Home as well as Profile, or stamp it with a time and ignore an old one, because Home's "Goal: N days" button opens `/goal` too.
+  evidence: `apps/mobile/src/lib/pendingToast.ts` is a module cell consumed only by Profile on focus; with two openers a goal saved from Home leaves a "Goal saved" toast that appears the next time Profile is focused. Close in 30.4's acceptance criteria.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`
+  summary: Story 30.2 must decide whether `platform_engagement_config.release_week_start` can be moved earlier or cleared once any week has been settled.
+  evidence: 30.1 only requires a Monday or NULL and audits every change; the operator can set it back to NULL or move it after settle has written week facts, which would change which weeks count. Unverified: no settle exists yet. Close in 30.2's acceptance criteria (a guard or a documented rule).
