@@ -1492,6 +1492,38 @@
       "exportTooLarge": "Appliquez un filtre pour réduire les résultats"
     }
   },
+  "coach": {
+    "portal": {
+      "nav": "Espace coach"
+    },
+    "picker": {
+      "label": "Choisir un coach",
+      "banner": "Vous consultez l'espace coach de {{name}}. Lecture seule.",
+      "choose": "Choisissez un coach pour voir ses cours et ses membres.",
+      "noCoaches": "Votre salle n'a pas encore de coach. Ajoutez-en un dans Personnel.",
+      "noCoachesManager": "Votre salle n'a pas encore de coach. Demandez à un propriétaire ou à un superviseur d'en ajouter un.",
+      "unavailable": "Ce coach n'est pas disponible. Choisissez-en un autre.",
+      "inactive": "{{name}} n'est plus coach dans cette salle.",
+      "tab": {
+        "classes": "Cours",
+        "members": "Membres"
+      },
+      "noClasses": "{{name}} n'a pas encore de cours.",
+      "noMembers": "Aucun membre n'est attribué à {{name}}.",
+      "noBodyData": "Les mesures corporelles, les photos et les notes de progression ne sont pas affichées dans cette vue.",
+      "partUnavailable": "Cette partie n'est pas disponible dans cette vue. Les mesures corporelles, les photos, les notes de progression et l'activité de progression n'y sont jamais affichées.",
+      "notAssigned": "{{member}} n'est pas attribué à {{coach}}.",
+      "thisMember": "Ce membre",
+      "expiredBar": "L'adhésion de ce membre a expiré.",
+      "planAuthor": "Programme d'entraînement rédigé par {{name}}",
+      "openInClasses": "Ouvrir dans Cours",
+      "backToMembers": "Retour aux membres",
+      "openStaff": "Ouvrir Personnel",
+      "table": {
+        "lastNote": "Dernière note"
+      }
+    }
+  },
   "coachPortal": {
     "title": "Portail Coach",
     "searchPlaceholder": "Rechercher par nom",

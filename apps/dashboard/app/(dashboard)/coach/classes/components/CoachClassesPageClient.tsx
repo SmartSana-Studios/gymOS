@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import type { ClassRow, CoachRosterRow } from "@/services/classes";
 import { CancelClassDialog } from "../../../classes/components/CancelClassDialog";
 import { ClassModal } from "../../../classes/components/ClassModal";
 import { getMySessionRosterAction } from "../actions";
+import { getCoachSessionRosterAction } from "../pickerActions";
 
 /** One session row, every label already formatted on the server in the gym's
  * timezone (coach/classes/page.tsx). */
@@ -39,6 +41,13 @@ export interface CoachClassView {
 export interface CoachIdentity {
   id: string;
   name: string;
+}
+
+/** Story 29.4: the chosen coach, in picker mode (Owner, Supervisor, Manager). The page is then read-only by construction: `coach` is null, so no create, edit or
+ * cancel control exists; the rosters come from the picker's read-only action; and each class links to the admin Classes page, where editing already lives. */
+export interface ClassesPicker {
+  coachId: string;
+  coachName: string;
 }
 
 type ExpandedSession = {
@@ -77,10 +86,12 @@ export function CoachClassesPageClient({
   classes,
   coach = null,
   gymTimezone = null,
+  picker = null,
 }: {
   classes: CoachClassView[];
   coach?: CoachIdentity | null;
   gymTimezone?: string | null;
+  picker?: ClassesPicker | null;
 }) {
   const { t } = useTranslation();
   const [modal, setModal] = useState<{ open: boolean; editing: ClassRow | null }>({ open: false, editing: null });
@@ -134,7 +145,7 @@ export function CoachClassesPageClient({
     setExpanded({ classSessionId, status: "loading", rows: [] });
     let result: Awaited<ReturnType<typeof getMySessionRosterAction>>;
     try {
-      result = await getMySessionRosterAction(classSessionId);
+      result = picker ? await getCoachSessionRosterAction(picker.coachId, classSessionId) : await getMySessionRosterAction(classSessionId);
     } catch {
       // A rejected call -- a network drop, or a stale action id after a
       // redeploy -- must still leave the loading state, or the spinner never
@@ -164,7 +175,11 @@ export function CoachClassesPageClient({
       {classes.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">
           <p className="text-sm text-muted-foreground">
-            {coach ? t("classes.coach.empty") : t("coachPortal.classes.emptyNoClasses")}
+            {picker
+              ? t("coach.picker.noClasses", { name: picker.coachName })
+              : coach
+                ? t("classes.coach.empty")
+                : t("coachPortal.classes.emptyNoClasses")}
           </p>
           {createButton}
         </div>
@@ -195,6 +210,12 @@ export function CoachClassesPageClient({
                       <span className="ml-auto text-muted-foreground">{cls.capacityLabel}</span>
                     </button>
                   </h2>
+                  {picker && (
+                    <Link href="/classes" className="inline-flex shrink-0 items-center gap-1 text-sm text-primary hover:underline">
+                      {t("coach.picker.openInClasses")}
+                      <ArrowRight className="size-3.5" aria-hidden="true" />
+                    </Link>
+                  )}
                   {editRow && (
                     <div className="flex shrink-0 gap-2">
                       <Button

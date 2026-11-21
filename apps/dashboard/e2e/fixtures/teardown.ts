@@ -8,9 +8,8 @@ import { FIXTURES_FILE_PATH, type FixtureData } from "./types";
 
 const DB_URL = process.env.E2E_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
-/** Local databases only; one transaction; this gym's rows only. Order: guest_sessions (they reference the attendance row, the payment and
- * the loyalty grant), then the attendance rows, the blocked attempts, the alerts, the loyalty ledger. */
-async function deleteDeskRows(gymId: string): Promise<void> {
+/** Local databases only; one transaction; this gym's rows only, tables in the order given (children first). */
+export async function deleteGymRowsDirect(gymId: string, tables: string[]): Promise<void> {
   const url = new URL(DB_URL);
   if (!["127.0.0.1", "localhost", "::1", "[::1]", "host.docker.internal"].includes(url.hostname)) {
     throw new Error(`refusing to delete rows on ${url.hostname}`);
@@ -21,7 +20,7 @@ async function deleteDeskRows(gymId: string): Promise<void> {
   await client.connect();
   try {
     await client.query("begin");
-    for (const table of ["guest_sessions", "attendance_events", "session_attempts", "front_desk_alerts", "loyalty_events", "loyalty_progress"]) {
+    for (const table of tables) {
       await client.query(`delete from ${table} where gym_id = $1`, [gymId]);
     }
     await client.query("commit");
@@ -31,6 +30,24 @@ async function deleteDeskRows(gymId: string): Promise<void> {
   } finally {
     await client.end();
   }
+}
+
+/** Order: guest_sessions (they reference the attendance row, the payment and the loyalty grant), then the attendance rows, the blocked attempts,
+ * the alerts, the loyalty ledger. Story 29.4: the workout plan tables (children first) and session notes, which the service role may not delete
+ * either (the coach-picker spec seeds them); plans reference their author, so they go before the members do. */
+async function deleteDeskRows(gymId: string): Promise<void> {
+  await deleteGymRowsDirect(gymId, [
+    "workout_plan_completions",
+    "workout_plan_exercises",
+    "workout_plans",
+    "session_notes",
+    "guest_sessions",
+    "attendance_events",
+    "session_attempts",
+    "front_desk_alerts",
+    "loyalty_events",
+    "loyalty_progress",
+  ]);
 }
 
 /**

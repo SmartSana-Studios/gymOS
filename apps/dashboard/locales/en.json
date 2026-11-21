@@ -1492,6 +1492,38 @@
       "exportTooLarge": "Apply a filter to narrow results"
     }
   },
+  "coach": {
+    "portal": {
+      "nav": "Coach Portal"
+    },
+    "picker": {
+      "label": "Choose a coach",
+      "banner": "You're viewing {{name}}'s Coach Portal. Read-only.",
+      "choose": "Choose a coach to see their classes and members.",
+      "noCoaches": "Your gym has no coaches yet. Add a coach in Staff.",
+      "noCoachesManager": "Your gym has no coaches yet. Ask an Owner or Supervisor to add one.",
+      "unavailable": "That coach isn't available. Choose another.",
+      "inactive": "{{name}} is no longer a coach at this gym.",
+      "tab": {
+        "classes": "Classes",
+        "members": "Members"
+      },
+      "noClasses": "{{name}} has no classes yet.",
+      "noMembers": "No members are assigned to {{name}}.",
+      "noBodyData": "Body measurements, photos and progress notes aren't shown in this view.",
+      "partUnavailable": "This part isn't available in this view. Body measurements, photos, progress notes and progress activity are never shown here.",
+      "notAssigned": "{{member}} isn't assigned to {{coach}}.",
+      "thisMember": "This member",
+      "expiredBar": "This member's membership has expired.",
+      "planAuthor": "Workout plan written by {{name}}",
+      "openInClasses": "Open in Classes",
+      "backToMembers": "Back to members",
+      "openStaff": "Open Staff",
+      "table": {
+        "lastNote": "Last note"
+      }
+    }
+  },
   "coachPortal": {
     "title": "Coach Portal",
     "searchPlaceholder": "Search by name",

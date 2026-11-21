@@ -28,7 +28,7 @@ import { GymSwitcher } from "./GymSwitcher";
 // payments, settings); Overview, Attendance, Classes and the Audit Log are not on it.
 // Role visibility matrix (EXPERIENCE.md, Admin Dashboard -- Sidebar). Kept
 // as a flat, explicit table -- no derived "role level" abstraction that
-// isn't in the spec. A Coach session matches only the last row. `labelKey`
+// isn't in the spec. A Coach session matches only the Coach Portal row. `labelKey`
 // (not a literal label) since the translated string can only be looked up
 // inside the component via useTranslation().
 const NAV_ITEMS: {
@@ -51,12 +51,14 @@ const NAV_ITEMS: {
   // every Manager item above carries supervisor, per EXPERIENCE.md:206's
   // "Manager-plus" definition, alongside migration 0093's RLS/RPC widening.
   { labelKey: "nav.classes", href: "/classes", icon: CalendarDays, roles: ["receptionist", "manager", "owner", "supervisor"] },
+  // Story 29.4 (EXPERIENCE.md, V1.8 sidebar change): the Coach Portal is the Coach's own portal, and for Owner, Supervisor and Manager the coach picker. It sits after
+  // Classes. Receptionist and GymOS Support never see it (the route answers them with the permission message).
+  { labelKey: "coach.portal.nav", href: "/coach", icon: Dumbbell, roles: ["coach", "manager", "supervisor", "owner"] },
   { labelKey: "nav.auditLog", href: "/audit", icon: ScrollText, roles: ["manager", "supervisor", "owner"] },
   // The gym's public website: same people as the Landing page row of Settings (Owner, Supervisor, assigned support). Highlighted, placed above
   // Settings. /settings/landing-page is longer than /settings, so resolveActiveHref lights this row (and not Settings) on the editor and publish screens.
   { labelKey: "nav.myWebsite", href: "/settings/landing-page", icon: Globe, roles: ["owner", "supervisor", "support"], highlight: true },
   { labelKey: "nav.settings", href: "/settings", icon: Settings, roles: ["owner", "supervisor", "support"] },
-  { labelKey: "nav.coachPortal", href: "/coach", icon: Dumbbell, roles: ["coach"] },
 ];
 
 /**

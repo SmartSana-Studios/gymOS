@@ -164,6 +164,10 @@ jobs:
       - name: Claim-read inventory (report mode, new claim-only entries fail)
         run: DB_CONTAINER=supabase_db_gym_os node scripts/claim-inventory.mjs
 
+      - name: Coach picker isolation (no picker function reaches body or progress data)
+        # Story 29.4 (FR-247): walks pg_depend and body names from each picker function; the self-test runs in the guardrails step.
+        run: DB_CONTAINER=supabase_db_gym_os node scripts/check-coach-picker-isolation.mjs
+
       - name: Stop local Supabase
         if: always()
         run: supabase stop

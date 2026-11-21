@@ -123,6 +123,7 @@ select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') 
           'catalog: the direct consumers of support_gym_id are exactly the helpers, the three triggers, status, audit and the actor (23.7)');
 
 -- classification of every policy / function that names 'supervisor'. A new one fails until it is added here, deliberately.
+-- 0183 (Story 29.4): the seven coach picker reads name 'supervisor' (Owner, Supervisor, Manager) and are NOT support capabilities (FR-251).
 create temp table cls (kind text, name text, support text, primary key (kind, name));
 insert into cls (kind, name, support) values
   ('policy', 'attendance_events.gym_staff_read_own_attendance_events', 'excludes'),
@@ -176,6 +177,13 @@ insert into cls (kind, name, support) values
   ('function', 'update_class', 'excludes'),
   ('function', 'update_staff_role', 'excludes'),
   ('function', 'void_registration_fee_payment', 'excludes'),
+  ('function', 'get_coach_assigned_member', 'excludes'),
+  ('function', 'get_coach_member_workout_plan', 'excludes'),
+  ('function', 'list_coach_assigned_members', 'excludes'),
+  ('function', 'list_coach_class_session_roster', 'excludes'),
+  ('function', 'list_coach_classes', 'excludes'),
+  ('function', 'list_coach_member_session_notes', 'excludes'),
+  ('function', 'list_picker_coaches', 'excludes'),
   ('function', 'confirm_renewal', 'includes'),
   ('function', 'create_staff_member', 'includes'),
   ('function', 'record_registration_fee', 'includes'),
