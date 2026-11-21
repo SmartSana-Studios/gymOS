@@ -116,13 +116,14 @@ async function walkThePicker(page: Page, email: string, coachMemberId: string, m
   await expect(page.getByRole("button", { name: /New plan|Edit|Take ownership/ })).toHaveCount(0);
   await expectNoBodyData(page, bodies);
 
-  // The excluded parts, by address: one message, links to Classes and Members, never content.
+  // The excluded parts, by address: one message, links to Classes and Members, never content. The banner is a role="status" too, so pick the message by its text.
+  const unavailable = page.getByRole("status").filter({ hasText: "This part isn't available in this view." });
   await page.goto(`/coach/${memberId}?coach=${coachMemberId}&tab=progress`);
-  await expect(page.getByRole("status")).toContainText("This part isn't available in this view.");
-  await expect(page.getByRole("status").getByRole("link", { name: "Classes" })).toBeVisible();
-  await expect(page.getByRole("status").getByRole("link", { name: "Members" })).toBeVisible();
+  await expect(unavailable).toHaveCount(1);
+  await expect(unavailable.getByRole("link", { name: "Classes" })).toBeVisible();
+  await expect(unavailable.getByRole("link", { name: "Members" })).toBeVisible();
   await page.goto(`/coach/overview?coach=${coachMemberId}`);
-  await expect(page.getByRole("status").last()).toContainText("This part isn't available in this view.");
+  await expect(unavailable).toHaveCount(1);
   await expectNoBodyData(page, bodies);
 }
 
