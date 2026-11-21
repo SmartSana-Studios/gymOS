@@ -78,13 +78,13 @@ export function CoachPickerHeader({ coaches }: { coaches: PickerSelectCoach[] })
             </option>
           ))}
         </select>
-        {chosen && (
-          <div role="status" className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-muted-foreground">
-            <Eye className="size-4 shrink-0" aria-hidden="true" />
-            <span>{t("coach.picker.banner", { name: chosen.name })}</span>
-          </div>
-        )}
       </div>
+      {chosen && (
+        <div role="status" className="flex w-fit items-center gap-2 rounded-md border px-3 py-2 text-sm text-muted-foreground">
+          <Eye className="size-4 shrink-0" aria-hidden="true" />
+          <span>{t("coach.picker.banner", { name: chosen.name })}</span>
+        </div>
+      )}
     </div>
   );
 }

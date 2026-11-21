@@ -43,6 +43,13 @@ export const PICKER_NAME_PATTERN = /^(?:list_coach_|get_coach_|list_picker_)/;
 export const DENY_RELATIONS = ["progress_entries", "progress_photos", "workout_plan_completions"];
 export const DENY_COLUMNS = ["starting_weight_kg", "height_cm", "birth_year", "dob", "emergency_contact", "email", "neighborhood", "profession"];
 export const DENY_LITERALS = ["progress-photos"];
+// How a picker function may NOT build its output: a row or a star (a column added to a table later would reach the browser with no name in any text to
+// deny-list) and a JSON of a row. The migration's own verify block bans the same shapes at apply time; this is the second guard, on every later edit.
+export const OUTPUT_SHAPE_BANS = [
+  { re: /select\s+\*/i, what: "select *" },
+  { re: /\b\w+\.\*/, what: "an alias star (m.*)" },
+  { re: /\b(?:to_jsonb?|row_to_json)\s*\(/i, what: "to_json, to_jsonb or row_to_json" },
+];
 const SCHEMAS = new Set(["public", "private"]);
 
 export function stripSqlComments(sql) {
@@ -137,6 +144,13 @@ export function checkIsolation(catalog, config) {
       for (const r of relationsByName.get(word) ?? []) add(r);
     }
     return out;
+  }
+
+  for (const o of pickers) {
+    const body = stripSqlComments(o.text);
+    for (const { re, what } of OUTPUT_SHAPE_BANS) {
+      if (re.test(body)) failures.push(`public.${o.name}: builds its output with ${what}; name the columns instead (a column added later must not reach the picker unseen)`);
+    }
   }
 
   for (const start of pickers) {

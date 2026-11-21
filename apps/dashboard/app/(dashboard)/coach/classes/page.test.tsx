@@ -200,7 +200,8 @@ describe("/coach/classes", () => {
     const tree = await renderPage();
 
     expect(tree.props).toMatchObject({ coach: { id: "member-coach", name: "Coach One" }, gymTimezone: "Africa/Douala" });
-    expect(getDashboardShellContext).toHaveBeenCalled();
+    // resolvePicker() reads the shell once, and the own-role branch reads it again for the Coach identity (cache() dedupes in the app, not in this double).
+    expect(getDashboardShellContext).toHaveBeenCalledTimes(2);
   });
 
   it.each(["receptionist"])("passes no Coach, and builds no edit row, for the %s role", async (role) => {

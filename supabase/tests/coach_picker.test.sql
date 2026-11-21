@@ -18,7 +18,7 @@
 -- Fixtures: 00000000-0000-0000-0297-*. Gym A and Gym B active (Douala). A trigger uppercases names, so names here are already upper case.
 
 begin;
-select plan(61);
+select plan(63);
 
 set local timezone = 'UTC';
 
@@ -78,6 +78,11 @@ insert into session_notes (id, gym_id, member_id, coach_id, coach_assignment_id,
   ('00000000-0000-0000-0297-000000000602', '00000000-0000-0000-0297-0000000000a0', '00000000-0000-0000-0297-000000000321', '00000000-0000-0000-0297-000000000311', '00000000-0000-0000-0297-000000000502', 'Second note from One, edited', now() - interval '2 days', now() - interval '1 day'),
   ('00000000-0000-0000-0297-000000000603', '00000000-0000-0000-0297-0000000000a0', '00000000-0000-0000-0297-000000000321', '00000000-0000-0000-0297-000000000312', '00000000-0000-0000-0297-000000000501', 'A note from Two', now() - interval '1 hour', null);
 
+-- Carol: one note of Coach Two, longer than 80 characters, with a newline, a tab and runs of spaces: the list shows it as one clipped line.
+insert into session_notes (id, gym_id, member_id, coach_id, coach_assignment_id, note_text) values
+  ('00000000-0000-0000-0297-000000000605', '00000000-0000-0000-0297-0000000000a0', '00000000-0000-0000-0297-000000000323', '00000000-0000-0000-0297-000000000312', '00000000-0000-0000-0297-000000000504',
+   E'Squat form improving.\n\tKeep the   bar path close; add 2.5 kg next week and film the top set from the side so we can review it');
+
 insert into session_notes (id, gym_id, member_id, coach_id, coach_assignment_id, note_text) values
   ('00000000-0000-0000-0297-000000000604', '00000000-0000-0000-0297-0000000000a0', '00000000-0000-0000-0297-000000000325', '00000000-0000-0000-0297-000000000311', '00000000-0000-0000-0297-000000000506', 'Note on deactivated Erin');
 
@@ -111,7 +116,13 @@ insert into class_sessions (id, gym_id, class_id, scheduled_at, cancelled_at) va
   ('00000000-0000-0000-0297-000000000a05', '00000000-0000-0000-0297-0000000000a0', '00000000-0000-0000-0297-000000000902', now() - interval '10 days', null),
   ('00000000-0000-0000-0297-000000000a06', '00000000-0000-0000-0297-0000000000a0', '00000000-0000-0000-0297-000000000903', now() + interval '1 day', null),
   ('00000000-0000-0000-0297-000000000a07', '00000000-0000-0000-0297-0000000000a0', '00000000-0000-0000-0297-000000000904', now() + interval '1 day', now()),
-  ('00000000-0000-0000-0297-000000000a08', '00000000-0000-0000-0297-0000000000b0', '00000000-0000-0000-0297-000000000905', now() + interval '1 day', null);
+  ('00000000-0000-0000-0297-000000000a08', '00000000-0000-0000-0297-0000000000b0', '00000000-0000-0000-0297-000000000905', now() + interval '1 day', null),
+  -- Coach Two's STRETCH class at the four-week horizon: the last minute before it is listed, the horizon itself and anything later is not.
+  ('00000000-0000-0000-0297-000000000a09', '00000000-0000-0000-0297-0000000000a0', '00000000-0000-0000-0297-000000000903',
+     (select day_start from private.gym_local_day_bounds('Africa/Douala', now())) + interval '28 days' - interval '1 minute', null),
+  ('00000000-0000-0000-0297-000000000a0a', '00000000-0000-0000-0297-0000000000a0', '00000000-0000-0000-0297-000000000903',
+     (select day_start from private.gym_local_day_bounds('Africa/Douala', now())) + interval '28 days', null),
+  ('00000000-0000-0000-0297-000000000a0b', '00000000-0000-0000-0297-0000000000a0', '00000000-0000-0000-0297-000000000903', now() + interval '60 days', null);
 
 -- Bookings on Gym A: today's session has Alice (attended) and the unassigned Fred; in two days Alice, Bob and the deactivated Erin; Carol on Two's class.
 insert into class_bookings (gym_id, class_session_id, member_id, attended_at) values
@@ -231,9 +242,13 @@ select ok(not exists (select 1 from list_coach_classes('00000000-0000-0000-0297-
 select ok(not exists (select 1 from list_coach_classes('00000000-0000-0000-0297-000000000311') where class_session_id = '00000000-0000-0000-0297-000000000a04'),
   'a cancelled session is not listed');
 select results_eq(
-  $$ select class_name from list_coach_classes('00000000-0000-0000-0297-000000000312') $$,
+  $$ select distinct class_name from list_coach_classes('00000000-0000-0000-0297-000000000312') $$,
   $$ values ('PICKER STRETCH'::text) $$,
   'Coach Two''s classes are Coach Two''s only (Gym B''s class and Coach One''s classes are not there)');
+select results_eq(
+  $$ select class_session_id from list_coach_classes('00000000-0000-0000-0297-000000000312') where class_session_id is not null order by scheduled_at $$,
+  $$ values ('00000000-0000-0000-0297-000000000a06'::uuid), ('00000000-0000-0000-0297-000000000a09'::uuid) $$,
+  'sessions are listed up to the four-week horizon: the last minute before it is in, the horizon itself and a session two months out are not (the result stays under the API row cap)');
 select results_eq(
   $$ select distinct class_name, capacity, schedule_type, slots from list_coach_classes('00000000-0000-0000-0297-000000000311') where class_name = 'PICKER HIIT' $$,
   $$ values ('PICKER HIIT'::text, 15, 'recurring'::text, '[{"weekday":1,"start_time":"18:00"},{"weekday":3,"start_time":"18:00"},{"weekday":5,"start_time":"18:00"}]'::jsonb) $$,
@@ -264,6 +279,10 @@ select results_eq(
               null::text, null::text, null::date, date '2026-02-01', null::text) $$,
   'Coach One''s members: Alice (newest subscription decides plan and status, phone unmasked, latest note of Coach One) and Bob (no subscription, no note); not Dan (ended), Erin (deactivated), Carol (Coach Two''s) or Fred'
 );
+select results_eq(
+  $$ select last_note_snippet, length(last_note_snippet) from list_coach_assigned_members('00000000-0000-0000-0297-000000000312') $$,
+  $$ values ('Squat form improving. Keep the bar path close; add 2.5 kg next week and film the'::text, 80) $$,
+  'a long multi-line note reaches the list as one line of single spaces clipped to 80 characters (the full text is in the notes function only)');
 select results_eq(
   $$ select member_name, plan_name, status::text from list_coach_assigned_members('00000000-0000-0000-0297-000000000312') $$,
   $$ values ('PICKER CAROL'::text, 'PICKER BASIC'::text, 'expired'::text) $$,

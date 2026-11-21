@@ -76,6 +76,16 @@ describe("CoachPickerHeader", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
+  it("puts the banner under the select, not in the select's row", () => {
+    query = `coach=${B}`;
+    render(<CoachPickerHeader coaches={COACHES} />);
+
+    const select = screen.getByLabelText("coach.picker.label");
+    const banner = screen.getByRole("status");
+    expect(select.parentElement?.contains(banner)).toBe(false);
+    expect(select.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("an id that is not in the list clears the select and shows no banner", () => {
     query = "coach=44444444-4444-4444-8444-444444444444";
     render(<CoachPickerHeader coaches={COACHES} />);

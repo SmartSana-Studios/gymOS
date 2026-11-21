@@ -51,6 +51,11 @@ vi.mock("@/services/session", () => ({
   getDashboardShellContext: (...args: unknown[]) => getDashboardShellContext(...args),
 }));
 
+const listPickerCoaches = vi.fn();
+vi.mock("@/services/coachPicker", () => ({
+  listPickerCoaches: (...args: unknown[]) => listPickerCoaches(...args),
+}));
+
 vi.mock("../components/CoachPickerStates", () => ({
   CoachPickerNotice: function CoachPickerNotice() {
     return null;
@@ -448,11 +453,50 @@ describe("/coach/overview in picker mode (Story 29.4: there is no Overview for a
     expect(listAssignedMemberProgressRecency).not.toHaveBeenCalled();
   });
 
-  it("carries no coach into the links when the address has none or a malformed one", async () => {
+  it("carries no coach into the links when the address has a malformed one", async () => {
     getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "manager", memberId: "m-x", memberName: "Staff" }, error: null, suspended: null });
+    searchParams = { coach: "not-a-uuid" };
 
     expect((await renderOverview()).props).toMatchObject({ state: { kind: "partUnavailable", coachId: null } });
-    searchParams = { coach: "not-a-uuid" };
-    expect((await renderOverview()).props).toMatchObject({ state: { kind: "partUnavailable", coachId: null } });
+    expect(listPickerCoaches).not.toHaveBeenCalled();
+  });
+
+  describe("with no coach in the address (the same answer as the other tabs, and no coach data)", () => {
+    beforeEach(() => {
+      getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "owner", memberId: "m-x", memberName: "Staff" }, error: null, suspended: null });
+      listPickerCoaches.mockReset();
+    });
+
+    afterEach(() => {
+      expect(listAssignedMembers).not.toHaveBeenCalled();
+      expect(listMyClasses).not.toHaveBeenCalled();
+    });
+
+    it("several active coaches: the choose message", async () => {
+      listPickerCoaches.mockResolvedValue({
+        data: [
+          { id: "c-1", name: "A", isActive: true },
+          { id: "c-2", name: "B", isActive: true },
+        ],
+        error: null,
+      });
+      expect((await renderOverview()).props).toMatchObject({ state: { kind: "choose" } });
+    });
+
+    it("one active coach: the part-unavailable message with that coach in its links", async () => {
+      listPickerCoaches.mockResolvedValue({ data: [{ id: "c-1", name: "A", isActive: true }], error: null });
+      expect((await renderOverview()).props).toMatchObject({ state: { kind: "partUnavailable", coachId: "c-1" } });
+    });
+
+    it("no active coach: the no-coaches message, with the Staff link for an Owner", async () => {
+      listPickerCoaches.mockResolvedValue({ data: [{ id: "c-1", name: "A", isActive: false }], error: null });
+      expect((await renderOverview()).props).toMatchObject({ state: { kind: "no-coaches", canOpenStaff: true } });
+    });
+
+    it("a failed coach list: the inline load error, no message", async () => {
+      listPickerCoaches.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+      const tree = await renderOverview();
+      expect(tree.type).toBe("div");
+    });
   });
 });

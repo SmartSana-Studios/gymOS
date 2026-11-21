@@ -27,7 +27,7 @@ import { MembersAtAGlance, type MembersAtAGlanceItem } from "./components/Member
 import { OverviewWidget } from "./components/OverviewWidget";
 import CoachOverviewLoading from "./loading";
 import { CoachPickerNotice } from "../components/CoachPickerStates";
-import { PICKER_ROLES, readCoachParam } from "../pickerContext";
+import { PICKER_ROLES, readCoachParam, resolvePicker } from "../pickerContext";
 
 type Translate = Awaited<ReturnType<typeof getServerTranslation>>["t"];
 
@@ -67,7 +67,8 @@ const STATUS_ORDER: CoachPortalMemberRow["status"][] = ["active", "expiring_soon
  *
  * Story 29.4 (UX AD-32): there is no Overview in picker mode (it carries recent progress activity, which FR-247 excludes). For an Owner, Supervisor or
  * Manager this address, however it was reached (a bookmarked `/coach/overview?coach=...`), shows the one "part unavailable" message with links to Classes
- * and Members and issues NONE of the reads below. The Coach role is unchanged.
+ * and Members and issues NONE of the reads below. With no coach in the address it shows what every other tab shows (choose, or the no-coaches message), and
+ * only the picker's own `list_picker_coaches` read. The Coach role is unchanged.
  *
  * Structure mirrors coach/page.tsx: sync default export -> <Suspense> ->
  * async data component. No route-level role guard, per that file's comment.
@@ -85,6 +86,21 @@ async function CoachOverviewData({ searchParams }: { searchParams: Promise<{ coa
   if (shell && PICKER_ROLES.includes(shell.role)) {
     const { coach } = await searchParams;
     const requested = readCoachParam(coach);
+    if (requested === null) {
+      // Nothing chosen: the same answer as every other tab (the select is focused, no coach data is read). A single active coach is pre-selected, so the
+      // links of the message already carry that coach.
+      const picker = await resolvePicker(undefined);
+      if (picker.kind === "error") {
+        const { t } = await getServerTranslation(await getRequestLocale());
+        return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+      }
+      if (picker.kind === "single") {
+        return <CoachPickerNotice state={{ kind: "partUnavailable", coachId: picker.coachId }} />;
+      }
+      if (picker.kind === "choose" || picker.kind === "no-coaches") {
+        return <CoachPickerNotice state={picker} />;
+      }
+    }
     return <CoachPickerNotice state={{ kind: "partUnavailable", coachId: requested && requested !== "invalid" ? requested : null }} />;
   }
 

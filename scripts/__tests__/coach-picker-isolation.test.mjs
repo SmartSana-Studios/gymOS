@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkIsolation, DENY_COLUMNS, DENY_RELATIONS } from "../check-coach-picker-isolation.mjs";
+import { checkIsolation, DENY_COLUMNS, DENY_RELATIONS, OUTPUT_SHAPE_BANS } from "../check-coach-picker-isolation.mjs";
 
 const script = fileURLToPath(new URL("../check-coach-picker-isolation.mjs", import.meta.url));
 const repoRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
@@ -95,7 +95,7 @@ test("a path through a helper function also fails", () => {
 test("a picker function that reaches a progress table only through ANOTHER picker function's dependency fails, naming both", () => {
   const catalog = cleanCatalog();
   catalog.objects.find((o) => o.name === "list_coach_member_session_notes").text = "select 1 from progress_entries";
-  catalog.objects.find((o) => o.name === "get_coach_member_workout_plan").text = "select * from public.list_coach_member_session_notes(p_coach_id, p_member_id)";
+  catalog.objects.find((o) => o.name === "get_coach_member_workout_plan").text = "select n.note_id from public.list_coach_member_session_notes(p_coach_id, p_member_id) n";
   const { failures } = checkIsolation(catalog, config());
   assert.ok(failures.some((f) => /get_coach_member_workout_plan\(\) -> public\.list_coach_member_session_notes\(\) -> public\.progress_entries/.test(f)), failures.join("\n"));
   assert.ok(failures.some((f) => /^public\.list_coach_member_session_notes\(\) -> public\.progress_entries/.test(f)), failures.join("\n"));
@@ -186,4 +186,28 @@ test("the command line: a clean offline catalog exits 0, a bad one exits 1 with 
 
   const missing = spawnSync(process.execPath, [script, "--catalog", join(dir, "nope.json")], { encoding: "utf8" });
   assert.equal(missing.status, 2);
+});
+
+test("a picker function that builds its output with select *, an alias star or a JSON of a row fails, naming the shape", () => {
+  const cases = [
+    ["select * from members", /select \*/],
+    ["select m.* from members m", /alias star/],
+    ["select jsonb_build_object('row', m.*) from members m", /alias star/],
+    ["select to_json(m) from members m", /to_json/],
+    ["select row_to_json(m) from members m", /to_json/],
+    ["select to_jsonb(m) from members m", /to_json/],
+  ];
+  for (const [text, shape] of cases) {
+    const catalog = cleanCatalog();
+    catalog.objects.find((o) => o.name === "list_coach_assigned_members").text = text;
+    const { failures } = checkIsolation(catalog, config());
+    assert.ok(failures.some((f) => /public\.list_coach_assigned_members: builds its output with/.test(f) && shape.test(f)), `${text}\n${failures.join("\n")}`);
+  }
+  assert.equal(OUTPUT_SHAPE_BANS.length, 3);
+});
+
+test("count(*) and a named column list are not output-shape violations", () => {
+  const catalog = cleanCatalog();
+  catalog.objects.find((o) => o.name === "list_coach_classes").text = "select m.id, (select count(*) from members x) from members m";
+  assert.deepEqual(checkIsolation(catalog, config()).failures, []);
 });

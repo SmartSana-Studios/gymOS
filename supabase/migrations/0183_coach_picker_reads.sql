@@ -9,7 +9,9 @@
 --   * list_picker_coaches(): the gym's Coach-role members for the select (coach_id, coach_name, is_active). The page lists the active ones in the
 --     select; a deactivated coach is returned so that a stale link can say "no longer a coach" (UX AD-32) without a table read of its own.
 --   * list_coach_classes(p_coach_id) and list_coach_class_session_roster(p_coach_id, p_class_session_id): list_my_classes() and
---     list_my_class_session_roster() of 0182 with the coach as a parameter (sessions from 00:00 today in the gym's time zone).
+--     list_my_class_session_roster() of 0182 with the coach as a parameter (sessions from 00:00 today in the gym's time zone up to four weeks ahead, the
+--     materializer's horizon of 0180/0181, so a coach with many weekly times stays under the API row cap; a one-off class dated beyond that keeps its
+--     class row and shows no session until it is within four weeks).
 --   * list_coach_assigned_members(p_coach_id), get_coach_assigned_member(p_coach_id, p_member_id): the chosen coach's currently assigned members
 --     (coach_assignments.ended_at is null) with the allow-listed profile columns, plan name and subscription status, plus (list only) the latest
 --     snippet of that coach's own note.
@@ -98,6 +100,7 @@ declare
   v_gym_id uuid;
   v_timezone text;
   v_day_start timestamptz;
+  v_horizon timestamptz;
 begin
   v_gym_id := private.gym_id();
   if v_gym_id is null then
@@ -124,6 +127,8 @@ begin
   from gyms g
   where g.id = v_gym_id;
 
+  v_horizon := ((v_day_start at time zone v_timezone) + interval '4 weeks') at time zone v_timezone;
+
   return query
   select c.id, c.name, c.capacity, c.schedule_type, c.one_off_session_at,
          (select coalesce(jsonb_agg(jsonb_build_object('weekday', s.weekday, 'start_time', to_char(s.start_time, 'HH24:MI')) order by s.weekday, s.start_time), '[]'::jsonb)
@@ -137,6 +142,7 @@ begin
     on cs.class_id = c.id
    and cs.gym_id = v_gym_id
    and cs.scheduled_at >= v_day_start
+   and cs.scheduled_at < v_horizon
    and cs.cancelled_at is null
   left join class_sessions_with_match v on v.class_session_id = cs.id
   where c.gym_id = v_gym_id
@@ -483,12 +489,13 @@ begin
         and p.prosrc ~ 'private\.gym_id\(\)'
         and p.prosrc !~ '(^|\n)\s*--'
         and p.prosrc !~* 'select\s+\*'
+        and p.prosrc !~ '\w\.\*'
         and p.prosrc !~* '\mexecute\M\s+(format|''|\$)'
-        and p.prosrc !~* 'to_jsonb\s*\('
+        and p.prosrc !~* '(to_jsonb?|row_to_json)\s*\('
         and p.prosrc !~* 'workout_plan_completions|progress_entries|progress_photos|progress-photos'
         and p.prosrc !~* 'starting_weight_kg|height_cm|birth_year|\mdob\M|emergency_contact|\memail\M|neighborhood|profession'
     ) then
-      raise exception '0183: % is missing its gate, its suspension guard, or carries a comment, a select *, a progress table or a body column', v_fn;
+      raise exception '0183: % is missing its gate, its suspension guard, or carries a comment, a select * or alias star, a JSON of a row, a progress table or a body column', v_fn;
     end if;
 
     if exists (

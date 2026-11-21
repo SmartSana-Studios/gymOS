@@ -67,7 +67,9 @@ async function CoachMemberDetailData({
   const picker = await resolvePicker(coachParam);
 
   if (picker.kind === "single") {
-    redirect(`/coach/${encodeURIComponent(memberId)}?coach=${encodeURIComponent(picker.coachId)}`);
+    // A repeated or other `tab` is not carried: only the two values the page reads are kept, so a Progress address still reaches its message.
+    const keepTab = tab === "progress" || tab === "workout-plan" ? `&tab=${tab}` : progressAddress ? "&tab=progress" : "";
+    redirect(`/coach/${encodeURIComponent(memberId)}?coach=${encodeURIComponent(picker.coachId)}${keepTab}`);
   }
   if (picker.kind === "error") {
     const { t } = await getServerTranslation(await getRequestLocale());

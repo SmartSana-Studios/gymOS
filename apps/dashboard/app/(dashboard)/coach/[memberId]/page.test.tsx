@@ -234,6 +234,13 @@ describe("/coach/[memberId] in picker mode (Story 29.4)", () => {
     await expect(renderDetail(undefined, undefined, MEMBER)).rejects.toThrow(`NEXT_REDIRECT:/coach/${MEMBER}?coach=${COACH_A}`);
   });
 
+  it("the one-coach redirect keeps a Progress or Workout Plan tab, so a Progress address still reaches its message", async () => {
+    listPickerCoaches.mockResolvedValue({ data: [{ id: COACH_A, name: "Coach A", isActive: true }], error: null });
+    await expect(renderDetail("progress", undefined, MEMBER)).rejects.toThrow(`NEXT_REDIRECT:/coach/${MEMBER}?coach=${COACH_A}&tab=progress`);
+    await expect(renderDetail("workout-plan", undefined, MEMBER)).rejects.toThrow(`NEXT_REDIRECT:/coach/${MEMBER}?coach=${COACH_A}&tab=workout-plan`);
+    await expect(renderDetail("nonsense", undefined, MEMBER)).rejects.toThrow(`NEXT_REDIRECT:/coach/${MEMBER}?coach=${COACH_A}`);
+  });
+
   it("a read failure shows the inline load error", async () => {
     listCoachMemberSessionNotes.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
 
