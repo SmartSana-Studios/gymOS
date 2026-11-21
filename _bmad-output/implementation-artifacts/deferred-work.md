@@ -2275,3 +2275,15 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`
   summary: Story 30.2 must decide whether `platform_engagement_config.release_week_start` can be moved earlier or cleared once any week has been settled.
   evidence: 30.1 only requires a Monday or NULL and audits every change; the operator can set it back to NULL or move it after settle has written week facts, which would change which weeks count. Unverified: no settle exists yet. Close in 30.2's acceptance criteria (a guard or a documented rule).
+
+## Deferred from: code review of spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog (2026-11-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`
+  summary: Story 30.2 must decide how the goal in force is recorded for a member with no `member_weekly_goals` row, because `set_weekly_goal` and `my_weekly_goal` read `platform_engagement_config.goal_default` live.
+  evidence: `0184_engagement_config_weekly_goal.sql` lines 266 and 370 return `coalesce(v_cur, v_cfg.goal_default)`; an operator edit to `goal_default` changes the goal in force for every default member, past weeks included, and the sheet cannot record an explicit 3 (spec deviation 12). The epic rule says the goal in force is recorded per week and never rewritten. Unverified: no settle exists yet. Close in 30.2's acceptance criteria (snapshot the default per week, or refuse a `goal_default` change once any week has settled).
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`
+  summary: Catalog wording hard-codes operator-tunable values: `engage.ring.goalHint.default` ("3 days a week") and `engage.shield.explainer.body` ("Every 4 weeks"), and `engage.streak.daily` has no plural form.
+  evidence: `goal_default`, `shield_every_weeks` and `daily_streak_min` live in `platform_engagement_config`; changing one leaves the copy wrong. Nothing shows the copy until its consumer ships. Close in 30.4 (goal hint takes a `{{count}}` placeholder) and in Epic 31 (Shield explainer), and let `engage.test.ts` flag a literal copy of a config value.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`
+  summary: Story 30.4's Home hint must read the same `markGoalHintSeen` flag that `goal.tsx` writes on open, and a test must pin that contract.
+  evidence: `goal.tsx` lines 68-75 write the flag and `services/weeklyGoal.ts` has `readGoalHintSeen`, but no test renders the sheet (node-env Vitest), so removing the write leaves all 166 mobile tests green. Close in 30.4's acceptance criteria.

@@ -150,8 +150,9 @@ comment on table public.member_weekly_goals is
   'Weekly goal history (Epic 30, AD-61). One row per member and effective Monday; the row at the latest effective_week on or before the current gym-local week is the goal in force. Written only by set_weekly_goal; the history trigger refuses any change to a row at or before the current week.';
 
 -- The history rule: nothing, not even a definer function or the table owner, may insert, update or delete a row whose effective_week is
--- on or before the current gym-local week start. A DELETE caused by the owning member or gym being deleted is allowed (detected by the
--- parent row no longer existing), so deleting a member or a gym is not blocked by their history.
+-- on or before the current gym-local week start. A DELETE caused by the owning member being deleted is allowed (detected by the member row
+-- no longer existing), so deleting a member is not blocked by their history. A gym cannot be deleted while it has members
+-- (members_gym_id_fkey is NO ACTION), so a gym delete reaches a goal row only after, or in the same statement as, its members' deletion.
 create function private.member_weekly_goals_history_guard()
 returns trigger
 language plpgsql
@@ -162,8 +163,7 @@ declare
   v_week date;
 begin
   if tg_op = 'DELETE' then
-    if not exists (select 1 from members m where m.id = old.member_id)
-       or not exists (select 1 from gyms g where g.id = old.gym_id) then
+    if not exists (select 1 from members m where m.id = old.member_id) then
       return old;
     end if;
   end if;
