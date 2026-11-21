@@ -4,6 +4,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { listMyClasses } from "@/services/classes";
+import { getDashboardShellContext } from "@/services/session";
 import {
   listAssignedMemberNoteRecency,
   listAssignedMemberProgressRecency,
@@ -25,6 +26,8 @@ import { CaseloadList, type CaseloadListRow } from "./components/CaseloadList";
 import { MembersAtAGlance, type MembersAtAGlanceItem } from "./components/MembersAtAGlance";
 import { OverviewWidget } from "./components/OverviewWidget";
 import CoachOverviewLoading from "./loading";
+import { CoachPickerNotice } from "../components/CoachPickerStates";
+import { PICKER_ROLES, readCoachParam } from "../pickerContext";
 
 type Translate = Awaited<ReturnType<typeof getServerTranslation>>["t"];
 
@@ -62,18 +65,29 @@ const STATUS_ORDER: CoachPortalMemberRow["status"][] = ["active", "expiring_soon
  * (../gymTime.ts). The thresholds live in ./caseload.ts and are interpolated
  * into the copy from there. Every label is formatted here, on the server.
  *
+ * Story 29.4 (UX AD-32): there is no Overview in picker mode (it carries recent progress activity, which FR-247 excludes). For an Owner, Supervisor or
+ * Manager this address, however it was reached (a bookmarked `/coach/overview?coach=...`), shows the one "part unavailable" message with links to Classes
+ * and Members and issues NONE of the reads below. The Coach role is unchanged.
+ *
  * Structure mirrors coach/page.tsx: sync default export -> <Suspense> ->
  * async data component. No route-level role guard, per that file's comment.
  */
-export default function CoachOverviewPage() {
+export default function CoachOverviewPage({ searchParams }: { searchParams: Promise<{ coach?: string | string[] }> }) {
   return (
     <Suspense fallback={<CoachOverviewLoading />}>
-      <CoachOverviewData />
+      <CoachOverviewData searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function CoachOverviewData() {
+async function CoachOverviewData({ searchParams }: { searchParams: Promise<{ coach?: string | string[] }> }) {
+  const { data: shell } = await getDashboardShellContext();
+  if (shell && PICKER_ROLES.includes(shell.role)) {
+    const { coach } = await searchParams;
+    const requested = readCoachParam(coach);
+    return <CoachPickerNotice state={{ kind: "partUnavailable", coachId: requested && requested !== "invalid" ? requested : null }} />;
+  }
+
   const locale = await getRequestLocale();
   const { t } = await getServerTranslation(locale);
   const [members, classes, noteRecency, progressRecency] = await Promise.all([

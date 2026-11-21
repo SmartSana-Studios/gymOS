@@ -33,16 +33,37 @@ function formatLocalDate(dateOnly: string, locale: string): string {
   return new Date(year, month - 1, day).toLocaleDateString(locale);
 }
 
+/** A row of the Members list: the Coach's own (`CoachPortalMemberRow`) or, in picker mode (Story 29.4), a row of `list_coach_assigned_members`: a plan name instead of a
+ * plan type, a status that may be null (no subscription), and the latest note snippet of the chosen coach. */
+export interface PortalMemberRow {
+  memberId: string;
+  memberName: string;
+  planName: string | null;
+  planType?: string;
+  status: CoachPortalMemberRow["status"] | null;
+  expiryDate: string | null;
+  lastNoteSnippet?: string | null;
+}
+
+/** Story 29.4: the chosen coach, in picker mode. */
+export interface PortalPicker {
+  coachId: string;
+  coachName: string;
+}
+
 export function CoachPortalPageClient({
   members,
   search,
   sort,
   dir,
+  picker = null,
 }: {
-  members: CoachPortalMemberRow[];
+  members: PortalMemberRow[];
   search: string;
   sort: string;
   dir: string;
+  /** Story 29.4 (UX AD-14 picker mode): read-only, keeps `?coach=` on every link, adds the note snippet column, and has its own empty state. */
+  picker?: PortalPicker | null;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -91,12 +112,17 @@ export function CoachPortalPageClient({
     }
   }
 
-  function expiryLabel(row: CoachPortalMemberRow): string {
+  function memberHref(memberId: string): string {
+    return picker ? `/coach/${memberId}?coach=${encodeURIComponent(picker.coachId)}` : `/coach/${memberId}`;
+  }
+
+  function expiryLabel(row: PortalMemberRow): string {
     if (!row.expiryDate) return "—";
     return formatLocalDate(row.expiryDate, i18n.language);
   }
 
-  function planTypeLabel(row: CoachPortalMemberRow): string {
+  function planLabel(row: PortalMemberRow): string {
+    if (!row.planType) return row.planName || "—";
     const key = PLAN_TYPE_LABEL_KEY[row.planType as keyof typeof PLAN_TYPE_LABEL_KEY];
     return key ? t(key) : row.planType;
   }
@@ -126,7 +152,9 @@ export function CoachPortalPageClient({
               </Button>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">{t("coachPortal.emptyNoAssignments")}</p>
+            <p className="text-sm text-muted-foreground">
+              {picker ? t("coach.picker.noMembers", { name: picker.coachName }) : t("coachPortal.emptyNoAssignments")}
+            </p>
           )}
         </div>
       ) : (
@@ -152,13 +180,14 @@ export function CoachPortalPageClient({
                     </button>
                   </th>
                 ))}
+                {picker && <th className="p-3 font-medium">{t("coach.picker.table.lastNote")}</th>}
                 <th className="p-3 font-medium">{t("coachPortal.table.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {pg.pageItems.map((row) => {
-                const badge = STATUS_BADGE_CONFIG[row.status] ?? STATUS_BADGE_CONFIG.active;
-                const Icon = badge.icon;
+                const badge = row.status ? (STATUS_BADGE_CONFIG[row.status] ?? STATUS_BADGE_CONFIG.active) : null;
+                const Icon = badge?.icon;
                 return (
                   // No page-to-page row-click precedent existed in this app
                   // before this story (MembersPageClient's own row onClick
@@ -170,9 +199,9 @@ export function CoachPortalPageClient({
                   // finding, story 5.3).
                   <tr
                     key={row.memberId}
-                    onClick={() => router.push(`/coach/${row.memberId}`)}
+                    onClick={() => router.push(memberHref(row.memberId))}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") router.push(`/coach/${row.memberId}`);
+                      if (e.key === "Enter") router.push(memberHref(row.memberId));
                     }}
                     tabIndex={0}
                     role="link"
@@ -186,21 +215,24 @@ export function CoachPortalPageClient({
                         {row.memberName}
                       </div>
                     </td>
-                    <td className="p-3">{planTypeLabel(row)}</td>
+                    <td className="p-3">{planLabel(row)}</td>
                     <td className="p-3">
-                      <Badge variant="outline" className={badge.className}>
-                        <Icon size={12} className="mr-1" />
-                        {t(badge.labelKey)}
-                      </Badge>
+                      {badge && Icon && (
+                        <Badge variant="outline" className={badge.className}>
+                          <Icon size={12} className="mr-1" />
+                          {t(badge.labelKey)}
+                        </Badge>
+                      )}
                     </td>
                     <td className="p-3">{expiryLabel(row)}</td>
+                    {picker && <td className="max-w-64 truncate p-3 text-muted-foreground">{row.lastNoteSnippet ?? ""}</td>}
                     <td className="p-3">
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="outline"
                           size="sm"
                           className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-200"
-                          onClick={() => router.push(`/coach/${row.memberId}`)}
+                          onClick={() => router.push(memberHref(row.memberId))}
                         >
                           <Eye size={14} />
                           {t("coachPortal.actions.view")}

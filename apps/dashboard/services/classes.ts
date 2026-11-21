@@ -408,26 +408,29 @@ function parseSlots(raw: unknown): ClassSlot[] {
   return slots;
 }
 
-/** Story 17.4 (AC #7): the Coach Portal's My Classes list, from
- * `list_my_classes()` (0096). Deliberately NOT `listClasses()`: under a Coach
- * session its `class_bookings` read returns zero rows without an error
- * (gym_staff_read_own_class_bookings excludes coach, 0068), so every count
- * would read 0. The RPC resolves the Coach and the gym server-side from the
- * session, so there is no getCallerGymId() step and no argument. It returns
- * one row per (class, session); rows are grouped per class in the SQL's own
- * order, and a class with no session in the window arrives as a single row
- * whose session columns are null. Zero rows -- including every non-coach
- * caller, by design -- is an empty list, not an error. */
-export async function listMyClasses(): Promise<{ data: CoachClassRow[] | null; error: AppError | null }> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("list_my_classes");
+/** One row of `list_my_classes()` (0182) or `list_coach_classes()` (0183, Story 29.4): the picker's rows carry no description or start date. */
+export interface CoachClassRpcRow {
+  class_id: string;
+  class_name: string;
+  description?: string | null;
+  recurrence_start_date?: string | null;
+  capacity: number;
+  schedule_type: string;
+  one_off_session_at: string | null;
+  slots: unknown;
+  cancelled_at: string | null;
+  gym_timezone: string;
+  class_session_id: string | null;
+  scheduled_at: string | null;
+  booked_count: number | string;
+  matches_slots: boolean | null;
+}
 
-  if (error) {
-    return { data: null, error: await mapAndLog(error) };
-  }
-
+/** Groups the one-row-per-(class, session) result of `list_my_classes()` or `list_coach_classes()` into classes with their sessions, in the SQL's own
+ * order. A class with no session in the window arrives as one row whose session columns are null. Shared by the Coach's own list and the picker. */
+export function groupCoachClassRows(rows: CoachClassRpcRow[]): CoachClassRow[] {
   const byClassId = new Map<string, CoachClassRow>();
-  for (const row of data ?? []) {
+  for (const row of rows) {
     let cls = byClassId.get(row.class_id);
     if (!cls) {
       cls = {
@@ -457,7 +460,28 @@ export async function listMyClasses(): Promise<{ data: CoachClassRow[] | null; e
     }
   }
 
-  return { data: [...byClassId.values()], error: null };
+  return [...byClassId.values()];
+}
+
+/** Story 17.4 (AC #7): the Coach Portal's My Classes list, from
+ * `list_my_classes()` (0096). Deliberately NOT `listClasses()`: under a Coach
+ * session its `class_bookings` read returns zero rows without an error
+ * (gym_staff_read_own_class_bookings excludes coach, 0068), so every count
+ * would read 0. The RPC resolves the Coach and the gym server-side from the
+ * session, so there is no getCallerGymId() step and no argument. It returns
+ * one row per (class, session); rows are grouped per class in the SQL's own
+ * order, and a class with no session in the window arrives as a single row
+ * whose session columns are null. Zero rows -- including every non-coach
+ * caller, by design -- is an empty list, not an error. */
+export async function listMyClasses(): Promise<{ data: CoachClassRow[] | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_my_classes");
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  return { data: groupCoachClassRows(data ?? []), error: null };
 }
 
 /** Story 17.4 (AC #7): who is booked into one session, from

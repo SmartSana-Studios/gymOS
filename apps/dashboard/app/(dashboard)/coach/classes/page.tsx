@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
 import type { Locale } from "@/lib/i18n/config";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -6,7 +7,10 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { summarizeSlots } from "@/lib/classTimes";
 import { getClassesGymTimezone, listMyClasses, type ClassRow, type CoachClassRow } from "@/services/classes";
 import { getDashboardShellContext } from "@/services/session";
+import { listCoachClasses } from "@/services/coachPicker";
 import { gymDateFormatter } from "../gymTime";
+import { CoachPickerNotice } from "../components/CoachPickerStates";
+import { resolvePicker } from "../pickerContext";
 import { CoachClassesPageClient, type CoachClassView, type CoachIdentity } from "./components/CoachClassesPageClient";
 import CoachClassesLoading from "./loading";
 
@@ -38,18 +42,48 @@ type Translate = Awaited<ReturnType<typeof getServerTranslation>>["t"];
  * (create_class, update_class, cancel_class, 0182) is the authority on whose classes may change. Any other role gets the list exactly as
  * before, with no control. Roster and attendance stay read-only: no mark-attendance control exists on this route. The Portal heading comes from
  * coach/layout.tsx.
+ *
+ * Story 29.4 (UX AD-32): for an Owner, Supervisor or Manager this is the picker's Classes tab (the default tab): the chosen coach's classes, read-only, from
+ * `list_coach_classes` through the same `toClassViews` and the same list component, which then has no control (`coach` is null) and a link per class to the
+ * admin Classes page. The chosen coach is `?coach=<id>`, read here; nothing is read before one is chosen (a single active coach is pre-selected by redirect).
+ * The Coach role never reads `?coach=`: `own` is today's behaviour, byte for byte.
  */
-export default function CoachClassesPage() {
+export default function CoachClassesPage({ searchParams }: { searchParams: Promise<{ coach?: string | string[] }> }) {
   return (
     <Suspense fallback={<CoachClassesLoading />}>
-      <CoachClassesData />
+      <CoachClassesData searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function CoachClassesData() {
+async function CoachClassesData({ searchParams }: { searchParams: Promise<{ coach?: string | string[] }> }) {
   const locale = await getRequestLocale();
   const { t } = await getServerTranslation(locale);
+  const { coach: coachParam } = await searchParams;
+  const picker = await resolvePicker(coachParam);
+
+  if (picker.kind === "single") {
+    redirect(`/coach/classes?coach=${encodeURIComponent(picker.coachId)}`);
+  }
+  if (picker.kind === "error") {
+    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+  }
+  if (picker.kind === "ready") {
+    const { data: pickerClasses, error: pickerError } = await listCoachClasses(picker.coach.id);
+    if (pickerError || !pickerClasses) {
+      return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+    }
+    return (
+      <CoachClassesPageClient
+        classes={toClassViews(pickerClasses, locale, t, null)}
+        picker={{ coachId: picker.coach.id, coachName: picker.coach.name }}
+      />
+    );
+  }
+  if (picker.kind !== "own") {
+    return <CoachPickerNotice state={picker} />;
+  }
+
   const [{ data: classes, error }, { data: shell, error: shellError }] = await Promise.all([
     listMyClasses(),
     getDashboardShellContext(),

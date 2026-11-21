@@ -1,0 +1,12 @@
+{
+  "_comment": "The coach picker functions of migration 0183 (Story 29.4). scripts/check-coach-picker-isolation.mjs checks each one for a path to a body or progress object. A function renamed out of the name pattern (list_coach_*, get_coach_*, list_picker_*) must stay listed here; a name listed here that no function matches fails as stale. Each name must also be called in supabase/tests/coach_picker_no_body_data.test.sql.",
+  "functions": [
+    "list_picker_coaches",
+    "list_coach_classes",
+    "list_coach_class_session_roster",
+    "list_coach_assigned_members",
+    "get_coach_assigned_member",
+    "list_coach_member_session_notes",
+    "get_coach_member_workout_plan"
+  ]
+}

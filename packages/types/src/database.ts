@@ -3182,6 +3182,36 @@ export type Database = {
           requested_at: string
         }[]
       }
+      get_coach_assigned_member: {
+        Args: { p_coach_id: string; p_member_id: string }
+        Returns: {
+          experience_level: string | null
+          expiry_date: string | null
+          goal: string | null
+          join_date: string
+          member_id: string
+          member_name: string
+          phone: string | null
+          photo_url: string | null
+          plan_name: string | null
+          status: Database["public"]["Enums"]["subscription_status"] | null
+        }[]
+      }
+      get_coach_member_workout_plan: {
+        Args: { p_coach_id: string; p_member_id: string }
+        Returns: {
+          author_id: string | null
+          author_name: string | null
+          exercise_name: string | null
+          note: string | null
+          order_index: number | null
+          plan_exercise_id: string | null
+          plan_id: string
+          plan_name: string
+          reps: number | null
+          sets: number | null
+        }[]
+      }
       get_gym_page_name: { Args: { p_gym_id: string }; Returns: Json }
       get_gym_page_status: { Args: { p_gym_id: string }; Returns: Json }
       get_session_validity_settings: {
@@ -3619,6 +3649,66 @@ export type Database = {
       record_page_media_purge_run: { Args: { p_ok: boolean; p_started_at: string; p_summary: string }; Returns: undefined }
       submit_page_appeal: { Args: { p_reason: string }; Returns: Json }
       take_down_gym_page: { Args: { p_gym_id: string; p_note?: string; p_reason: string }; Returns: Json }
+      list_coach_assigned_members: {
+        Args: { p_coach_id: string }
+        Returns: {
+          experience_level: string | null
+          expiry_date: string | null
+          goal: string | null
+          join_date: string
+          last_note_snippet: string | null
+          member_id: string
+          member_name: string
+          phone: string | null
+          photo_url: string | null
+          plan_name: string | null
+          status: Database["public"]["Enums"]["subscription_status"] | null
+        }[]
+      }
+      list_coach_class_session_roster: {
+        Args: { p_class_session_id: string; p_coach_id: string }
+        Returns: {
+          attended_at: string | null
+          member_id: string
+          member_name: string
+        }[]
+      }
+      list_coach_classes: {
+        Args: { p_coach_id: string }
+        Returns: {
+          booked_count: number
+          cancelled_at: string | null
+          capacity: number
+          class_id: string
+          class_name: string
+          class_session_id: string | null
+          gym_timezone: string
+          matches_slots: boolean | null
+          one_off_session_at: string | null
+          schedule_type: string
+          scheduled_at: string | null
+          slots: Json
+        }[]
+      }
+      list_coach_member_session_notes: {
+        Args: { p_coach_id: string; p_member_id: string }
+        Returns: {
+          coach_id: string
+          coach_name: string
+          created_at: string
+          edited_at: string | null
+          note_id: string
+          note_text: string
+        }[]
+      }
+      list_picker_coaches: {
+        Args: never
+        Returns: {
+          coach_id: string
+          coach_name: string
+          is_active: boolean
+        }[]
+      }
       list_my_class_bookings: {
         Args: never
         Returns: {

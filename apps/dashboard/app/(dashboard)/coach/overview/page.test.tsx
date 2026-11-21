@@ -46,6 +46,17 @@ vi.mock("@/services/classes", () => ({
   listMyClasses: (...args: unknown[]) => listMyClasses(...args),
 }));
 
+const getDashboardShellContext = vi.fn();
+vi.mock("@/services/session", () => ({
+  getDashboardShellContext: (...args: unknown[]) => getDashboardShellContext(...args),
+}));
+
+vi.mock("../components/CoachPickerStates", () => ({
+  CoachPickerNotice: function CoachPickerNotice() {
+    return null;
+  },
+}));
+
 import CoachOverviewPage from "./page";
 import CoachOverviewLoading from "./loading";
 import { CaseloadList, type CaseloadListRow } from "./components/CaseloadList";
@@ -68,8 +79,10 @@ const TITLES = {
 
 const FAILED = { data: null, error: { code: "unknown", message: "boom" } };
 
+let searchParams: Record<string, string | string[]> = {};
+
 function boundary(): ReactElement<{ children: ReactElement; fallback: ReactElement }> {
-  return CoachOverviewPage() as ReactElement<{ children: ReactElement; fallback: ReactElement }>;
+  return CoachOverviewPage({ searchParams: Promise.resolve(searchParams) }) as ReactElement<{ children: ReactElement; fallback: ReactElement }>;
 }
 
 async function renderOverview(): Promise<ReactElement> {
@@ -159,6 +172,8 @@ describe("/coach/overview", () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW);
+    searchParams = {};
+    getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "coach", memberId: "m-coach", memberName: "Coach" }, error: null, suspended: null });
     listAssignedMembers.mockReset().mockResolvedValue({ data: memberRows({ active: 9, expiring_soon: 2, expired: 1 }), error: null });
     listMyClasses.mockReset().mockResolvedValue({ data: CLASSES, error: null });
     listAssignedMemberNoteRecency.mockReset().mockResolvedValue({
@@ -408,5 +423,36 @@ describe("/coach/overview", () => {
       expect(list(tree, TITLES.nextSessions).state).toBe("error");
       expect(textContent(tree)).toContain("coachPortal.emptyNoAssignments");
     });
+  });
+});
+
+describe("/coach/overview in picker mode (Story 29.4: there is no Overview for an Owner, Supervisor or Manager)", () => {
+  beforeEach(() => {
+    searchParams = {};
+    listAssignedMembers.mockReset();
+    listMyClasses.mockReset();
+    listAssignedMemberNoteRecency.mockReset();
+    listAssignedMemberProgressRecency.mockReset();
+  });
+
+  it.each(["owner", "supervisor", "manager"])("%s gets the one part-unavailable message and none of the four reads", async (role) => {
+    getDashboardShellContext.mockReset().mockResolvedValue({ data: { role, memberId: "m-x", memberName: "Staff" }, error: null, suspended: null });
+    searchParams = { coach: "11111111-1111-4111-8111-111111111111" };
+
+    const tree = await renderOverview();
+
+    expect(tree.props).toMatchObject({ state: { kind: "partUnavailable", coachId: "11111111-1111-4111-8111-111111111111" } });
+    expect(listAssignedMembers).not.toHaveBeenCalled();
+    expect(listMyClasses).not.toHaveBeenCalled();
+    expect(listAssignedMemberNoteRecency).not.toHaveBeenCalled();
+    expect(listAssignedMemberProgressRecency).not.toHaveBeenCalled();
+  });
+
+  it("carries no coach into the links when the address has none or a malformed one", async () => {
+    getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "manager", memberId: "m-x", memberName: "Staff" }, error: null, suspended: null });
+
+    expect((await renderOverview()).props).toMatchObject({ state: { kind: "partUnavailable", coachId: null } });
+    searchParams = { coach: "not-a-uuid" };
+    expect((await renderOverview()).props).toMatchObject({ state: { kind: "partUnavailable", coachId: null } });
   });
 });

@@ -141,6 +141,8 @@ stage_pgtap() {
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/landing-gate/purge-staleness.test.sh" || return 1
   # Claim-read inventory (Story 22.2; enforcing since 22.4): any non-exempt claim-only / null-unsafe entry fails.
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims || return 1
+  # Coach picker isolation (Story 29.4, FR-247): no picker function reaches a progress table, a body column or the progress bucket; not a support capability.
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:coach-picker || return 1
 }
 
 stage_unit() {

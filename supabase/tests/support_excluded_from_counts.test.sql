@@ -128,6 +128,8 @@ insert into cat_fn (name, includes_support) values
   ('public.delete_page_media', false), ('public.get_gym_page_name', false), ('public.get_gym_page_status', false), ('public.publish_gym_page', false), ('public.register_page_media', false), ('public.set_gym_category', false), ('public.set_session_validity', false), ('public.get_session_validity_settings', false), ('public.set_gym_location', false), ('public.set_gym_page_content', false), ('public.set_loyalty_program', false), ('public.set_registration_fee', false),
   ('public.staff_account_for_reset', false), ('public.unpublish_gym_page', false), ('public.update_class', false), ('public.update_plan_pricing', false),
   ('public.update_staff_role', false), ('public.void_registration_fee_payment', false), ('public.waive_registration_fee', false),
+  -- 0183 (Story 29.4): the coach picker reads, an explicit Owner, Supervisor, Manager list (private.gym_id() is null for a support row)
+  ('public.get_coach_assigned_member', false), ('public.get_coach_member_workout_plan', false), ('public.list_coach_assigned_members', false), ('public.list_coach_class_session_roster', false), ('public.list_coach_classes', false), ('public.list_coach_member_session_notes', false), ('public.list_picker_coaches', false),
   -- identity separation, not a staff count: a support phone must not double as a member account
   ('private.enforce_staff_member_phone_separation', true), ('public.phone_has_staff_membership', true);
 
@@ -209,7 +211,7 @@ insert into cat_count values
   ('public.enforce_member_cap', 'role = member only'), ('public.guest_charging_impact', 'guest sessions'),
   ('public.guest_sessions_summary', 'guest sessions'), ('public.gym_member_count', 'excludes support'),
   ('public.list_bookable_class_sessions', 'class capacity'), ('public.list_free_guest_sessions', 'guest sessions'),
-  ('public.list_guest_sessions_paid', 'guest sessions'), ('public.list_my_classes', 'class capacity'),
+  ('public.list_guest_sessions_paid', 'guest sessions'), ('public.list_my_classes', 'class capacity'), ('public.list_coach_classes', 'class capacity'),
   ('public.list_session_attempts', 'attempts'), ('public.platform_metrics', 'excludes support'),
   ('public.run_quiet_gym_alert_job', 'role = member only'), ('private.support_revoke_access', 'Owner review queue of support-created staff, not a head count'), ('public.update_workout_plan', 'coach/member plans');
 select is((select coalesce(string_agg(n.nspname || '.' || p.proname, ', ' order by p.proname), '')
