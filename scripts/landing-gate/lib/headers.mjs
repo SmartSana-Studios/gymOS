@@ -25,8 +25,10 @@ export const TRANSPORT_HEADERS = new Set(["date", "connection", "keep-alive", "c
 /**
  * What Next.js adds to a rewritten route by itself (decisions.md 24.10: "Next adds its own `Vary: rsc, ...` line next to ours"). Allowed, never
  * silently: the check prints each one it saw. `vary` tokens are listed below; `x-middleware-rewrite` must carry the internal route and nothing else.
+ * `accept-encoding` (Next 16.4.6; compared with 16.4.3, the versions in between were not checked): `appendHeader` keeps a single `Vary` value as a plain string, so the compression middleware can add
+ * `Accept-Encoding` to it. Before, the one-element array was skipped and the token was missing from compressed responses; it is the correct header for them.
  */
-export const NEXT_VARY_TOKENS = new Set(["rsc", "next-router-state-tree", "next-router-prefetch", "next-router-segment-prefetch"]);
+export const NEXT_VARY_TOKENS = new Set(["rsc", "next-router-state-tree", "next-router-prefetch", "next-router-segment-prefetch", "accept-encoding"]);
 export const NEXT_ADDED_HEADERS = { "x-middleware-rewrite": "/gym-site" };
 
 /** What Vercel adds in front of the app (GATE_PLATFORM=vercel). Printed too. */

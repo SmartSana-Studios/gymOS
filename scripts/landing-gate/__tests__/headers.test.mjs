@@ -42,6 +42,12 @@ test("a correct page passes and the Next-added headers are reported, not failed"
   assert.ok(r.nextAdded.includes("x-middleware-rewrite: /gym-site"));
   assert.ok(r.nextAdded.includes("vary: rsc"));
 });
+test("Next's compression adds Vary: Accept-Encoding (16.4.6): allowed, and printed, never silent", () => {
+  const r = checkResponse("page", page({ vary: "rsc, Accept-Language, Accept-Encoding" }), { mediaOrigin: MEDIA });
+  assert.deepEqual(r.problems, []);
+  assert.ok(r.nextAdded.includes("vary: accept-encoding"));
+  assert.ok(problems(page({ vary: "rsc, Accept-Language, Accept-Encoding, Cookie" })).some((p) => p.includes("unexpected Vary token [cookie]")));
+});
 test("known bad: every AD-44 header, dropped or altered, fails and names the header", () => {
   for (const name of ["x-content-type-options", "referrer-policy", "strict-transport-security", "content-security-policy", "cache-control", "content-type"]) {
     assert.ok(problems(page({ [name]: null })).some((p) => p.includes(`missing header ${name}`)), `dropping ${name}`);
