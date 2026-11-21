@@ -12,7 +12,7 @@
   "dependencies": {
     "@gymos/page-templates": "workspace:*",
     "@gymos/types": "workspace:*",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "pg": "^8.23.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

@@ -150,7 +150,8 @@ describe("matrix: many entries", () => {
     }
     expect(sizes).toEqual([50_000, 8]);
     expect((await handleCrawl({ kind: "chunk", file: "3.xml" }, d)).status).toBe(404);
-  });
+    // 1.3 s alone, over the default 5 s when the page-templates suite runs beside it in the unit stage (turbo ran it from cache until the Next bump)
+  }, 30_000);
   it("a lower size (the handler's dep) gives more files, the index lists /sitemaps/1.xml ... /sitemaps/N.xml, and no entry is in two files", async () => {
     const d: CrawlDeps = { ...base, reader: bigReader(10), chunkSize: 8 };
     const index = locs(await (await handleCrawl({ kind: "index" }, d)).text());
