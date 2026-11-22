@@ -7,7 +7,7 @@
 -- Fixture ids: 00000000-0000-0000-0031-00000000nnnn. Gym 1001, users 2001.., members 3001...
 
 begin;
-select plan(75);
+select plan(78);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0031-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -59,6 +59,12 @@ select is((select confdeltype::text from pg_constraint where conrelid = 'public.
 select is((select confdeltype::text from pg_constraint where conrelid = 'public.engagement_state'::regclass and contype = 'f' and confrelid = 'public.members'::regclass), 'c',
           'engagement_state.member_id cascades on member delete');
 select is((select count(*)::int from public.engagement_facts), 0, 'the ledger starts empty (nothing is written while the epoch is unset)');
+
+-- The epoch guard freezes the epoch for a WEEK fact only: while the ledger holds nothing but a milestone, the epoch still moves (the
+-- `kind = 'week'` filter of private.engagement_epoch_guard). The epoch is put back, so the cases below run with it unset as before.
+select lives_ok(pg_temp.fact(7, 'milestone', '7'), 'epoch filter: a milestone fact, and no week fact anywhere');
+select lives_ok($$update platform_engagement_config set release_week_start = date '2026-03-02'$$, 'epoch filter: the epoch can be set while only a non-week fact exists');
+select lives_ok($$update platform_engagement_config set release_week_start = null$$, 'epoch filter: and cleared again');
 
 -- ============================================================================
 -- CHECKs per kind
