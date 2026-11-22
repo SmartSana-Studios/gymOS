@@ -3,7 +3,9 @@
 -- as jsonb {streak_weeks, best_streak_weeks, last_settled_week, weeks}, never as row counts, because revisions legitimately add rows.
 --
 -- Fixtures are in Africa/Douala with explicit join dates and fixed p_up_to dates; nothing reads the clock. Mondays: 2026-03-02 (the epoch),
--- 03-09, 03-16, 03-23, 03-30, 04-06. A late visit is marked the way 30.3 will mark it: the test sets engagement_state.dirty_from itself.
+-- 03-09, 03-16, 03-23, 03-30, 04-06. A late visit is marked by the test itself (engagement_state.dirty_from, as the table owner, the statement 30.3 added to record_check_in)
+-- because the fixtures are fixed March 2026 dates the real clock cannot reach; the mark of the REAL check-in and void paths is proven in
+-- engagement_dirty_mark.test.sql, engagement_journey.test.sql and scripts/engagement-race.sh.
 --
 -- Fixture ids: 00000000-0000-0000-0034-00000000nnnn.
 

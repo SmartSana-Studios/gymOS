@@ -3911,6 +3911,39 @@ export type Database = {
         Returns: undefined
       }
       member_occupancy_band: { Args: never; Returns: string }
+      my_engagement: {
+        Args: never
+        Returns: {
+          at_risk_daily: boolean
+          at_risk_weekly: boolean
+          best_streak_weeks: number
+          comeback_state: string
+          daily_run: number | null
+          day_ends_at: string
+          day_starts_at: string
+          days_left_in_week: number
+          enabled: boolean
+          goal: number
+          goal_is_default: boolean
+          goal_met: boolean
+          gym_today: string
+          has_settled_week: boolean
+          in_release_week: boolean
+          needs_settle: boolean
+          pending_effective_week: string | null
+          pending_goal: number | null
+          pending_milestone: number | null
+          server_now: string
+          shields_held: number
+          streak_if_met: number | null
+          streak_weeks: number
+          visited_today: boolean
+          visits_needed: number
+          visits_this_week: number
+          week_end: string
+          week_start: string
+        }[]
+      }
       my_weekly_goal: {
         Args: never
         Returns: {
@@ -3921,6 +3954,39 @@ export type Database = {
           next_effective_week: string
           pending_effective_week: string | null
           pending_goal: number | null
+        }[]
+      }
+      open_engagement: {
+        Args: never
+        Returns: {
+          at_risk_daily: boolean
+          at_risk_weekly: boolean
+          best_streak_weeks: number
+          comeback_state: string
+          daily_run: number | null
+          day_ends_at: string
+          day_starts_at: string
+          days_left_in_week: number
+          enabled: boolean
+          goal: number
+          goal_is_default: boolean
+          goal_met: boolean
+          gym_today: string
+          has_settled_week: boolean
+          in_release_week: boolean
+          needs_settle: boolean
+          pending_effective_week: string | null
+          pending_goal: number | null
+          pending_milestone: number | null
+          server_now: string
+          shields_held: number
+          streak_if_met: number | null
+          streak_weeks: number
+          visited_today: boolean
+          visits_needed: number
+          visits_this_week: number
+          week_end: string
+          week_start: string
         }[]
       }
       phone_has_membership: { Args: { p_phone: string }; Returns: boolean }

@@ -163,7 +163,7 @@ select ok((select position('for no key update' in prosrc) > 0
           'lock order in the body (AD-29): the member, then the attendance row, then guest_sessions, then loyalty through the reversal hook');
 select ok((select position('on_session_refunded_after_consumption' in prosrc) < position('consumed_at = null' in prosrc) from pg_proc where oid = 'public.void_staff_check_in(uuid, text)'::regprocedure),
           'the stamp reversal runs BEFORE consumed_at is cleared (it returns early once the column is null)');
-select ok((select prosrc !~* 'dirty_from' from pg_proc where oid = 'public.void_staff_check_in(uuid, text)'::regprocedure), 'the void never sets dirty_from (Epic 30 amends it)');
+select ok((select prosrc ~* 'insert into engagement_state \(member_id, gym_id, dirty_from\)' from pg_proc where oid = 'public.void_staff_check_in(uuid, text)'::regprocedure), 'the void names dirty_from in the one Epic 30 mark (30.3 amends it)');
 
 -- ============================================================================
 -- (2) Entries to void: staff check-ins through the real function

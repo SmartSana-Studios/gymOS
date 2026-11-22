@@ -2288,6 +2288,10 @@ Lab, local results only (one machine runs the server, the database, the load and
   summary: Story 30.4's Home hint must read the same `markGoalHintSeen` flag that `goal.tsx` writes on open, and a test must pin that contract.
   evidence: `goal.tsx` lines 68-75 write the flag and `services/weeklyGoal.ts` has `readGoalHintSeen`, but no test renders the sheet (node-env Vitest), so removing the write leaves all 166 mobile tests green. Close in 30.4's acceptance criteria.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-30-2-engagement-facts-the-fold-and-settle.md`
-  summary: Story 30.3 must remove the stand-in `dirty_from` mark from `scripts/engagement-race.sh` (its check-in session inserts into `engagement_state` itself) once `record_check_in` and `void_staff_check_in` mark `dirty_from` under the member lock, and must prove the mark with a pgTAP case and the race.
-  evidence: 30.2 does not touch the check-in paths, so the race script, `engagement_settle` and `engagement_determinism` write `dirty_from` themselves as the table owner; only the race header says 30.3 removes it. Close in 30.3's acceptance criteria.
+- ~~Story 30.3 must remove the stand-in `dirty_from` mark from `scripts/engagement-race.sh` (its check-in session inserts into `engagement_state` itself) once `record_check_in` and `void_staff_check_in` mark `dirty_from` under the member lock, and must prove the mark with a pgTAP case and the race.~~ **Closed 2026-11-22 by Story 30.3** (source: `_bmad-output/implementation-artifacts/spec-30-2-engagement-facts-the-fold-and-settle.md`): the stand-in is gone from `scripts/engagement-race.sh` (the check-in session runs only the real `private.record_check_in`, which marks), `record_check_in` and `void_staff_check_in` mark `dirty_from` (migration 0186), and the mark is proven by `engagement_dirty_mark.test.sql`, `engagement_journey.test.sql` and the race. `engagement_settle` and `engagement_determinism` keep direct marks on purpose (fixed March 2026 fixtures the real clock cannot reach); their headers say so.
+
+## Deferred from: build of spec-30-3-settle-triggers-and-the-at-risk-state (2026-11-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-3-settle-triggers-and-the-at-risk-state.md`
+  summary: Story 30.4 must call `open_engagement()` once per open when `needsSettle` is true, never in a retry loop on the flag.
+  evidence: `needs_settle` is true for a dirty mark and for a member with a closed week to settle; the call settles and returns the refreshed row, so a second call in the same open is a no-op that a loop on the flag would repeat. Close in 30.4's acceptance criteria.

@@ -4,13 +4,14 @@
 --
 -- Time never comes from the clock: p_up_to is a fixed date in every call, visit days are explicit, join dates are explicit, the gym is
 -- Africa/Douala. Mondays used: 2026-03-02 (the epoch), 03-09, 03-16, 03-23, 03-30, 04-06.
--- "A late visit" is simulated the way 30.3 will mark it: the test sets engagement_state.dirty_from itself, as the table owner, because the
--- mark that record_check_in will add is not part of this story.
+-- "A late visit" is marked by the test itself: it sets engagement_state.dirty_from as the table owner (pg_temp.mark_dirty, the statement 30.3
+-- added to record_check_in), because the fixtures are fixed March 2026 dates the real clock cannot reach. The mark written by the REAL
+-- record_check_in and void_staff_check_in is proven in engagement_dirty_mark.test.sql, engagement_journey.test.sql and engagement-race.sh.
 --
 -- Fixture ids: 00000000-0000-0000-0033-00000000nnnn. Gym 1001 (A), gym 1002 (B), users 2xxx, members 3xxx.
 
 begin;
-select plan(127);
+select plan(128);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0033-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -373,25 +374,36 @@ select lives_ok($$update platform_engagement_config set daily_streak_min = daily
 select lives_ok($$update platform_engagement_config set goal_default = 3$$, 'epoch guard: and a change of goal_default');
 
 -- ============================================================================
--- Every function that names the engagement tables is a reviewed one, and none is callable by a client
+-- Every function that names the engagement tables, the settle, the job or the state view is a reviewed one (a PINNED list), and none is callable by
+-- a client except void_staff_check_in (an Epic 27 staff function), and the member pair my_engagement and open_engagement (30.3)
 -- ============================================================================
 select is(
   (select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname, p.proname)
    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname !~ '^(pg_|information_schema$)' and p.prosrc ~* '\m(engagement_facts|engagement_state)\M'),
-  'private.effective_engagement_facts, private.engagement_epoch_guard, private.engagement_facts_append_only_guard, private.settle_engagement',
-  'the functions that name engagement_facts or engagement_state are exactly: settle, the append-only guard, the epoch guard and the effective-facts reader (30.7 adds the acknowledge function here)');
+   where n.nspname !~ '^(pg_|information_schema$)'
+     and p.prosrc ~* '\m(engagement_facts|engagement_state|engagement_state_view|engagement_state_view_at|open_engagement_at|settle_engagement|engagement_settle(_[a-z_]+)?)\M'),
+  'private.effective_engagement_facts, private.engagement_epoch_guard, private.engagement_facts_append_only_guard, private.engagement_settle_candidates, private.engagement_settle_job, private.engagement_settle_member, private.engagement_settle_record_run, private.engagement_state_view, private.engagement_state_view_at, private.open_engagement_at, private.record_check_in, private.settle_engagement, public.my_engagement, public.open_engagement, public.void_staff_check_in',
+  'the functions that name the engagement tables, settle, the job or the state view are exactly: the 30.2 set (settle, the two guards, the effective-facts reader), the job and its three helpers, the view family, the two Epic 27 check-in paths and the public pair (30.7 adds the acknowledge function here)');
+select is(
+  (select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname, p.proname)
+   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname !~ '^(pg_|information_schema$)'
+     and p.prosrc ~* '\m(engagement_facts|engagement_state|engagement_state_view|engagement_state_view_at|open_engagement_at|settle_engagement|engagement_settle(_[a-z_]+)?)\M'
+     and has_function_privilege('authenticated', p.oid, 'execute')),
+  'public.my_engagement, public.open_engagement, public.void_staff_check_in',
+  'the only ones an authenticated client can execute are void_staff_check_in (staff, Epic 27) and the member pair my_engagement and open_engagement');
 select is(
   (select count(*)::int
-   from pg_proc p join pg_namespace n on n.oid = p.pronamespace, unnest(array['anon', 'authenticated', 'service_role', 'public']) r
-   where n.nspname !~ '^(pg_|information_schema$)' and p.prosrc ~* '\m(engagement_facts|engagement_state)\M'
+   from pg_proc p join pg_namespace n on n.oid = p.pronamespace, unnest(array['anon', 'service_role', 'public']) r
+   where n.nspname !~ '^(pg_|information_schema$)'
+     and p.prosrc ~* '\m(engagement_facts|engagement_state|engagement_state_view|engagement_state_view_at|open_engagement_at|settle_engagement|engagement_settle(_[a-z_]+)?)\M'
      and has_function_privilege(r, p.oid, 'execute')),
-  0, 'and none of them can be executed by anon, authenticated, service_role or PUBLIC');
+  0, 'and none of them can be executed by anon, service_role or PUBLIC');
 select is(
   (select count(*)::int
    from pg_proc p join pg_namespace n on n.oid = p.pronamespace, unnest(array['anon', 'authenticated']) r
-   where n.nspname = 'private' and (p.proname ~ 'engagement' or p.proname = 'settle_engagement') and has_function_privilege(r, p.oid, 'execute')),
-  0, 'no engagement function of the private schema is executable by anon or authenticated');
+   where n.nspname = 'private' and (p.proname ~ 'engagement' or p.proname = 'settle_engagement' or p.proname = 'record_check_in') and has_function_privilege(r, p.oid, 'execute')),
+  0, 'no engagement function, nor record_check_in, of the private schema is executable by anon or authenticated');
 
 select * from finish();
 rollback;

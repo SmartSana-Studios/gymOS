@@ -5,7 +5,8 @@
 --  * failed run   : any job_runs row with status 'failure' started in the last 65 minutes
 --                   (the workflow runs hourly, so each failure is reported once or twice).
 --  * not running  : a known job whose latest run is older than its allowed gap, or that never ran.
---                   Frequent jobs (15 min / 5 min cadence) get 45 minutes; the daily jobs get 27 hours.
+--                   Frequent jobs (15 min / 5 min cadence) get 45 minutes; the daily jobs get 27 hours; the hourly engagement_settle (five
+--                   past every hour, it writes a row on every run, with the epoch unset too) gets 150 minutes.
 --                   support_factor_reset_executor is the Super Admin app's daily Vercel Cron run (it writes a row even when it had nothing to do).
 -- A job name missing from `expected` is still covered for failures but not for "not running":
 -- add new cron jobs here when they ship.
@@ -25,7 +26,8 @@ with expected(job_name, max_gap) as (
     ('saas_billing_lifecycle',     interval '27 hours'),
     ('subscription_lifecycle',     interval '27 hours'),
     ('loyalty_sweep',              interval '27 hours'),
-    ('loyalty_hook_repair',        interval '27 hours')
+    ('loyalty_hook_repair',        interval '27 hours'),
+    ('engagement_settle',          interval '150 minutes')
 ),
 last_run as (
   select job_name, max(started_at) as last_started from job_runs group by job_name

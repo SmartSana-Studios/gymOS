@@ -173,8 +173,8 @@ select is(
    ]) f, unnest(array['anon', 'authenticated', 'service_role', 'public']) r
    where has_function_privilege(r, to_regprocedure(f), 'execute')),
   0, 'none of the nine functions is executable by anon, authenticated, service_role or PUBLIC');
-select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname ~ 'engagement' and proname <> 'set_weekly_goal'), 0,
-          'no engagement function lives in the public schema (nothing is callable through the API)');
+select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname ~ 'engagement' and proname not in ('set_weekly_goal', 'my_engagement', 'open_engagement')), 0,
+          'no engagement function lives in the public schema except the member pair my_engagement and open_engagement (30.3)');
 select is((select count(*)::int from private.support_capabilities where object_name ~ 'engagement'), 0, 'none is registered as a support capability');
 
 select * from finish();
