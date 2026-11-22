@@ -242,7 +242,7 @@ SQL
   done
   bcheck "ten members, one refusing: nine are settled and committed" "$n_ok" 9
   bcheck "the refusing member has no fact" "$(jfacts 05)" 0
-  bcheck "the run is a failure naming the count and the first error" "$(jlast)" "failure|1 of 10 members failed; first: job test: member 05 refuses"
+  bcheck "the run is a failure naming the count and the first error" "$(jlast)" "failure|1 of 10 members failed; first: member ${JM}05: job test: member 05 refuses"
 
   # B2: the refusal is gone: the next run settles the one left (success), and a run after that settles nothing and writes no fact.
   psql_ -c "drop trigger zz_eng_job_refuse on public.engagement_facts" >/dev/null

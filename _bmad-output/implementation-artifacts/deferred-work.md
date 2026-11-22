@@ -2294,4 +2294,14 @@ Lab, local results only (one machine runs the server, the database, the load and
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-30-3-settle-triggers-and-the-at-risk-state.md`
   summary: Story 30.4 must call `open_engagement()` once per open when `needsSettle` is true, never in a retry loop on the flag.
-  evidence: `needs_settle` is true for a dirty mark and for a member with a closed week to settle; the call settles and returns the refreshed row, so a second call in the same open is a no-op that a loop on the flag would repeat. Close in 30.4's acceptance criteria.
+  evidence: `needs_settle` is true for a dirty mark and for a member with a closed week to settle; one `open_engagement()` settles and returns the refreshed row, where the flag is false again. The risk is a settle that keeps failing (the call raises, or the flag stays true because the mark is re-written), which a loop on the flag would retry without end. Close in 30.4's acceptance criteria: one call per open, then render the row as returned.
+
+## Deferred from: code review of spec-30-3-settle-triggers-and-the-at-risk-state (2026-11-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-3-settle-triggers-and-the-at-risk-state.md`
+  summary: Reconcile `epics.md` Story 30.3 with the owner-approved candidate and `needs_settle` rule (earliest visit day's Monday on or before the last closed Monday, not before the epoch).
+  evidence: epics.md still says "`settled_through` before the last closed Monday, or `dirty_from` set"; migration 0186's `engagement_settle_candidates` and `engagement_state_view_at` apply the amended rule (spec 30-3 Change Log, 2026-11-22). Edit the planning doc before 30.4 is specced.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-3-settle-triggers-and-the-at-risk-state.md`
+  summary: Unverified medium: the hourly `engagement_settle_candidates` query may be slow at scale (a `min(visit_day)` subselect over the `member_visit_days` view per non-dirty member of every active gym, re-run per 200-row batch).
+  evidence: no EXPLAIN or timing exists. Settle it with `EXPLAIN (ANALYZE, BUFFERS) select * from private.engagement_settle_candidates(null, 200)` on a seeded DB of about 50k members over 50 gyms, before `release_week_start` is set on production.

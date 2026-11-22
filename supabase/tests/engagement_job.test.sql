@@ -13,7 +13,7 @@
 -- Fixture ids: 00000000-0000-0000-0037-00000000nnnn. Gym 1001 (A, active), 1002 (S, suspended), users 2xxx, members 3xxx.
 
 begin;
-select plan(57);
+select plan(60);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0037-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -22,7 +22,11 @@ insert into tiers (id, name, monthly_price, annual_price, member_cap) values (pg
 -- A suspended gym is seeded suspended in its INSERT (a bare UPDATE of gyms.status is silently reverted).
 insert into gyms (id, name, tier_id, status, timezone) values
   (pg_temp.id(1, 1), 'JB Gym A', pg_temp.id(0, 1), 'active', 'Africa/Douala'),
-  (pg_temp.id(1, 2), 'JB Gym S', pg_temp.id(0, 1), 'suspended', 'Africa/Douala');
+  (pg_temp.id(1, 2), 'JB Gym S', pg_temp.id(0, 1), 'suspended', 'Africa/Douala'),
+  -- Two active gyms 25 hours apart (UTC+14 and UTC-11): at any instant at least one of them is on a different calendar date than UTC, so a
+  -- `today` taken from the session or the UTC date instead of private.gym_today cannot hide behind Douala (UTC+1).
+  (pg_temp.id(1, 3), 'JB Gym East', pg_temp.id(0, 1), 'active', 'Pacific/Kiritimati'),
+  (pg_temp.id(1, 4), 'JB Gym West', pg_temp.id(0, 1), 'active', 'Pacific/Pago_Pago');
 insert into auth.users (id, email, email_confirmed_at) select pg_temp.id(2, n), 'jb-' || n || '@x.example', now() from generate_series(1, 60) n;
 -- 1 dirty, 2 stale settled_through, 3 history and no state row, 4 up to date, 5 no visit, 6 deactivated and dirty, 7 coach and dirty,
 -- 8 member of the suspended gym and dirty, 9 owner and dirty, 10 visit only this week (the open week), 11 only pre-... history (a visit in March 2026).
@@ -35,6 +39,11 @@ select pg_temp.m(n),
        'JB Member ' || n, date '2026-01-05',
        case when n = 6 then now() end
 from generate_series(1, 60) n;
+
+-- 61 (gym East) and 62 (gym West): dirty members, so each is a candidate whatever the week arithmetic says.
+insert into auth.users (id, email, email_confirmed_at) select pg_temp.id(2, n), 'jb-' || n || '@x.example', now() from generate_series(61, 62) n;
+insert into members (id, gym_id, user_id, role, name, join_date)
+select pg_temp.m(n), pg_temp.id(1, case n when 61 then 3 else 4 end), pg_temp.id(2, n), 'member', 'JB Member ' || n, date '2026-01-05' from generate_series(61, 62) n;
 
 create function pg_temp.visit(p_n int, p_day date) returns void language plpgsql as $f$
 begin
@@ -131,6 +140,19 @@ select is(position(',9,' in ',' || pg_temp.cnums() || ','), 0, 'an owner is not 
 select is(position(',8,' in ',' || pg_temp.cnums() || ','), 0, 'a member of a suspended gym is not a candidate');
 select is((select count(*)::int from private.engagement_settle_candidates(null, 1000) c where c.today <> private.gym_today(c.gym_id)), 0, 'each candidate carries its gym-local day');
 
+-- A gym far from Douala: the candidate's `today` is that gym's own day, whichever side of the UTC date it falls on.
+insert into engagement_state (member_id, gym_id, dirty_from) values
+  (pg_temp.m(61), pg_temp.id(1, 3), date '2026-03-02'),
+  (pg_temp.m(62), pg_temp.id(1, 4), date '2026-03-02');
+select ok(private.gym_today(pg_temp.id(1, 3)) <> current_date or private.gym_today(pg_temp.id(1, 4)) <> current_date,
+          'fixture: at least one far-zone gym is on a different calendar date than the session date, so the checks below are not vacuous');
+select is((select count(*)::int from private.engagement_settle_candidates(null, 1000) c where c.gym_id in (pg_temp.id(1, 3), pg_temp.id(1, 4))), 2,
+          'a dirty member of each far-zone gym is a candidate');
+select is((select count(*)::int from private.engagement_settle_candidates(null, 1000) c
+           where c.gym_id in (pg_temp.id(1, 3), pg_temp.id(1, 4)) and c.today = private.gym_today(c.gym_id)), 2,
+          'each far-zone candidate carries its own gym-local day (not the session or UTC date)');
+delete from engagement_state where member_id in (pg_temp.m(61), pg_temp.m(62));
+
 -- Keyset batches: after a given id, at most p_limit rows, in id order.
 select is(pg_temp.cnums(pg_temp.m(1), 2), '2,3', 'keyset: after member 1, a batch of 2 is 2 and 3');
 select is(pg_temp.cnums(pg_temp.m(3), 2), '11', 'keyset: the next batch is 11 only');
@@ -158,7 +180,7 @@ begin
   return new;
 end $f$;
 create trigger refuse before insert on engagement_facts for each row execute function pg_temp.refuse();
-select is(pg_temp.settle_one(2), 'error:jb refuses member 2', 'a settle that raises is returned as error:<message>, not raised');
+select is(pg_temp.settle_one(2), 'error:member ' || pg_temp.m(2) || ': jb refuses member 2', 'a settle that raises is returned as error:member <id>: <message>, not raised');
 select is(pg_temp.nfacts(2, 2), 0, 'the failed member has no fact (its partial writes were rolled back)');
 select is((select settled_through::text from engagement_state where member_id = pg_temp.m(2)), '2026-03-02', 'its watermark is unchanged by the failed settle');
 drop trigger refuse on engagement_facts;
@@ -188,7 +210,7 @@ begin
   return rtrim(v_out);
 end $f$;
 select is(pg_temp.cnums(null, 1000) like '%20,21,22,23,24,25,26,27,28,29%', true, 'the ten members are candidates');
-select is(pg_temp.run_ten(), '20=settled 21=settled 22=settled 23=settled 24=settled 25=error:j 26=settled 27=settled 28=settled 29=settled',
+select is(pg_temp.run_ten(), '20=settled 21=settled 22=settled 23=settled 24=settled 25=error:m 26=settled 27=settled 28=settled 29=settled',
           'nine are settled and the failing member is reported without stopping the others');
 select is((select count(distinct member_id)::int from engagement_facts where member_id between pg_temp.m(20) and pg_temp.m(29)), 9, 'nine members have facts');
 select is(pg_temp.nfacts(25, 25), 0, 'the failing one has none');
@@ -214,7 +236,7 @@ select is((select status::text || '|' || error from job_runs where job_name = 'e
 select private.engagement_settle_record_run(timestamptz '2026-03-23 05:05:00+00', 0, 1, 'read exploded');
 select is((select status::text || '|' || error from job_runs where job_name = 'engagement_settle' and started_at = timestamptz '2026-03-23 05:05:00+00'),
           'failure|candidate read failed: read exploded', 'a failed candidate read (no member reached) says so instead of "1 of 0 members failed"');
-select is((select count(*)::int from job_runs where job_name = 'engagement_settle' and finished_at >= started_at and finished_at is not null), 3, 'each run has finished_at after started_at');
+select is((select count(*)::int from job_runs where job_name = 'engagement_settle' and started_at::date = date '2026-03-23' and finished_at >= started_at and finished_at is not null), 3, 'each run has finished_at after started_at (the three fixture runs; the real cron job may have logged its own)');
 
 select * from finish();
 rollback;

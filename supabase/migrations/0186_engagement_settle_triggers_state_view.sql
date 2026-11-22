@@ -550,7 +550,7 @@ $$;
 -- One member, in the caller's transaction: the member lock with `skip locked` FIRST (a check-in in flight holds it, so the member is skipped
 -- and picked up on the next run, and the job never blocks a scan), then settle at the gym's day. The exception block is here, before the
 -- COMMIT the procedure issues after this returns, never around it (a COMMIT inside an exception block is refused). Returns 'settled',
--- 'skipped' (locked, or the member is gone) or 'error:<message>'; an error rolls this member's partial writes and lock back.
+-- 'skipped' (locked, or the member is gone) or 'error:member <id>: <message>' (the id lets the job_runs row name the stuck member); an error rolls this member's partial writes and lock back.
 create function private.engagement_settle_member(p_member_id uuid, p_gym_id uuid, p_today date)
 returns text
 language plpgsql
@@ -565,7 +565,7 @@ begin
     perform private.settle_engagement(p_member_id, p_gym_id, p_today);
     return 'settled';
   exception when others then
-    return 'error:' || sqlerrm;
+    return 'error:member ' || p_member_id || ': ' || sqlerrm;
   end;
 end;
 $$;

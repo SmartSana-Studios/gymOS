@@ -6,8 +6,9 @@
 -- week, not the week of receipt); a later mark never replaces an earlier one and an earlier one replaces a later one; a void marks the week of
 -- the voided visit and deletes nothing; the lock stays the first statement of both bodies and the mark is unguarded (no exception handler);
 -- the scan that every function inserting into attendance_events or voiding a row of it also writes engagement_state.
--- The Epic 27 check-in and void pgTAP files (record_check_in, check_in_record_path, staff_check_in, void_staff_check_in,
--- check_in_session_gate*, check_in_one_open_session_enforcement, suspension_rpc_coverage) pass UNEDITED; scripts/ci-local.sh runs them.
+-- The Epic 27 check-in and void pgTAP files (record_check_in, check_in_record_path, staff_check_in, check_in_session_gate*,
+-- check_in_one_open_session_enforcement, suspension_rpc_coverage) pass UNEDITED; scripts/ci-local.sh runs them. void_staff_check_in.test.sql
+-- case 7 is the one edit (it asserted the void never contains dirty_from, the opposite of the statement 0186 adds); it now asserts the mark.
 --
 -- The clock is real here because the check-in functions read now() themselves: assertions are relative to the stored visit_day, never to a
 -- literal date, except the fixed March 2026 marks that the "earliest wins" cases plant.
@@ -15,7 +16,7 @@
 -- Fixture ids: 00000000-0000-0000-0036-00000000nnnn. Gym 1001, users 2xxx, members 3xxx (1 owner, 2 receptionist, 10+ members).
 
 begin;
-select plan(49);
+select plan(51);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0036-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -190,6 +191,13 @@ select is((select count(*)::int from engagement_facts where member_id = pg_temp.
 delete from engagement_state where member_id = pg_temp.m(18);
 select is((select outcome from public.void_staff_check_in(pg_temp.att(18), 'dirty mark test void four')), 'already_voided', 'a second void is refused as already_voided');
 select is(pg_temp.nstate(18), 0, 'a refused void writes no mark');
+
+-- A void only ever reaches today's visit (an earlier gym-local day is refused as not_same_day), so the week it marks is always the open week; a
+-- visit of an earlier week can never be voided, and the refusal marks nothing.
+insert into attendance_events (gym_id, member_id, checked_in_at, checked_out_at, checkout_type, source, entered_by)
+values (pg_temp.id(1, 1), pg_temp.m(21), now() - interval '8 days', now() - interval '8 days' + interval '1 hour', 'manual', 'staff', pg_temp.id(2, 2));
+select is((select outcome from public.void_staff_check_in(pg_temp.att(21), 'dirty mark test void past week')), 'not_same_day', 'a visit of an earlier week cannot be voided: not_same_day');
+select is(pg_temp.nstate(21), 0, 'and the refused void of an earlier week writes no mark');
 
 -- ============================================================================
 -- The consumer scan: every function that inserts into attendance_events or voids a row of it also writes engagement_state

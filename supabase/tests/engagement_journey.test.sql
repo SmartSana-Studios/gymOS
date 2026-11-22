@@ -13,7 +13,7 @@
 
 begin;
 set local timezone = 'UTC';
-select plan(56);
+select plan(60);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0040-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -21,13 +21,13 @@ create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ se
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values (pg_temp.id(0, 1), 'JR Tier', 6000, 60000, null);
 insert into gyms (id, name, tier_id, status, charge_guests_per_session, registration_fee, timezone)
 values (pg_temp.id(1, 1), 'JR Gym', pg_temp.id(0, 1), 'active', false, 0, 'Africa/Douala');
-insert into auth.users (id, email, email_confirmed_at) select pg_temp.id(2, n), 'jr-' || n || '@x.example', now() from generate_series(1, 2) n;
+insert into auth.users (id, email, email_confirmed_at) select pg_temp.id(2, n), 'jr-' || n || '@x.example', now() from generate_series(1, 3) n;
 insert into members (id, gym_id, user_id, role, name, join_date)
-select pg_temp.m(n), pg_temp.id(1, 1), pg_temp.id(2, n), 'member', 'JR Member ' || n, date '2026-01-05' from generate_series(1, 2) n;
+select pg_temp.m(n), pg_temp.id(1, 1), pg_temp.id(2, n), 'member', 'JR Member ' || n, date '2026-01-05' from generate_series(1, 3) n;
 insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days)
 values (pg_temp.id(4, 1), pg_temp.id(1, 1), 'JR Monthly', 'monthly', 15000, 'XAF', 'monthly', 30);
 insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expiry_date)
-select pg_temp.id(1, 1), pg_temp.m(n), pg_temp.id(4, 1), 'active', date '2026-01-05', date '2030-01-01' from generate_series(1, 2) n;
+select pg_temp.id(1, 1), pg_temp.m(n), pg_temp.id(4, 1), 'active', date '2026-01-05', date '2030-01-01' from generate_series(1, 3) n;
 
 update platform_engagement_config set release_week_start = date '2026-03-02';
 
@@ -138,6 +138,15 @@ select is(pg_temp.chk(2, date '2026-03-12'), 'checked_in', 'late: and a third');
 select is(pg_temp.rd(2, '2026-03-19 09:00+01'), '0|1|3|true|1|true|true', 'Thursday 2026-03-19: the ring is the open week only (3 of 3), the settled streak is still 0, a settle is due');
 select is(pg_temp.op(2, '2026-03-23 08:00+01'), '3|3|0|false|null|false|true', 'Monday 2026-03-23: weeks 2 and 3 settle together: the streak is 3, the best is 3');
 select is(pg_temp.facts(2), '2026-03-02:1:met:3 2026-03-09:2:met:3 2026-03-16:1:met:3', 'week 2 is revision 2 met');
+
+-- ============================================================================
+-- Member 3: the open happens just after the gym's local Monday midnight, still Sunday by the UTC date
+-- ============================================================================
+select is(pg_temp.chk(3, date '2026-03-02'), 'checked_in', 'member 3, week 1 Monday');
+select is(pg_temp.chk(3, date '2026-03-04'), 'checked_in', 'week 1 Wednesday');
+select is(pg_temp.chk(3, date '2026-03-06'), 'checked_in', 'week 1 Friday');
+select is(pg_temp.op(3, '2026-03-08 23:30+00'), '1|1|0|false|null|false|true',
+          'Sunday 23:30 UTC is Monday 00:30 in Douala: open_engagement settles at the gym-local day, so week 1 is settled (the UTC date would leave it open)');
 
 -- ============================================================================
 -- The same through the public pair at the real clock: a plain read changes no row

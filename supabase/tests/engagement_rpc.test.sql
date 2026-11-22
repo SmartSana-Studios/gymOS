@@ -15,7 +15,7 @@
 -- Fixture ids: 00000000-0000-0000-0039-00000000nnnn. Gym 1001 (A, active), 1002 (S, suspended), users 2xxx, members 3xxx.
 
 begin;
-select plan(63);
+select plan(61);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0039-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -198,7 +198,7 @@ select is(
 select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(5)), 0, 'the suspended gym''s member was never settled');
 
 -- ============================================================================
--- Every plan state gets a row; an expired member has at_risk_weekly false
+-- Every plan state gets a row. (The at-risk flag per plan state needs a moved clock: engagement_state_view.test.sql proves it with `_at`.)
 -- ============================================================================
 select pg_temp.claims(12, 1, 'member');
 select is(pg_temp.asrole('authenticated', 'select count(*)::text from public.my_engagement()'), '1', 'a Pay-per-session member gets a row');
@@ -206,12 +206,10 @@ select pg_temp.claims(13, 1, 'member');
 select is(pg_temp.asrole('authenticated', 'select count(*)::text from public.my_engagement()'), '1', 'a member on a monthly plan gets a row');
 select pg_temp.claims(14, 1, 'member');
 select is(pg_temp.asrole('authenticated', 'select count(*)::text from public.my_engagement()'), '1', 'a member awaiting the registration fee (no subscription) gets a row');
-select is((select at_risk_weekly from public.my_engagement()), false, 'with at_risk_weekly false (no plan behaves as expired)');
 select pg_temp.claims(15, 1, 'member');
 select is(pg_temp.asrole('authenticated', 'select count(*)::text from public.my_engagement()'), '1', 'a grace_period member gets a row');
 select pg_temp.claims(16, 1, 'member');
 select is(pg_temp.asrole('authenticated', 'select count(*)::text from public.my_engagement()'), '1', 'an expired member gets a row');
-select is((select at_risk_weekly from public.my_engagement()), false, 'with at_risk_weekly false');
 select is(pg_temp.asrole('authenticated', 'select count(*)::text from public.open_engagement()'), '1', 'and may open (settle) like any member');
 
 select * from finish();
