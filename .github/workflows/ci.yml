@@ -133,6 +133,10 @@ jobs:
         # Story 27.2 (NFR-021): a second scan waits on the member lock at a non-charging gym too; pgTAP cannot interleave.
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/check-in-member-lock-race.sh
 
+      - name: Engagement settle vs offline check-in race (real sessions behind a held member lock, 8 iterations)
+        # Story 30.2 (NFR-028, AD-53): settle and a late check-in for one member, both queue orders; pgTAP cannot interleave. Sets and restores the engagement epoch on throwaway fixtures.
+        run: DB_CONTAINER=supabase_db_gym_os bash scripts/engagement-race.sh
+
       - name: Correct-plan race (two real sessions, both orders)
         # Story 27.4 (NFR-021): the correction against complete_verified_payment, confirm_renewal, the Tara initiation and the lifecycle job; pgTAP cannot interleave.
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/correct-plan-race.sh

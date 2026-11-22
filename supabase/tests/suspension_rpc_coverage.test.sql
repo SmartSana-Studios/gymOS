@@ -172,7 +172,12 @@ values
   -- 0113 (Story 19.8): AFTER INSERT trigger on refunds. The insert itself is
   -- gated by tenant_active_gate for every client role; a status guard here would
   -- make a service_role refund raise and leave the refund and its session out of step.
-  ('private', 'apply_session_refund', 'after-insert trigger on refunds, reachable by authenticated only behind the gated refunds insert; voids the refunded session in the same transaction');
+  ('private', 'apply_session_refund', 'after-insert trigger on refunds, reachable by authenticated only behind the gated refunds insert; voids the refunded session in the same transaction'),
+
+  -- 0185 (Story 30.2): the engagement settle. A system path with no client grant: called by the cron job (30.3), which skips suspended gyms,
+  -- and by open_engagement() (30.3), which refuses a suspended gym before calling it. It writes only engagement_facts and engagement_state
+  -- (neither carries tenant_active_gate), so it is listed to keep the reasoning next to the others; it must stay free of a status guard.
+  ('private', 'settle_engagement', 'system path called by the cron job, which skips suspended gyms, and by open_engagement(), which refuses a suspended gym before calling it; no client can execute it');
 
 -- ============================================================================
 -- The assertion that matters. Any SECURITY DEFINER function writing a gated
@@ -274,6 +279,9 @@ select is(
   --                             behind public_site.pages and page_media, whose predicate (gym status active) is the suspension gate for the public
   --                             site. Written only by publish_gym_page (status-guarded for a non-Super-Admin), unpublish_gym_page (deliberately NOT
   --                             guarded: an Owner of a suspended gym can always take the page down), the refresh triggers and the page-name sweep
+  --   engagement_facts, engagement_state - 30.2: RLS on, no client policy, no client grant; written only by private.settle_engagement() (no client can
+  --                             execute it; the cron job skips suspended gyms and open_engagement() refuses one) and, from 30.3, the check-in and void
+  --                             dirty mark; never read by a client, so a restrictive policy would be a structural no-op (the page_names reasoning)
   --   member_weekly_goals     - 30.1: RLS on, no client policy, no client grant; written only by set_weekly_goal() (status-guarded: it raises the
   --                             `is not active` phrase for a suspended gym) and read only by my_weekly_goal() (no row for a suspended gym), so a
   --                             restrictive policy would be a structural no-op (the page_names reasoning)
@@ -304,7 +312,7 @@ select is(
   -- ever needs to close its coach INSERT, add a SEPARATE, narrower
   -- RESTRICTIVE ... FOR INSERT policy under a DIFFERENT name -- reusing
   -- `tenant_active_gate` would silently change assertion 1's count above.
-  'audit_disclosure_requests, exercise_library, gym_data_escalations, gym_page_media, gym_pages, gym_payment_credentials, member_weekly_goals, page_names, saas_billing_notices, saas_billing_payments, staff_notices, support_action_identity, support_assignments, support_staff_review',
+  'audit_disclosure_requests, engagement_facts, engagement_state, exercise_library, gym_data_escalations, gym_page_media, gym_pages, gym_payment_credentials, member_weekly_goals, page_names, saas_billing_notices, saas_billing_payments, staff_notices, support_action_identity, support_assignments, support_staff_review',
   'the set of gym_id-bearing tables WITHOUT tenant_active_gate is unchanged -- a new one is invisible to the guardrail above, so it must be justified here (Story 11.8 code review)'
 );
 
