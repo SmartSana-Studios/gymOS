@@ -55,6 +55,9 @@ export function useCalendar(isConnected: boolean, pendingCheckInCount: number, u
   const monthDataRef = useRef<MonthData>({ kind: 'loading' });
   const snapshotRef = useRef<EngagementSnapshot | null>(null);
   const firstVisitRef = useRef<string | null>(null);
+  // A failed first-visit read with no stored bound: the previous-month chevron cannot know where to stop, so the failure outlives a month load that
+  // succeeds (the banner stays, and a pull to refresh retries) instead of silently looking like "no history".
+  const firstVisitFailedRef = useRef(false);
   const cacheRef = useRef<CalendarCache | null>(null);
   const connectedRef = useRef(isConnected);
   useEffect(() => {
@@ -90,7 +93,7 @@ export function useCalendar(isConnected: boolean, pendingCheckInCount: number, u
         if (!current()) return;
         if (result.status === 'success') {
           const days = result.days.map((d) => d.visitDay);
-          setLoadFailed(false);
+          setLoadFailed(firstVisitFailedRef.current);
           commitMonthData({ kind: 'ready', days, fromCache: false });
           if (userId && gymId) {
             if (cacheRef.current) cacheRef.current = { ...cacheRef.current, months: { ...cacheRef.current.months, [target]: days } };
@@ -147,10 +150,12 @@ export function useCalendar(isConnected: boolean, pendingCheckInCount: number, u
 
       if (first && first.status === 'success') {
         firstVisitRef.current = first.day;
+        firstVisitFailedRef.current = false;
         setFirstVisitDay(first.day);
         if (userId && gymId) void writeCalendarFirstVisitDay(userId, gymId, first.day);
       } else if (first) {
         failed = true;
+        firstVisitFailedRef.current = firstVisitRef.current === null;
       }
       setLoadFailed(failed);
 
@@ -181,6 +186,13 @@ export function useCalendar(isConnected: boolean, pendingCheckInCount: number, u
     if (isConnected && !wasConnected.current) void loadAll();
     wasConnected.current = isConnected;
   }, [isConnected, loadAll]);
+  // The reconnect load can finish before the queued scans have synced; once the queue drains while connected, read today again so the day lights and
+  // the at-risk hint goes.
+  const lastPendingCount = useRef(pendingCheckInCount);
+  useEffect(() => {
+    if (isConnected && pendingCheckInCount < lastPendingCount.current) void loadAll();
+    lastPendingCount.current = pendingCheckInCount;
+  }, [pendingCheckInCount, isConnected, loadAll]);
 
   const offline = !isConnected || loadFailed;
 

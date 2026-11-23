@@ -214,7 +214,9 @@ describe('Home card and Profile row open /calendar (closes the 30.4 card-tap def
     const profile = stripComments(source('app/(tabs)/profile.tsx'));
     expect(profile).toMatch(/engagementEnabled && \(\s*<Pressable[\s\S]*?router\.push\('\/calendar'\)[\s\S]*?t\('engage\.calendar\.title'\)/);
     expect(profile).toContain('getMyEngagement');
-    expect(profile).toMatch(/setEngagementEnabled\(showMyVisitsRow\(result\)\)/);
+    expect(profile).toMatch(/setEngagementEnabled\(\(current\) => myVisitsRowAfterRead\(current, result\)\)/);
+    expect(profile).toMatch(/readEngagementCache\(sessionUserId, gymId\)/);
+    expect(profile).toMatch(/setEngagementEnabled\(myVisitsRowFromCache\(cached\)\)/);
     expect(profile).not.toContain('openEngagement');
   });
 

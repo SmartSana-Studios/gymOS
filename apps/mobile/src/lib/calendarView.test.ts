@@ -21,7 +21,8 @@ import {
   buildCalendarView,
   calendarCacheKey,
   readCalendarCache,
-  showMyVisitsRow,
+  myVisitsRowAfterRead,
+  myVisitsRowFromCache,
   SKELETON_CELLS,
   writeCalendarFirstVisitDay,
   writeCalendarMonth,
@@ -303,6 +304,10 @@ describe('the at-risk rule (the Home rule, on the current month only)', () => {
     expect(view.atRiskLine).toBeNull();
     expect(view.weeks.flatMap((w) => w.cells).some((c) => c.kind === 'day' && c.atRisk)).toBe(false);
     expect(view.detail).toBe('Today, Wednesday 25 November: no visit yet. 6 hours left');
+    // The hint itself survives the month change (the screen keeps it mounted, hidden), so returning does not replay its announcement.
+    expect(view.atRiskHint).not.toBeNull();
+    expect(build({ row: { atRiskWeekly: true } }).atRiskHint).toEqual(build({ row: { atRiskWeekly: true } }).atRiskLine);
+    expect(build({}).atRiskHint).toBeNull();
   });
 
   it('a cached row follows the device clock for the end of the gym day, like Home', () => {
@@ -499,11 +504,19 @@ describe('wording is data (sentinel)', () => {
 });
 
 describe('the Profile "My visits" row gate', () => {
-  it('shows only for a successful read of an enabled area', () => {
-    expect(showMyVisitsRow({ status: 'success', engagement: { ...ROW, enabled: true } })).toBe(true);
-    expect(showMyVisitsRow({ status: 'success', engagement: { ...ROW, enabled: false } })).toBe(false);
-    expect(showMyVisitsRow({ status: 'unavailable' })).toBe(false);
-    expect(showMyVisitsRow({ status: 'error' })).toBe(false);
+  it('after a live read: the server answers when it can, a failed read leaves what is showing', () => {
+    for (const current of [true, false]) {
+      expect(myVisitsRowAfterRead(current, { status: 'success', engagement: { ...ROW, enabled: true } })).toBe(true);
+      expect(myVisitsRowAfterRead(current, { status: 'success', engagement: { ...ROW, enabled: false } })).toBe(false);
+      expect(myVisitsRowAfterRead(current, { status: 'unavailable' })).toBe(false);
+      expect(myVisitsRowAfterRead(current, { status: 'error' })).toBe(current);
+    }
+  });
+
+  it('from the device copy: only a copy that says the area is on shows the row (offline, before the live read)', () => {
+    expect(myVisitsRowFromCache({ engagement: { ...ROW, enabled: true }, fetchedAtDeviceMs: 1 })).toBe(true);
+    expect(myVisitsRowFromCache({ engagement: { ...ROW, enabled: false }, fetchedAtDeviceMs: 1 })).toBe(false);
+    expect(myVisitsRowFromCache(null)).toBe(false);
   });
 });
 

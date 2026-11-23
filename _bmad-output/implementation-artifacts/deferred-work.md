@@ -2305,7 +2305,7 @@ Lab, local results only (one machine runs the server, the database, the load and
   summary: ~~Story 30.5 acceptance line: the "This week" card on Home is tappable as a whole and opens `/calendar`.~~ **Closed 2026-11-23 by Story 30.5** (`onPressCard` on `WeeklyRingSection`, card-level button with `engage.ring.cardHint`, the goal button and goal hint stay separate targets; pinned by a source scan in `weeklyRing.source.test.ts`).
   evidence: 30.4 leaves the card without an `onPress` because the route does not exist until 30.5 (an absent route shows an unmatched screen). 30.5 must add the card's `onPress` in `apps/mobile/src/components/WeeklyRingCard.tsx` (the `WeeklyRingSection` Card), a card-level accessibility role and the `engage.ring.cardHint` hint (key already in both locale files), and keep the goal button and the Shield chip as their own targets.
 - source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
-  summary: ~~Offline overlay counts one dashed segment per queued scan today even when the cached row already says `visitedToday`.~~ **Closed for the calendar 2026-11-23 by Story 30.5** (a queued scan lights today dashed only while `!visitedToday`; `calendarView.test.ts` pins it). Home's ring still counts one dashed segment per queued scan beside a visited day; that half is not changed here.
+  summary: Offline overlay counts one dashed segment per queued scan today even when the cached row already says `visitedToday`. **OPEN for Home's ring.** (The calendar half was closed 2026-11-23 by Story 30.5: a queued scan lights today dashed only while `!visitedToday`, pinned by `calendarView.test.ts`. Home's ring still counts one dashed segment per queued scan beside a visited day; that half is not changed.)
   evidence: The spec fixes "one dashed segment per queued scan whose scannedAt is at or after the cached dayStartsAt, capped at the goal". A member who visited online earlier today and scans again offline sees one extra dashed segment until the sync corrects it (two scans on one day are one visit day). Decide in a later pass whether the overlay should skip the day when `visitedToday` is true.
 - source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
   summary: The Home engagement hook (`use-home-engagement.ts`) and the shared toast hook (`use-focus-toast.ts`) are covered only by source-text scans, so their cache write, cached fallback, settle-failure flag, hint dismissal, queued overlay and toast timing can regress with a green Vitest run.
@@ -2347,3 +2347,21 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
   summary: `use-calendar.ts` transitions are covered only by source scans; mutants pass.
   evidence: Dropping the `monthRef.current === target` half of `current()` (a slow October answer overwrites November), the cached fallback, or the `shift` bounds keeps Vitest green (verification-gap review). Fix with a pure reducer in `lib/calendarView.ts`, the same fix as 30-4's hook deferral; do both at once.
+
+## Deferred from: code review pass 2 of spec-30-5-attendance-calendar.md (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: The `invalid_month` bound of `my_visit_days` (gym month, via `private.gym_today`) is not pinned by a test that controls the clock.
+  evidence: Replacing `private.gym_today(v_gym_id)` with `current_date` keeps every assertion in `my_visit_days.test.sql` and `.negative.test.sql` green; the two agree except around a month edge for a non-UTC gym. A deterministic test needs an injectable clock (`gym_today` reads the transaction clock). Record with Story 30.6's load/clock work; patch sooner if a cheap seam exists.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: Add two mutants to the `use-calendar.ts` hook-transitions entry above: `connected: offline` in `buildCalendarView` (restores the wrong "isn't saved on your phone" face on a server error) and `else next = null` on a failed refresh (restores the grid-to-error swap) both keep Vitest green.
+  evidence: Verification-gap review pass 2. The planned pure reducer for the hook's transitions would close these with the others.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: Unverified medium: the at-risk live region sits inside Home's button-role `Pressable` (30.5 made the card one button); Android may swallow it or announce the hint twice (card label plus live region).
+  evidence: `WeeklyRingCard.tsx` wraps `CardBody` (which holds `AtRiskHint`) in an accessible Pressable. Settle with a TalkBack pass on Home with an at-risk member at the end-of-epic device QA.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: Unverified medium: the grid's `Intl.DateTimeFormat` use (`timeZone: 'UTC'`, narrow weekdays, French month names) is proven only under Node's ICU, not Hermes on iOS and Android.
+  evidence: Settle with the French-locale pass on both platforms at the end-of-epic device QA (narrow weekday letters, month and weekday names, week labels).
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: Story 30.6's acceptance criteria in `epics.md` do not yet carry the NFR-029 baseline line (record the server time of `my_visit_days` and `my_first_visit_day` for a member with two years of attendance at the largest tier's member cap).
+  evidence: Per the owner decision of 2026-11-23 the figure moved to 30.6, but only this file records it. Add the line to `epics.md` Story 30.6 (a planning spec, so not edited by this review) before 30.6 is built.

@@ -17,7 +17,7 @@ import {
 } from '@/lib/calendarGrid';
 import type { TFn } from '@/lib/weeklyGoalSheet';
 import type { GetMyEngagementResult } from '@/services/engagement';
-import { hintFor, msLeftInDay, queuedTodayCount, timeLeftParts, type EngagementSnapshot, type HintView } from '@/lib/weeklyRing';
+import { hintFor, msLeftInDay, queuedTodayCount, timeLeftParts, type CachedEngagement, type EngagementSnapshot, type HintView } from '@/lib/weeklyRing';
 
 /** Story 30.5 (FR-224, FR-225, NFR-028; MA-18): the pure view model of the attendance calendar. The screen renders only what this module returns. Every
  * string comes from `t()` (wording is data in the locale files), the grid is plain date arithmetic on strings (lib/calendarGrid.ts: no device time
@@ -25,10 +25,18 @@ import { hintFor, msLeftInDay, queuedTodayCount, timeLeftParts, type EngagementS
  * server's: this module counts rows and nothing else. The only instant arithmetic is the hours left (an instant minus an instant, with the server
  * offset, through msLeftInDay) and the queued-scan cut-off (queuedTodayCount), both reused from the Home ring. No check-in time is ever shown. */
 
-/** Whether Profile's Training card shows the "My visits" row: only while the engagement area is on for this member, never on a failed or empty read, so
- * a dark area leaves Profile exactly as it was. */
-export function showMyVisitsRow(result: GetMyEngagementResult): boolean {
-  return result.status === 'success' && result.engagement.enabled;
+/** Whether Profile's Training card shows the "My visits" row, from Home's device copy of the engagement row: only a copy that says the area is on.
+ * No copy (a member who never opened Home, or a dark area) leaves Profile exactly as it was. */
+export function myVisitsRowFromCache(cached: CachedEngagement | null): boolean {
+  return cached !== null && cached.engagement.enabled;
+}
+
+/** The row after a live `my_engagement()` read: the server's word when it answers (on, or off for a dark area or a non-member), and what is showing
+ * when the read fails, so a transient failure neither hides a visible row nor shows a hidden one. */
+export function myVisitsRowAfterRead(current: boolean, result: GetMyEngagementResult): boolean {
+  if (result.status === 'success') return result.engagement.enabled;
+  if (result.status === 'unavailable') return false;
+  return current;
 }
 
 /** The skeleton grid while a month loads: 5 rows of 7. */
@@ -135,6 +143,9 @@ export interface CalendarView {
   weeks: WeekView[];
   /** The at-risk line under the grid (current month only): the same strings as Home's hint. */
   atRiskLine: HintView | null;
+  /** Today's at-risk hint whichever month is on screen. The screen keeps the line mounted (hidden off the current month) so its once-per-focus
+   * announcement and pulse are not replayed each time the member returns to the current month. */
+  atRiskHint: HintView | null;
   legend: LegendItem[];
   /** Today's line, or the tapped day's; null when today is not known. */
   detail: string | null;
@@ -296,6 +307,7 @@ export function buildCalendarView(input: CalendarInput): CalendarView {
     weekdays: weekdayInitials(language),
     weeks,
     atRiskLine: loaded && viewingCurrent ? todayHint : null,
+    atRiskHint: loaded ? todayHint : null,
     legend: [
       { kind: 'visit', label: t('engage.calendar.legend.visit') },
       { kind: 'today', label: t('engage.calendar.legend.today') },

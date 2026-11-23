@@ -42,7 +42,8 @@ declare v text;
 begin
   set local role authenticated;
   begin
-    select coalesce(string_agg(visit_day::text, ',' order by visit_day), '') into v from public.my_visit_days(p_month);
+    -- No order by here: the list keeps the function's own row order, so the "ordered" assertion below can fail if the function stops sorting.
+    select coalesce(string_agg(visit_day::text, ','), '') into v from (select * from public.my_visit_days(p_month)) x;
   exception when others then
     reset role;
     return sqlstate || ':' || sqlerrm;

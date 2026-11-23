@@ -122,7 +122,13 @@ function CalendarScreenContent() {
             </Card>
           </View>
 
-          {view.atRiskLine && <AtRiskHint hint={view.atRiskLine} />}
+          {/* Mounted whenever today is at risk, hidden off the current month: its announcement and pulse run once per screen focus, not on every
+              return from another month. */}
+          {view.atRiskHint && (
+            <View style={view.atRiskLine ? undefined : styles.hidden}>
+              <AtRiskHint hint={view.atRiskHint} />
+            </View>
+          )}
 
           <View style={styles.legend}>
             {view.legend.map((item) => (
@@ -218,6 +224,9 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
+  },
+  hidden: {
+    display: 'none',
   },
   gridCard: {
     padding: Spacing.two,

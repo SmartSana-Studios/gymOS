@@ -14,6 +14,7 @@ import { ListItem } from '@/components/ui/ListItem';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import { useSession } from '@/hooks/use-session';
 import { useTheme } from '@/hooks/use-theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { useFocusToast } from '@/hooks/use-focus-toast';
@@ -21,8 +22,9 @@ import { getContrastTextColor } from '@/lib/color-contrast';
 import type { MobileLocale } from '@/lib/i18n';
 import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
-import { showMyVisitsRow } from '@/lib/calendarView';
+import { myVisitsRowAfterRead, myVisitsRowFromCache } from '@/lib/calendarView';
 import { profileGoalValue } from '@/lib/weeklyGoalSheet';
+import { readEngagementCache } from '@/lib/weeklyRing';
 import { getMemberPreferences, updateMemberPreferences } from '@/services/notificationPreferences';
 import { clearCachedProgressPayload } from '@/services/progress';
 import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
@@ -93,7 +95,10 @@ export default function ProfileScreen() {
   // one-shot toast the sheet leaves behind.
   const [weeklyGoal, setWeeklyGoal] = useState<WeeklyGoal | null>(null);
   // Story 30.5: the "My visits" row opens the calendar, so it shows only while the engagement area is on for this member (the operator has set the
-  // release week). It never shows on a read that fails: a dark area must look exactly as it did before.
+  // release week). Home's device copy of the row answers first (so the row shows offline and does not pop in), the live read then confirms or turns it
+  // off, and a failed read leaves what is showing: a dark area (no copy, or a copy that says disabled) looks exactly as it did before.
+  const { session, gymId } = useSession();
+  const sessionUserId = session?.user.id ?? null;
   const [engagementEnabled, setEngagementEnabled] = useState(false);
   const toast = useFocusToast();
 
@@ -103,13 +108,20 @@ export default function ProfileScreen() {
       void getMyWeeklyGoal().then((result) => {
         if (!cancelled && result.status === 'success') setWeeklyGoal(result.goal);
       });
+      let liveAnswered = false;
+      if (sessionUserId && gymId) {
+        void readEngagementCache(sessionUserId, gymId).then((cached) => {
+          if (!cancelled && !liveAnswered) setEngagementEnabled(myVisitsRowFromCache(cached));
+        });
+      }
       void getMyEngagement().then((result) => {
-        if (!cancelled) setEngagementEnabled(showMyVisitsRow(result));
+        liveAnswered = true;
+        if (!cancelled) setEngagementEnabled((current) => myVisitsRowAfterRead(current, result));
       });
       return () => {
         cancelled = true;
       };
-    }, []),
+    }, [sessionUserId, gymId]),
   );
 
   const loadProfile = useCallback(async () => {
