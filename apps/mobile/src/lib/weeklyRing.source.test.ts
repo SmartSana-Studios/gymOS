@@ -367,7 +367,7 @@ describe('the notice: nothing is marked by opening or leaving, and the board wai
     expect(hook).toMatch(/if \(outcome\.ok\) \{[\s\S]*?await loadBoard\(/);
     // A device copy is written only after a live board, and with the settings once noticeSeen is true.
     expect(hook.match(/writeLeaderboardBoard\(/g)).toHaveLength(1);
-    expect(hook).toMatch(/if \(next && mayKeepSettingsCopy\(next\) && userId && gymId\) \{\s*void writeLeaderboardSettings\(/);
+    expect(hook).toMatch(/if \(next && !pendingRef\.current && mayKeepSettingsCopy\(next\) && userId && gymId\) \{\s*void writeLeaderboardSettings\(/);
   });
 
   it('leaving never calls anything: the screen back button only goes back', () => {
@@ -380,8 +380,15 @@ describe('the leaderboard is dark while the engagement area is', () => {
     const hook = stripped('hooks/use-home-leaderboard.ts');
     expect(hook).not.toMatch(/getMyEngagement|openEngagement|services\/engagement/);
     expect(hook).toContain('await engagementRead');
-    expect(hook.indexOf("outcome.kind === 'dark'")).toBeLessThan(hook.indexOf('getGymLeaderboard('));
-    expect(hook.indexOf("outcome.kind !== 'row'")).toBeLessThan(hook.indexOf('getGymLeaderboard('));
+    // The anchors are strings the hook really contains (an indexOf of -1 would pass any "less than" check): the gate, then the plan, then the call.
+    const gateAt = hook.indexOf('gateFromOutcome(outcome)');
+    const planReturnAt = hook.indexOf('if (!plan.call)');
+    const callAt = hook.indexOf('getGymLeaderboard(');
+    expect(gateAt).toBeGreaterThan(-1);
+    expect(planReturnAt).toBeGreaterThan(-1);
+    expect(callAt).toBeGreaterThan(-1);
+    expect(gateAt).toBeLessThan(planReturnAt);
+    expect(planReturnAt).toBeLessThan(callAt);
     expect(hook.match(/getGymLeaderboard\(/g)).toHaveLength(1);
     const screen = stripped('app/(tabs)/index.tsx');
     expect(screen.match(/loadLeaderboardForHome\(/g)).toHaveLength(1);
@@ -427,7 +434,22 @@ describe('the leaderboard is dark while the engagement area is', () => {
     const hook = stripped('hooks/use-leaderboard.ts');
     expect(hook.match(/getMyEngagement\(/g)).toHaveLength(1);
     expect(hook).toMatch(/monthsFromToday\(/);
-    expect(hook).toMatch(/dark = true/);
+    // The dark gate is its own branch (the `unavailable` settings read also sets `dark`, so a bare /dark = true/ would survive deleting this one).
+    expect(hook).toContain("else if (gate === 'dark') dark = true;");
+    expect(hook).toContain('gateRef.current = gate;');
+  });
+
+  it('the one board call sits behind boardSource, so an unknown or dark gate and a missing connection read the device copy only', () => {
+    const hook = stripped('hooks/use-leaderboard.ts');
+    const sourceAt = hook.indexOf("boardSource(gateRef.current, connectedRef.current) === 'copy'");
+    const callAt = hook.indexOf('getGymLeaderboard(');
+    expect(sourceAt).toBeGreaterThan(-1);
+    expect(callAt).toBeGreaterThan(-1);
+    expect(sourceAt).toBeLessThan(callAt);
+    // The gate is recorded before any board load of that pass can run.
+    expect(hook.indexOf('gateRef.current = gate;')).toBeLessThan(hook.indexOf('await loadBoard(tabRef.current, boardsRef'));
+    // An unconfirmed optimistic value of a pending save is never written to the device copy.
+    expect(hook).toMatch(/if \(next && !pendingRef\.current && mayKeepSettingsCopy\(next\) && userId && gymId\) \{/);
   });
 });
 

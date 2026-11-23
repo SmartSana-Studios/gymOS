@@ -229,6 +229,12 @@ export function mayCallLeaderboard(gate: EngagementGate): boolean {
   return gate === 'open';
 }
 
+/** Where the screen's board comes from: `live` (the call is made) only when the gate is open and the device is online; `copy` (the device's copy of the
+ * board, or the error face when there is none) for an unknown gate, a dark one, or no connection. The screen's one board load asks this before the call. */
+export function boardSource(gate: EngagementGate, connected: boolean): 'live' | 'copy' {
+  return connected && mayCallLeaderboard(gate) ? 'live' : 'copy';
+}
+
 /** The gym-local month of an engagement row on hand (the live row, or the device copy of it); null when there is none or the area is off. */
 export function monthOfEngagement(row: { enabled: boolean; gymToday: string } | null | undefined): string | null {
   return row && row.enabled ? monthsFromToday(row.gymToday).current : null;

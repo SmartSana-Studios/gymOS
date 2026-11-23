@@ -27,6 +27,7 @@ import {
   decideToggle,
   gateFromOutcome,
   gateFromResult,
+  boardSource,
   mayCallLeaderboard,
   mayKeepSettingsCopy,
   monthOfEngagement,
@@ -558,6 +559,15 @@ describe('the dark-area gate: only an open area may call a leaderboard function'
     expect(mayCallLeaderboard('open')).toBe(true);
     expect(mayCallLeaderboard('dark')).toBe(false);
     expect(mayCallLeaderboard('unknown')).toBe(false);
+  });
+
+  it('the screen board is read live only when the gate is open and the device is online; every other state uses the device copy', () => {
+    expect(boardSource('open', true)).toBe('live');
+    expect(boardSource('open', false)).toBe('copy');
+    expect(boardSource('unknown', true)).toBe('copy');
+    expect(boardSource('unknown', false)).toBe('copy');
+    expect(boardSource('dark', true)).toBe('copy');
+    expect(boardSource('dark', false)).toBe('copy');
   });
 
   it('Profile: read when open, clear when dark, the device copy only when the read failed and the device says on, else keep', () => {

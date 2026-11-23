@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
+  boardSource,
   buildLeaderboardView,
   decideToggle,
   gateFromResult,
@@ -16,6 +17,7 @@ import {
   writeLeaderboardBoard,
   writeLeaderboardSettings,
   type BoardData,
+  type EngagementGate,
   type LeaderboardCache,
   type LeaderboardView,
   type NoticeChoice,
@@ -65,6 +67,8 @@ export function useLeaderboard(isConnected: boolean, userId: string | null, gymI
   const cacheRef = useRef<LeaderboardCache | null>(null);
   const connectedRef = useRef(isConnected);
   const pendingRef = useRef(false);
+  // The gate of the last engagement read; 'unknown' until one has been made, so nothing calls the board before the gate is known.
+  const gateRef = useRef<EngagementGate>('unknown');
   useEffect(() => {
     connectedRef.current = isConnected;
   }, [isConnected]);
@@ -95,8 +99,8 @@ export function useLeaderboard(isConnected: boolean, userId: string | null, gymI
       const cached = cacheRef.current?.months[month];
       const fallback = (): BoardData =>
         cached ? { kind: 'ready', rows: cached.rows, fromCache: true, updatedAtMs: cached.updatedAtMs } : { kind: 'error' };
-      // Offline, the call would only wait to fail: the device's copy is the answer.
-      if (!connectedRef.current) {
+      // Offline, or with the area not known to be on (a dark or unknown gate), no leaderboard function is called: the device's copy is the answer.
+      if (boardSource(gateRef.current, connectedRef.current) === 'copy') {
         commitBoard(which, fallback());
         return;
       }
@@ -138,6 +142,7 @@ export function useLeaderboard(isConnected: boolean, userId: string | null, gymI
       const engagement = connected ? await getMyEngagement() : null;
       if (!latest()) return;
       const gate = gateFromResult(engagement);
+      gateRef.current = gate;
       if (connected && gymId) void getMyGymName(gymId).then((name) => name && latest() && setGymName(name));
       if (gate === 'open' && engagement && engagement.status === 'success') months = monthsFromToday(engagement.engagement.gymToday);
       else if (gate === 'dark') dark = true;
@@ -164,8 +169,9 @@ export function useLeaderboard(isConnected: boolean, userId: string | null, gymI
       monthsRef.current = months;
       // A settings read that returns while a toggle save is pending must not undo the optimistic flip: the save's own result decides.
       if (pendingRef.current) next = settingsRef.current;
-      // The copy of the settings is written only once the notice is chosen on (a copy implies it).
-      if (next && mayKeepSettingsCopy(next) && userId && gymId) {
+      // The copy of the settings is written only once the notice is chosen on (a copy implies it), and never from the unconfirmed optimistic value of a
+      // pending save (its own result writes the copy).
+      if (next && !pendingRef.current && mayKeepSettingsCopy(next) && userId && gymId) {
         void writeLeaderboardSettings(userId, gymId, { hidden: next.hidden, ownLabel: next.ownLabel });
         if (cacheRef.current) cacheRef.current = { ...cacheRef.current, settings: { hidden: next.hidden, ownLabel: next.ownLabel } };
       }

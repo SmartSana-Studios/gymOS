@@ -2377,3 +2377,9 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-30-6-gym-leaderboard-and-anonymous-choice.md`
   summary: Owner decision needed: a staff member row (Owner, Manager, Coach, Receptionist) with counted visits is ranked on the gym leaderboard, but all four leaderboard RPCs refuse non-member callers, so that person can never open the notice or choose and stays "Anonymous" for good, occupying a place and a `ranked_total` slot.
   evidence: Review pass 1 of 30-6 (2026-11-23). The eligibility rule `role is distinct from 'support'` is the epic's literal text (epics.md Story 30.6) and is pinned in `leaderboard_ranking.test.sql`. The alternative is `role = 'member'` only (one WHERE clause in `gym_leaderboard` plus the pinned test), which would also change `ranked_total`. Not changed without the owner's yes.
+
+## Deferred from: code review of spec-30-6-gym-leaderboard-and-anonymous-choice (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-6-gym-leaderboard-and-anonymous-choice.md`
+  summary: Extra consequence for the staff-eligibility owner decision above: a staff row with counted visits is a permanent "Anonymous" row that also counts toward `ranked_total` and the fewer-than-3 rule, so a gym with two members and a visiting owner reaches "3 ranked" and shows the two members' names (the threshold is met by someone who can never choose).
+  evidence: Re-raised by Blind Hunter in review pass 2. `0188_gym_leaderboard.sql` `eligible` CTE (`role is distinct from 'support'`) feeds `summary.total` and the `s.total >= 3` branch. Same one-WHERE-clause fix as the entry above (`role = 'member'`), which would also change `ranked_total`; not changed without the owner's yes.

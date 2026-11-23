@@ -17,7 +17,7 @@
 -- Fixture ids: 00000000-0000-0000-0039-nnnnnnnnnnnn. Every member has chosen on the notice (so labels are names) except where a test says so.
 
 begin;
-select plan(98);
+select plan(102);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0039-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -298,6 +298,48 @@ select is(pg_temp.f(pg_temp.cur(), 5, 'label'), 'ÉLODIE É.', 'an accented init
 select is(pg_temp.f(pg_temp.cur(), 6, 'label'), 'jean p.', 'the capitalisation is the one stored (no upper-casing)');
 select is((select count(*)::int from jsonb_array_elements(pg_temp.jb(pg_temp.cur())) e where (e->>'is_anonymous')::boolean), 0, 'nobody is anonymous in this gym (every member chose on the notice)');
 select is(pg_temp.selfrow(pg_temp.cur(), 'label'), 'CHANTAL N.', 'the caller''s own row carries the label as others see it');
+
+-- The preview of the member's own label (my_leaderboard_settings().own_label, the notice and the Profile helper) is a second copy of the rule: for every
+-- name shape it equals the label the same member has on the board (one token, four tokens, padded spaces, an accented initial, the stored case).
+create function pg_temp.own(p_n int) returns text language plpgsql as $f$
+declare v text;
+begin
+  perform pg_temp.claims(p_n, 4, 'member');
+  set local role authenticated;
+  select s.own_label into v from public.my_leaderboard_settings() s;
+  reset role;
+  return v;
+end $f$;
+select is((select array_agg(pg_temp.own(n) order by n) from generate_series(301, 306) n),
+  array['CHANTAL N.', 'MADONNA', 'Jean M.', 'LUC A.', 'ÉLODIE É.', 'jean p.'], 'own_label: every name shape previews the label the rule gives (one token alone, last-token initial, trimmed, accented, stored case)');
+select pg_temp.claims(301, 4, 'member');
+select is((select array_agg(pg_temp.own(n) order by n) from generate_series(301, 306) n),
+  (select array_agg(e->>'label' order by (e->>'position')::int) from jsonb_array_elements(pg_temp.jb(pg_temp.cur())) e), 'and each own_label equals the label the board shows other members for that member');
+
+-- ============================================================================
+-- The tie rule: equal visits are ordered by the time the member REACHED the count, the earliest check-in of their last (Nth) distinct visit day.
+-- Gym E: P has 5 visits; A and B tie on 3. A started first (day 1 at 06:00 against 11:00) but reached 3 later (day 3 at 10:00 against 09:00), so B is
+-- position 2. Ordering by the first day, by the month's earliest check-in, or by the last day descending would put A first.
+-- ============================================================================
+reset role;
+insert into gyms (id, name, tier_id, status, timezone) values (pg_temp.id(1, 5), 'LBR Gym E', pg_temp.id(0, 1), 'active', 'Africa/Douala');
+insert into members (id, gym_id, user_id, role, name, join_date) values
+  (pg_temp.m(351), pg_temp.id(1, 5), pg_temp.id(2, 351), 'member', 'XP Prime', date '2026-01-05'),
+  (pg_temp.m(352), pg_temp.id(1, 5), pg_temp.id(2, 352), 'member', 'XA Alpha', date '2026-01-05'),
+  (pg_temp.m(353), pg_temp.id(1, 5), pg_temp.id(2, 353), 'member', 'XB Bravo', date '2026-01-05');
+select set_config('app.leaderboard_write', 'on', true);
+update member_preferences set leaderboard_notice_seen_at = now() where gym_id = pg_temp.id(1, 5);
+select set_config('app.leaderboard_write', 'off', true);
+insert into attendance_events (gym_id, member_id, checked_in_at, checked_out_at, checkout_type, visit_day)
+select pg_temp.id(1, 5), pg_temp.m(v.n), ((pg_temp.prev() + v.d) + v.t) at time zone 'Africa/Douala', ((pg_temp.prev() + v.d) + v.t + interval '20 minutes') at time zone 'Africa/Douala', 'manual', pg_temp.prev() + v.d
+from (values (351, 0, time '08:00'), (351, 1, time '08:00'), (351, 2, time '08:00'), (351, 3, time '08:00'), (351, 4, time '08:00'),
+             (352, 0, time '06:00'), (352, 1, time '08:00'), (352, 2, time '10:00'),
+             (353, 0, time '11:00'), (353, 1, time '08:00'), (353, 2, time '09:00')) v(n, d, t);
+select pg_temp.claims(351, 5, 'member');
+select is((select string_agg(e->>'label', ',' order by (e->>'position')::int) from jsonb_array_elements(pg_temp.jb(pg_temp.prev())) e), 'XP P.,XB B.,XA A.',
+  'tie on 3 visits: B reached the count first (day 3 at 09:00 against 10:00) so B is position 2, although A checked in first on day 1');
+select is((select string_agg((e->>'rank') || ':' || (e->>'is_tied'), ',' order by (e->>'position')::int) from jsonb_array_elements(pg_temp.jb(pg_temp.prev())) e), '1:false,2:true,2:true',
+  'the two share rank 2 and are tied; the order between them is the reached-at time only');
 
 -- ============================================================================
 -- Month validation (after the caller is known to be a live member)
