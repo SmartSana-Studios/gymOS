@@ -88,6 +88,9 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
       const outcome = await loadEngagement({ getMyEngagement, openEngagement });
       if (!canCommit()) return;
       const receivedAt = Date.now();
+      // The hours left are measured against the clock at this moment (the offset is taken from `receivedAt`), so the tick catches up with it now
+      // instead of lagging up to a minute behind after a pull to refresh.
+      setDeviceNowMs(receivedAt);
 
       if (outcome.kind === 'row') {
         setDark(false);

@@ -139,6 +139,13 @@ describe('default-goal hint', () => {
     expect(buildSheetViewModel(input({ goal: { currentGoalIsDefault: true } })).hint).toBe(
       'We started you at 3 days a week. Change it any time; a new goal starts next Monday.',
     );
+    // The count is the goal in force, not a constant 3 (the deferral 30-4 closed).
+    expect(buildSheetViewModel(input({ goal: { currentGoalIsDefault: true, currentGoal: 4 } })).hint).toBe(
+      'We started you at 4 days a week. Change it any time; a new goal starts next Monday.',
+    );
+    expect(buildSheetViewModel(input({ goal: { currentGoalIsDefault: true, currentGoal: 1 } })).hint).toBe(
+      'We started you at 1 day a week. Change it any time; a new goal starts next Monday.',
+    );
     expect(buildSheetViewModel(input({ goal: { currentGoalIsDefault: false } })).hint).toBeNull();
     expect(buildSheetViewModel(input({ goal: { currentGoalIsDefault: true, pendingGoal: 5, pendingEffectiveWeek: '2026-11-23' } })).hint).toBeNull();
   });

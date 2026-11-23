@@ -82,6 +82,42 @@ context:
 - Given the epics.md Story 30.4 criteria, when each state fixture of the matrix is rendered through the view model in EN and FR, then the ring, streak area, caption and footer match the N1 table.
 - Given `enabled` false for every plan, when Home renders, then it is unchanged from today and no engagement call writes anything.
 
+### Review Findings
+
+Code review 2026-11-23 (bmad-code-review, second pass on the committed head fd2a8f1: Blind Hunter 15, Edge Case Hunter 13, Verification Gap 2, Acceptance Auditor 10). 1 decision-needed (resolved as a deferral, so 3 defer in total), 3 patch (all applied, mobile vitest 312/312, tsc clean, sheet-hint mutant caught), the rest rejected.
+
+- [x] [Review][Decision] (resolved: deferred, reviewer's call at the owner's request; Home-wide change, recorded in deferred-work.md) The offline card is unreachable: Home's own queries run first and trip Home's error screen offline — medium. `apps/mobile/src/app/(tabs)/index.tsx:236-252` sets `loadError` and returns when the `users`, `gyms` or `members` query fails, before `loadEngagementForHome` (line 260) is called; the section lives inside Home's `!loadError && hasLoadedOnce` branch, and the cache key needs `gym_id`, which only the `members` query supplies. So on a real disconnect the cached ring, the dashed queued-scan segments and `engage.home.error` (epics 30.4 offline AC, spec Offline row) never show; the hook's own cached fallback is dead code in practice. Pass 1 (item 13) rejected this as "existing behaviour", which is true of Home's error screen but does not meet the AC. Options: (a) accept, and move the offline AC to a story that makes Home itself work offline; (b) read the engagement cache from a last-known `gym_id` kept on the device and render the section when Home's queries fail, which needs a decision on what Home shows around it. Sources: acceptance-auditor, edge-case-hunter.
+- [x] [Review][Patch] The hours-left clock is not refreshed when a row arrives [`apps/mobile/src/hooks/use-home-engagement.ts:96`] — low. `deviceNowMs` only moves on focus and every 60 s, but `offset` is taken from `receivedAt`; after a pull to refresh (or a slow read) `left` is overstated by up to a minute ("1 hour left" shown at 59 minutes). Fix: `setDeviceNowMs(receivedAt)` where the row or dark outcome is committed. Source: edge-case-hunter.
+- [x] [Review][Patch] The "closed" deferral entry buries two open Epic 31 items [`_bmad-output/implementation-artifacts/deferred-work.md:2282`] — low. The struck-through "Catalog wording hard-codes operator-tunable values" entry says the Shield explainer's "Every 4 weeks" (`shield_every_weeks`) and the missing `engage.streak.daily` plural are "still open for Epic 31", but they now sit only inside struck text. Add a live bullet for them (per the persistent rule that a deferral naming a later story is an acceptance line of that story). Sources: blind-hunter, edge-case-hunter.
+- [x] [Review][Patch] The sheet's default-goal hint is only tested at goal 3 [`apps/mobile/src/lib/weeklyGoalSheet.test.ts:137`] — low. `weeklyGoalSheet.ts:149` now passes `{ count: goal.currentGoal }`, but every hint case uses the BASE fixture (goal 3), so passing a constant 3 keeps the suite green and brings back the "We started you at 3 days" bug this story closes. Fix: add cases with `currentGoalIsDefault: true` and `currentGoal` 4 ("4 days a week") and 1 ("1 day a week"). Source: verification-gap.
+- [x] [Review][Defer] Home does not reload when the app resumes on Home after the gym's midnight or Monday [`apps/mobile/src/hooks/use-home-engagement.ts:120`] — deferred: low-medium, Home's whole data set has this shape (no AppState reload on the tab, `useFocusEffect` does not fire on resume); only the at-risk hint hides itself (left <= 0), the ring, caption and streak show the closed day or week until the next tab focus or a pull to refresh. Settle it with a device pass: background the app on Sunday night, open it Monday on Home. A fix is an AppState reload for the whole Home, which is a Home-level change. Source: edge-case-hunter.
+- [x] [Review][Defer] The hook and toast hook have no behavioural test [`apps/mobile/src/hooks/use-home-engagement.ts`, `use-focus-toast.ts`] — deferred: already in deferred-work.md from the build; the verification-gap reviewer re-demonstrated mutants that pass (delete the cache write, the cached fallback or the `gym_id` select; drop the `latest()` guard). Fix with a pure reducer in `lib/weeklyRing.ts`. Sources: verification-gap, blind-hunter, edge-case-hunter.
+
+**Rejected:**
+- Skeleton not capped at 2 s when the cache says `enabled` (AA) — false: the spec holds the skeleton for the whole first read when a cache promises a card; the settle skeleton is capped (`weeklyRing.ts:381`).
+- Skeleton swaps in on a refocus when the kept row still has `needsSettle` (ECH) — false: that is the spec's Settle row (skeleton at most 2 s), and a settled row has the flag false.
+- Card derives `extra` and clamps `visitsNeeded` (AA) — rejected: recorded in decisions.md; the fix is to edit the frozen spec.
+- First-week line hidden when the goal is met (AA) — rejected: pass-1 patch 4, deliberate; the fix is to edit the spec.
+- `STATUS_COLORS.success/warning` keys do not exist (AA, BH) — rejected: documented in decisions.md; fix is to edit the spec.
+- Spec `status: done` against sprint-status `review`, empty Change Log (AA, BH) — rejected: statuses are set by this step; a Change Log entry would edit the spec.
+- Offline overlay suppressed in release week (AA) — low: the spec row says "ring only" for that week.
+- Hint-flag scan reads the hook, not the card (AA) — low: the hook is the reader; the card only calls `onGoalHintPress`.
+- Goal button missing on skeleton and error faces (AA) — low: spec silent, nothing to press yet.
+- FR sentence "1 jours" for goal 1 (AA) — low: screen reader only, goal 1 only, and i18next cannot pluralise two numbers in one key.
+- "Home is exactly today's Home" overstated for a dark epoch (BH) — low: wording in decisions.md; the extra read is inherent to the feature.
+- A stale enabled cache survives an `unavailable` result; cache not cleared at sign-out (BH, ECH) — low: rare, device-local and keyed per user; the fix needs a new cache-removal function.
+- Hint read twice by a screen reader; goal-hint target size and role (BH) — low: device-only, owner QA at epic end; the Pressable already has role button.
+- Toast copy-paste, `alert` with `polite`, colours not theme-aware (BH) — low: same as pass-1 item 18, Profile's existing style.
+- Source scans brittle, `LITERAL_CONFIG` narrow, lazy regex anchor (BH, ECH) — low: known (deferred-work), fix is more than a direct correction.
+- `minutesLeft` plural, orphan `cardHint`, `default_other` sentinel (BH) — low: pass-1 item 21.
+- Pull to refresh stops before the card loads on early return; `readGoalHintSeen` has no catch (BH) — false for the catch (`services/weeklyGoal.ts:131` try/catch); the early returns happen only when a newer load owns the spinner.
+- Queued-scan times kept after reconnect (BH) — negligible: the view passes `NO_SCANS` while online and the next read replaces them within milliseconds.
+- Cache validator checks the range of `goal` only (BH); live row with a goal outside 1..7 (ECH) — false for the live path (server enforces 1 to 7), low for a damaged cache.
+- Engagement result discarded when a newer load exits early (ECH) — false in effect: that newer load sets `loadError`, so the section is not shown anyway.
+- `settleFailed` not reset on a failed read (ECH) — false: the flag stays tied to the kept snapshot it was set for.
+- Hint compares the raw device clock with `dayEndsAt` offline (ECH) — low: the spec says "device time < cached dayEndsAt".
+- Queued scans counted past the cached week's end (ECH) — low: rare week boundary; the spec fixes the per-scan rule.
+
 ## Implementation Notes
 
 ## Spec Change Log
