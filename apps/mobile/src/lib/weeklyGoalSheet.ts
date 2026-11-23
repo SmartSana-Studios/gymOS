@@ -146,7 +146,7 @@ export function buildSheetViewModel(input: SheetInput): SheetViewModel {
     prompt: t('engage.goal.prompt'),
     why: t('engage.goal.why'),
     saveLabel: t('engage.goal.cta.save'),
-    hint: goal.currentGoalIsDefault && goal.pendingGoal === null ? t('engage.ring.goalHint.default') : null,
+    hint: goal.currentGoalIsDefault && goal.pendingGoal === null ? t('engage.ring.goalHint.default', { count: goal.currentGoal }) : null,
     pills,
     pillRows,
     effectLineKey,

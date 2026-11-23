@@ -2,7 +2,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, type MaterialIconsIconName } from '@react-native-vector-icons/material-icons';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
@@ -10,11 +10,14 @@ import { Card } from '@/components/ui/Card';
 import { IconChip, type IconChipTint } from '@/components/ui/IconChip';
 import { ListItem } from '@/components/ui/ListItem';
 import { RewardsCard } from '@/components/RewardsCard';
+import { WeeklyRingSection } from '@/components/WeeklyRingCard';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { STATUS_COLORS, statusLabelKey, type BadgeStatus, type SubscriptionStatus } from '@/constants/subscription-status';
 import { INFO_STATUS } from '@/constants/info-status';
+import { useFocusToast } from '@/hooks/use-focus-toast';
+import { useHomeEngagement } from '@/hooks/use-home-engagement';
 import { useTheme } from '@/hooks/use-theme';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import {
@@ -116,8 +119,12 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pendingCheckInCount, sessionDenials, dismissSessionDenials } = useOfflineSync();
+  const { isConnected, pendingCheckInCount, sessionDenials, dismissSessionDenials } = useOfflineSync();
   const theme = useTheme();
+  // Story 30.4: the "This week" section (ring, streak, at-risk hint) and the toast a goal saved from here leaves behind.
+  const { view: engagementView, loadForHome: loadEngagementForHome, dismissGoalHint } = useHomeEngagement(isConnected, pendingCheckInCount);
+  const toast = useFocusToast();
+  const [refreshing, setRefreshing] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -198,6 +205,9 @@ export default function HomeScreen() {
 
     if (!hasLoadedOnceRef.current) setLoading(true);
     setLoadError(false);
+    // Story 30.4: the engagement read (and its one settle) is detached from the rest of Home like Rewards, never trips loadError, and never throws;
+    // loadHome still waits for it at the very end so a pull to refresh spins until the card is current.
+    let engagementDone: Promise<void> = Promise.resolve();
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!isCurrent()) return;
@@ -216,7 +226,7 @@ export default function HomeScreen() {
         supabase.from('gyms').select('name, logo_url, charge_guests_per_session, timezone').single(),
         supabase
           .from('members')
-          .select('id')
+          .select('id, gym_id')
           .eq('user_id', userId)
           .is('deactivated_at', null)
           .order('created_at', { ascending: false })
@@ -247,6 +257,7 @@ export default function HomeScreen() {
       setGymName(gymResult.data.name);
       setGymLogoUrl(gymResult.data.logo_url);
       markLoadedOnce();
+      engagementDone = loadEngagementForHome(userId, memberResult.data.gym_id, isCurrent);
 
       // Story 4.15: shared with the Renew screen (services/subscriptions.ts)
       // -- same distinction onboarding/plan.tsx's loadPlan already makes
@@ -414,7 +425,17 @@ export default function HomeScreen() {
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, []);
+    await engagementDone;
+  }, [loadEngagementForHome]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadHome();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadHome]);
 
   // Story 4.15: refetches whenever this tab regains focus (not just on
   // mount) -- returning from the Renew screen after a successful renewal
@@ -503,6 +524,7 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <ScrollView
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} />}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: insets.bottom + BottomTabInset + Spacing.three },
@@ -681,6 +703,8 @@ export default function HomeScreen() {
                 </View>
               </View>
 
+              <WeeklyRingSection view={engagementView} onGoalPress={() => router.push('/goal')} onGoalHintPress={dismissGoalHint} />
+
               <RewardsCard data={rewardsData} planType={chargingCtx?.planType ?? null} />
 
               {/* Story 13.3: no mockup covers a workout-plan entry point on
@@ -770,6 +794,17 @@ export default function HomeScreen() {
             </>
           )}
         </ScrollView>
+
+        {toast && (
+          <View
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            style={[styles.toast, { bottom: insets.bottom + BottomTabInset + Spacing.three }]}>
+            <ThemedText type="small" style={styles.toastText}>
+              {toast}
+            </ThemedText>
+          </View>
+        )}
       </SafeAreaView>
     </ThemedView>
   );
@@ -891,6 +926,19 @@ const styles = StyleSheet.create({
   statusTextGroup: {
     flex: 1,
     gap: Spacing.half,
+  },
+  toast: {
+    position: 'absolute',
+    left: Spacing.four,
+    right: Spacing.four,
+    backgroundColor: '#1F2937',
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+  },
+  toastText: {
+    color: '#F9FAFB',
   },
   occupancyPill: {
     alignSelf: 'flex-start',

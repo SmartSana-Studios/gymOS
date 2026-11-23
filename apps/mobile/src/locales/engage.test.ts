@@ -13,13 +13,21 @@ const REQUIRED: readonly (readonly [string, boolean])[] = [
   ["engage.ring.unit", false],
   ["engage.ring.goalLabel", true],
   ["engage.ring.goalPending", true],
-  ["engage.ring.goalHint.default", false],
+  ["engage.ring.goalHint.default", true],
+  ["engage.ring.a11y.progress", true],
+  ["engage.ring.a11y.met", false],
+  ["engage.ring.cardHint", false],
   ["engage.ring.caption.progress", true],
   ["engage.ring.caption.fresh", true],
   ["engage.ring.caption.met", false],
   ["engage.ring.caption.metStreak", true],
   ["engage.ring.caption.extra", true],
   ["engage.ring.pendingSync", true],
+  ["engage.atRisk.weekly", false],
+  ["engage.atRisk.hoursLeft", true],
+  ["engage.atRisk.minutesLeft", false],
+  ["engage.home.error", false],
+  ["engage.home.settleError", false],
   ["engage.streak.weeks", true],
   ["engage.streak.first", false],
   ["engage.streak.firstWeek", false],
@@ -176,10 +184,39 @@ describe('engagement catalog: plural forms', () => {
     expect(i18n.t('engage.ring.goalLabel', { count: 4 })).toBe('Goal: 4 days');
     expect(i18n.t('engage.profile.goal.pending', { count: 3, next: 4, date: 'Mon 24 Nov' })).toBe('3 days, then 4 from Mon 24 Nov');
     expect(i18n.t('engage.goal.option.a11y', { count: 1 })).toBe('1 day a week');
+    expect(i18n.t('engage.ring.goalHint.default', { count: 1 })).toContain('1 day a week');
+    expect(i18n.t('engage.ring.goalHint.default', { count: 4 })).toContain('4 days a week');
+    expect(i18n.t('engage.atRisk.hoursLeft', { count: 1 })).toBe('1 hour left');
+    expect(i18n.t('engage.atRisk.hoursLeft', { count: 6 })).toBe('6 hours left');
+    expect(i18n.t('engage.atRisk.minutesLeft', { m: 40 })).toBe('40 min left');
     await i18n.changeLanguage('fr');
+    expect(i18n.t('engage.atRisk.hoursLeft', { count: 1 })).toBe('1 heure restante');
+    expect(i18n.t('engage.atRisk.hoursLeft', { count: 6 })).toBe('6 heures restantes');
+    expect(i18n.t('engage.ring.goalHint.default', { count: 4 })).toContain('4 jours par semaine');
     expect(i18n.t('engage.ring.goalLabel', { count: 1 })).toBe('Objectif : 1 jour');
     expect(i18n.t('engage.ring.goalLabel', { count: 5 })).toBe('Objectif : 5 jours');
     expect(i18n.t('engage.profile.goal.pending', { count: 3, next: 4, date: 'lun. 24 nov.' })).toBe('3 jours, puis 4 dès le lun. 24 nov.');
+  });
+});
+
+describe('engagement catalog: operator-tunable values', () => {
+  // platform_engagement_config holds goal_default, shield_every_weeks and daily_streak_min: the wording takes them as {{placeholders}}, so an operator
+  // edit never leaves the copy wrong. A literal count of days or weeks in a catalog value is a copy of a config value (the milestone numbers of the
+  // celebration, 7, 30 and 100 visits, are product constants and name visits, not days or weeks).
+  const LITERAL_CONFIG = /(^|[^\d{])\d+\s*(days?|weeks?|jours?|semaines?)\b/i;
+  // Epic 31 turns the Shield explainer's "Every 4 weeks" into a placeholder (deferred-work.md, 30.1 review); until its consumer ships it is the one exception.
+  const KNOWN_LITERALS = ['engage.shield.explainer.body'];
+
+  it.each(['en', 'fr'] as const)('no engage.* value in %s carries a literal day or week count', (lang) => {
+    const flat = lang === 'en' ? EN : FR;
+    const offenders = engageKeys(flat).filter((k) => !KNOWN_LITERALS.includes(k) && LITERAL_CONFIG.test(flat[k]));
+    expect(offenders).toEqual([]);
+  });
+
+  it('the check can see a literal config value (positive control)', () => {
+    expect(LITERAL_CONFIG.test('We started you at 3 days a week.')).toBe(true);
+    expect(LITERAL_CONFIG.test('Nous démarrons à 3 jours par semaine.')).toBe(true);
+    expect(LITERAL_CONFIG.test('We started you at {{count}} days a week.')).toBe(false);
   });
 });
 

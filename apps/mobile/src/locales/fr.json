@@ -502,7 +502,8 @@
       "goalPending_one": "Passe à {{count}} jour le {{date}}",
       "goalPending_other": "Passe à {{count}} jours le {{date}}",
       "goalHint": {
-        "default": "Nous démarrons à 3 jours par semaine. Changez-le quand vous voulez ; un nouvel objectif commence lundi prochain."
+        "default_one": "Nous démarrons à {{count}} jour par semaine. Changez-le quand vous voulez ; un nouvel objectif commence lundi prochain.",
+        "default_other": "Nous démarrons à {{count}} jours par semaine. Changez-le quand vous voulez ; un nouvel objectif commence lundi prochain."
       },
       "caption": {
         "progress_one": "Encore {{count}} visite pour fermer votre cercle.",
@@ -516,7 +517,13 @@
         "extra_other": "{{count}} visites en plus cette semaine."
       },
       "pendingSync_one": "{{count}} visite en attente de synchronisation",
-      "pendingSync_other": "{{count}} visites en attente de synchronisation"
+      "pendingSync_other": "{{count}} visites en attente de synchronisation",
+      "a11y": {
+        "progress_one": "Objectif de la semaine : {{visits}} sur {{goal}} jours de visite. Encore {{count}} visite pour fermer votre cercle.",
+        "progress_other": "Objectif de la semaine : {{visits}} sur {{goal}} jours de visite. Encore {{count}} visites pour fermer votre cercle.",
+        "met": "Objectif de la semaine atteint : {{goal}} sur {{goal}}."
+      },
+      "cardHint": "Appuyez deux fois pour ouvrir votre calendrier"
     },
     "streak": {
       "weeks_one": "{{count}} semaine d'affilée",
@@ -619,6 +626,16 @@
         "label": "Rappel de série",
         "helper": "Un rappel à {{time}}, seulement quand une visite aujourd'hui permet de garder votre semaine ou votre série."
       }
+    },
+    "atRisk": {
+      "weekly": "Venez aujourd'hui pour fermer votre cercle.",
+      "hoursLeft_one": "{{count}} heure restante",
+      "hoursLeft_other": "{{count}} heures restantes",
+      "minutesLeft": "{{m}} min restantes"
+    },
+    "home": {
+      "error": "Impossible de charger votre semaine. Tirez pour actualiser.",
+      "settleError": "Impossible de mettre à jour votre série pour l'instant. Nous réessaierons."
     }
   },
   "n08": {

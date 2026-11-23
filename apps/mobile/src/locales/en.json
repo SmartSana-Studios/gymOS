@@ -502,7 +502,8 @@
       "goalPending_one": "Changes to {{count}} day on {{date}}",
       "goalPending_other": "Changes to {{count}} days on {{date}}",
       "goalHint": {
-        "default": "We started you at 3 days a week. Change it any time; a new goal starts next Monday."
+        "default_one": "We started you at {{count}} day a week. Change it any time; a new goal starts next Monday.",
+        "default_other": "We started you at {{count}} days a week. Change it any time; a new goal starts next Monday."
       },
       "caption": {
         "progress_one": "{{count}} more visit closes your ring.",
@@ -516,7 +517,13 @@
         "extra_other": "{{count}} extra visits this week."
       },
       "pendingSync_one": "{{count}} visit waiting to sync",
-      "pendingSync_other": "{{count}} visits waiting to sync"
+      "pendingSync_other": "{{count}} visits waiting to sync",
+      "a11y": {
+        "progress_one": "Weekly goal: {{visits}} of {{goal}} visit days this week. {{count}} more visit closes your ring.",
+        "progress_other": "Weekly goal: {{visits}} of {{goal}} visit days this week. {{count}} more visits close your ring.",
+        "met": "Weekly goal met: {{goal}} of {{goal}}."
+      },
+      "cardHint": "Double tap to open your calendar"
     },
     "streak": {
       "weeks_one": "{{count}} week in a row",
@@ -619,6 +626,16 @@
         "label": "Streak reminder",
         "helper": "One reminder at {{time}}, only when a visit today keeps your week or run going."
       }
+    },
+    "atRisk": {
+      "weekly": "Visit today to close your ring.",
+      "hoursLeft_one": "{{count}} hour left",
+      "hoursLeft_other": "{{count}} hours left",
+      "minutesLeft": "{{m}} min left"
+    },
+    "home": {
+      "error": "Couldn't load your week. Pull down to refresh.",
+      "settleError": "Couldn't update your streak just now. We'll try again."
     }
   },
   "n08": {
