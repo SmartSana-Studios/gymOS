@@ -199,7 +199,7 @@ select is((select count(*)::int from engagement_facts where member_id = pg_temp.
 
 -- The rebuild never writes, and a rebuild for a different p_up_to does not change what is stored.
 select pg_temp.rebuilt(8, date '2026-06-01');
-select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(8) and kind = 'week'), (select count(*)::int from jsonb_array_elements(pg_temp.derived(8) -> 'weeks')), 'rebuild: writes nothing (week facts; 30.7: the member''s 7th visit day also holds one milestone fact)');
+select is(pg_temp.nrows(8), (select count(*)::int from jsonb_array_elements(pg_temp.derived(8) -> 'weeks')) + 1, 'rebuild: writes nothing (every fact row: the settled weeks plus the one milestone fact, the 7, that member 8''s eight visit days hold)');
 select ok(pg_temp.rebuilt(8, date '2026-06-01') <> pg_temp.derived(8), 'rebuild: for a later p_up_to it reports the weeks that have not been settled yet (a diagnostic, not a write)');
 
 -- A gym with a different timezone setting: nothing in a settle depends on the session's time zone.

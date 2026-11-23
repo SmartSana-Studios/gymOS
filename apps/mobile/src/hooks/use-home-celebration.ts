@@ -3,9 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   celebrationDue,
-  chooseMilestone,
+  homeCelebrationPlan,
   markShownAcked,
-  pendingFromOutcome,
   readShown,
   retryAcknowledge,
   writeShown,
@@ -63,17 +62,16 @@ export function useHomeCelebration(isConnected: boolean, ready: boolean): HomeCe
       try {
         const outcome = await engagementRead;
         if (!canCommit()) return;
-        const pending = pendingFromOutcome(outcome);
         const shown = await readShown(userId, gymId);
         if (!canCommit()) return;
-        const chosen = chooseMilestone(pending, shown);
-        setCandidate(chosen !== null && outcome && outcome.kind === 'row' ? { milestone: chosen, today: outcome.engagement.gymToday } : null);
-        void retry(userId, gymId);
+        const plan = homeCelebrationPlan({ outcome, shown, connected: connectedRef.current });
+        setCandidate(plan.candidate);
+        if (plan.retry) void retryAcknowledge(DEPS, userId, gymId, shown);
       } catch {
         if (canCommit()) setCandidate(null);
       }
     },
-    [retry],
+    [],
   );
 
   // A phone that comes back online retries a shown milestone whose call did not land.

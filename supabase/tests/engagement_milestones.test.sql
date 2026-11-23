@@ -11,7 +11,7 @@
 -- Fixture ids: 00000000-0000-0000-0043-00000000nnnn. Gym 1 (A, active), gym 2 (B, active), gym 3 (S, suspended), users 2xxx, members 3xxx.
 
 begin;
-select plan(142);
+select plan(151);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0043-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -154,7 +154,14 @@ $f$;
 create function pg_temp.raisers() returns text language sql stable as $f$
   select coalesce(string_agg(n.nspname || '.' || p.proname, ',' order by n.nspname, p.proname), '-')
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname in ('public', 'private') and p.prosrc ~* 'set_config\(\s*''app\.engagement_acknowledge'''
+  where n.nspname in ('public', 'private') and p.prosrc ~* 'set_config\(\s*''app\.engagement_acknowledge''|\mset\s+(local\s+)?app\.engagement_acknowledge'
+$f$;
+-- Any function that names the flag at all (a variable key or a concatenated name is the one shape no raiser pattern can see): exactly the acknowledge
+-- function and the append-only guard that reads it.
+create function pg_temp.namers() returns text language sql stable as $f$
+  select coalesce(string_agg(n.nspname || '.' || p.proname, ',' order by n.nspname, p.proname), '-')
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname in ('public', 'private') and p.prosrc ~* 'engagement_acknowledge'
 $f$;
 select is(pg_temp.callers(), 'private.settle_engagement', 'the only caller of award_milestones is settle_engagement');
 select is(pg_temp.raisers(), 'public.acknowledge_milestone', 'the only function that raises the acknowledge flag is acknowledge_milestone');
@@ -190,6 +197,16 @@ create function public.ms_mutant_flag() returns void language plpgsql as $f$ beg
 select is(pg_temp.raisers(), 'public.acknowledge_milestone,public.ms_mutant_flag', 'mutation: the scan sees a second function raising the flag');
 drop function public.ms_mutant_flag();
 select is(pg_temp.raisers(), 'public.acknowledge_milestone', 'mutation undone: only acknowledge_milestone raises the flag');
+select is(pg_temp.namers(), 'private.engagement_facts_append_only_guard,public.acknowledge_milestone', 'only acknowledge_milestone and the append-only guard name the flag at all');
+-- The scan shown failing against the other shapes (retro 77): `set local` raises it, and a variable key is seen by the naming scan only (the raiser scan misses it, by design of its pattern).
+create function public.ms_mutant_flag2() returns void language plpgsql as $f$ begin set local app.engagement_acknowledge = 'on'; end $f$;
+select is(pg_temp.raisers(), 'public.acknowledge_milestone,public.ms_mutant_flag2', 'mutation: the scan sees a function that raises the flag with SET LOCAL');
+drop function public.ms_mutant_flag2();
+select is(pg_temp.raisers(), 'public.acknowledge_milestone', 'mutation undone: only acknowledge_milestone raises the flag');
+create function public.ms_mutant_flag3() returns void language plpgsql as $f$ declare v_key text := 'app.engagement_acknowledge'; begin perform set_config(v_key, 'on', true); end $f$;
+select is(pg_temp.namers(), 'private.engagement_facts_append_only_guard,public.acknowledge_milestone,public.ms_mutant_flag3', 'mutation: a function that raises the flag through a variable key is invisible to the raiser scan but the naming scan sees it');
+drop function public.ms_mutant_flag3();
+select is(pg_temp.namers(), 'private.engagement_facts_append_only_guard,public.acknowledge_milestone', 'mutation undone: only the two expected functions name the flag');
 
 -- ============================================================================
 -- The award: the 7th day after the epoch (member 10)
@@ -330,6 +347,17 @@ select is(pg_temp.pending(15), 'null', 'nothing is pending afterwards');
 select is(pg_temp.nms(15), 2, 'no row was added or removed');
 select is((select count(*)::int from engagement_facts f where f.member_id = pg_temp.m(15) and f.kind = 'milestone' and f.silent), 0, 'and no other column changed (silent)');
 select is((select current_setting('app.engagement_acknowledge', true)), 'off', 'the flag is back to off after the call');
+
+-- ============================================================================
+-- A lower number does not clear a higher pending one (member 28 holds an unacknowledged 7 and 30; the bound is `t <= p_milestone`)
+-- ============================================================================
+select pg_temp.days(28, date '2026-03-02', 30);
+select pg_temp.settle(28, date '2026-04-06');
+select is(pg_temp.ms(28), '7:false:false 30:false:false', 'member 28: both facts exist, neither acknowledged');
+select pg_temp.claims(28, 1, 'member');
+select is(pg_temp.asrole('authenticated', 'select public.acknowledge_milestone(7::smallint)::text'), '7', 'acknowledge_milestone(7) returns 7');
+select is(pg_temp.ms(28), '7:false:true 30:false:false', 'it acknowledged the 7 and left the higher 30 unacknowledged');
+select is(pg_temp.pending(28), '30', 'so the 30 is still pending');
 
 -- ============================================================================
 -- Acknowledge: not held, bad numbers, twice (member 10 holds only the 7)

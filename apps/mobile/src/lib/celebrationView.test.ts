@@ -32,10 +32,14 @@ import {
   celebrationStoreKey,
   chooseMilestone,
   clearShown,
+  celebrationVisible,
+  closeRecord,
   finishCelebration,
+  homeCelebrationPlan,
   homeReadyForCelebration,
   isMilestone,
   markShownAcked,
+  reduceMotionFrom,
   motionPlan,
   numeralAt,
   parseMilestoneParam,
@@ -389,5 +393,63 @@ describe('when the push is due', () => {
     for (const [name, home, focused, milestone, expected] of rows) {
       expect(celebrationDue({ milestone, today: '2026-11-25', ready: homeReadyForCelebration(home), focused }), name).toBe(expected);
     }
+  });
+});
+
+describe('what the Home hook decides (homeCelebrationPlan)', () => {
+  const live: EngagementLoadOutcome = { kind: 'row', engagement: ROW, settleFailed: false };
+
+  it('celebrates a live pending number the device has not shown, with the gym-local day', () => {
+    expect(homeCelebrationPlan({ outcome: live, shown: NONE, connected: true })).toEqual({ candidate: { milestone: 30, today: '2026-11-25' }, retry: false });
+    expect(homeCelebrationPlan({ outcome: live, shown: entry(7, true), connected: true }).candidate).toEqual({ milestone: 30, today: '2026-11-25' });
+  });
+
+  it('never celebrates a number the device has shown, whether or not the server has it acknowledged', () => {
+    expect(homeCelebrationPlan({ outcome: live, shown: entry(30, true), connected: true }).candidate).toBeNull();
+    expect(homeCelebrationPlan({ outcome: live, shown: entry(30, false), connected: true }).candidate).toBeNull();
+    expect(homeCelebrationPlan({ outcome: live, shown: entry(100, false), connected: true }).candidate).toBeNull();
+  });
+
+  it('never celebrates from a dark, failed or missing read, or an unreadable store', () => {
+    expect(homeCelebrationPlan({ outcome: { kind: 'dark', engagement: ROW }, shown: NONE, connected: true }).candidate).toBeNull();
+    expect(homeCelebrationPlan({ outcome: { kind: 'failed' }, shown: NONE, connected: true }).candidate).toBeNull();
+    expect(homeCelebrationPlan({ outcome: null, shown: NONE, connected: true }).candidate).toBeNull();
+    expect(homeCelebrationPlan({ outcome: live, shown: { kind: 'unreadable' }, connected: true }).candidate).toBeNull();
+  });
+
+  it('retries a shown milestone whose acknowledgement has not landed, only while connected', () => {
+    expect(homeCelebrationPlan({ outcome: live, shown: entry(30, false), connected: true }).retry).toBe(true);
+    expect(homeCelebrationPlan({ outcome: live, shown: entry(30, false), connected: false }).retry).toBe(false);
+    expect(homeCelebrationPlan({ outcome: live, shown: entry(30, true), connected: true }).retry).toBe(false);
+    expect(homeCelebrationPlan({ outcome: live, shown: NONE, connected: true }).retry).toBe(false);
+    expect(homeCelebrationPlan({ outcome: { kind: 'failed' }, shown: entry(7, false), connected: true }).retry).toBe(true);
+  });
+});
+
+describe('what the route decides (reduceMotionFrom, celebrationVisible, closeRecord)', () => {
+  it('either the screen\'s own reduce-motion read or the hook\'s live value reduces the motion', () => {
+    expect(reduceMotionFrom(null, false)).toBe(false);
+    expect(reduceMotionFrom(null, true)).toBe(true);
+    expect(reduceMotionFrom(false, false)).toBe(false);
+    expect(reduceMotionFrom(true, false)).toBe(true);
+    expect(reduceMotionFrom(false, true)).toBe(true);
+  });
+
+  it('the card is visible only with the store read, the motion read, no Home redirect and a view', () => {
+    const on = { dataReady: true, motionKnown: true, openHome: false, hasView: true };
+    expect(celebrationVisible(on)).toBe(true);
+    expect(celebrationVisible({ ...on, dataReady: false })).toBe(false);
+    expect(celebrationVisible({ ...on, motionKnown: false })).toBe(false);
+    expect(celebrationVisible({ ...on, openHome: true })).toBe(false);
+    expect(celebrationVisible({ ...on, hasView: false })).toBe(false);
+  });
+
+  it('back before the card is on screen records and acknowledges nothing', () => {
+    const on = { visible: true, milestone: 30, userId: 'u1', gymId: 'g1' };
+    expect(closeRecord(on)).toEqual({ userId: 'u1', gymId: 'g1', milestone: 30 });
+    expect(closeRecord({ ...on, visible: false })).toBeNull();
+    expect(closeRecord({ ...on, milestone: null })).toBeNull();
+    expect(closeRecord({ ...on, userId: null })).toBeNull();
+    expect(closeRecord({ ...on, gymId: null })).toBeNull();
   });
 });

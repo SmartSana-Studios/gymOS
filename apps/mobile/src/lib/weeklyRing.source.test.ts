@@ -573,6 +573,18 @@ describe('the celebration screen (MA-20)', () => {
     expect(route).toMatch(/accessibilityRole="none" accessibilityElementsHidden importantForAccessibility="no" style=\{styles\.numeral\}/);
   });
 
+  it('the route guards come from the tested pure functions, and an unwanted Home redirect goes back or replaces, never stacks', () => {
+    const route = stripped(ROUTE);
+    expect(route).toContain('const motionKnown = motionRead !== null;');
+    expect(route).toContain('reduceMotionFrom(motionRead, hookReduceMotion)');
+    expect(route).toContain('celebrationVisible({ dataReady, motionKnown, openHome, hasView: view !== null })');
+    expect(route).toContain('closeRecord({ visible, milestone, userId, gymId })');
+    expect(route).toContain('if (record) void finishCelebration(CLOSE_DEPS, record.userId, record.gymId, record.milestone)');
+    // The only router.replace is the cold-open branch of goHome; the openHome effect goes through goHome.
+    expect(route.match(/router\.replace\(/g)).toHaveLength(1);
+    expect(route).toMatch(/if \(openHome && !closedRef\.current\) \{\s*closedRef\.current = true;\s*goHome\(\);/);
+  });
+
   it('closes on [Keep going] and Android back only: the record is written before the call, swipe down is off', () => {
     const route = stripped(ROUTE);
     expect(route).toMatch(/hardwareBackPress/);
@@ -599,7 +611,10 @@ describe('the celebration screen (MA-20)', () => {
     const hook = stripped('hooks/use-home-celebration.ts');
     expect(hook).not.toMatch(/getMyEngagement|openEngagement|loadEngagement\(/);
     expect(hook).toContain('await engagementRead');
-    expect(hook).toContain('pendingFromOutcome(');
+    // The pick of the milestone and the retry decision are one tested pure function; the hook must call it and act on both halves.
+    expect(hook).toContain('homeCelebrationPlan({ outcome, shown, connected: connectedRef.current })');
+    expect(hook).toContain('setCandidate(plan.candidate)');
+    expect(hook).toContain('if (plan.retry) void retryAcknowledge(DEPS, userId, gymId, shown)');
     expect(hook).toMatch(/PUSH_DELAY_MS = 600/);
     expect(hook).toMatch(/return \(\) => clearTimeout\(timer\)/);
     const home = stripped('app/(tabs)/index.tsx');
@@ -626,6 +641,7 @@ describe('the celebration screen (MA-20)', () => {
   it('the calendar marker is the star, hidden from a screen reader, and the legend has a third entry', () => {
     const cell = stripped('components/CalendarDayCell.tsx');
     expect(cell).toMatch(/name="star"/);
+    expect(cell).toMatch(/\{cell\.milestone !== null && \(\s*<View style={styles\.star}/);
     expect(cell).toMatch(/STAR_SIZE = 14/);
     expect(cell).toMatch(/star: \{\s*position: 'absolute',\s*top: 1,\s*left: 1/);
     expect(stripped('app/calendar.tsx')).toMatch(/'star'/);

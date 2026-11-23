@@ -179,6 +179,49 @@ export async function retryAcknowledge(deps: CloseDeps, userId: string, gymId: s
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------
+// What the Home hook and the route decide (pure, so a test can run them: there is no renderer)
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+
+export interface HomeCelebrationPlan {
+  /** The milestone to push over Home (and the gym-local day for its mini month), or null. */
+  candidate: { milestone: number; today: string } | null;
+  /** A shown milestone whose acknowledgement has not landed is re-acknowledged now (connected only). */
+  retry: boolean;
+}
+
+/** One Home engagement load, once the device's shown-store has been read: the candidate (a LIVE row's pending milestone the device has not shown) and
+ * whether to silently retry a shown milestone whose call did not land. `use-home-celebration.ts` consumes only this. */
+export function homeCelebrationPlan(input: { outcome: EngagementLoadOutcome | null; shown: ShownRead; connected: boolean }): HomeCelebrationPlan {
+  const { outcome, shown, connected } = input;
+  const chosen = chooseMilestone(pendingFromOutcome(outcome), shown);
+  const candidate = chosen !== null && outcome !== null && outcome.kind === 'row' ? { milestone: chosen, today: outcome.engagement.gymToday } : null;
+  return { candidate, retry: connected && retryTarget(shown) !== null };
+}
+
+/** The route's reduce-motion value: the screen's own read (`motionRead`, null until it resolves; the first frame waits for it) or the hook's live one,
+ * so a reduce-motion member never starts the count-up or plays a second haptic. */
+export function reduceMotionFrom(motionRead: boolean | null, hookReduceMotion: boolean): boolean {
+  return (motionRead ?? false) || hookReduceMotion;
+}
+
+/** The card is on screen only once the shown-store and the motion read are in, the route is not opening Home, and a view exists. */
+export function celebrationVisible(input: { dataReady: boolean; motionKnown: boolean; openHome: boolean; hasView: boolean }): boolean {
+  return input.dataReady && input.motionKnown && !input.openHome && input.hasView;
+}
+
+/** What [Keep going] and Android back record and acknowledge: the milestone shown, only when the card was actually on screen. Before that the member has
+ * seen nothing, so back only goes Home (null). */
+export function closeRecord(input: {
+  visible: boolean;
+  milestone: number | null;
+  userId: string | null;
+  gymId: string | null;
+}): { userId: string; gymId: string; milestone: number } | null {
+  const { visible, milestone, userId, gymId } = input;
+  return visible && milestone !== null && userId && gymId ? { userId, gymId, milestone } : null;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
 // Motion
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 

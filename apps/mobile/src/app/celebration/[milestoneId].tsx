@@ -18,11 +18,14 @@ import {
   buildCelebrationView,
   buildMiniMonth,
   celebrationMonth,
+  celebrationVisible,
+  closeRecord,
   finishCelebration,
   markShownAcked,
   motionPlan,
   numeralAt,
   parseMilestoneParam,
+  reduceMotionFrom,
   readShown,
   shouldOpenHome,
   showMiniCalendar,
@@ -71,7 +74,7 @@ function CelebrationContent() {
   // live) builds the plan, so the card never starts with the full motion and then drops it.
   const [motionRead, setMotionRead] = useState<boolean | null>(null);
   const motionKnown = motionRead !== null;
-  const reduceMotion = (motionRead ?? false) || hookReduceMotion;
+  const reduceMotion = reduceMotionFrom(motionRead, hookReduceMotion);
 
   const closedRef = useRef(false);
   const headlineRef = useRef<View | null>(null);
@@ -137,22 +140,23 @@ function CelebrationContent() {
   useEffect(() => {
     if (openHome && !closedRef.current) {
       closedRef.current = true;
-      router.replace('/');
+      goHome();
     }
-  }, [openHome, router]);
+  }, [openHome, goHome]);
 
   const view = useMemo(
     () => (milestone !== null ? buildCelebrationView({ milestone, gymName: branding?.name ?? null, t }) : null),
     [milestone, branding, t],
   );
-  const visible = dataReady && motionKnown && !openHome && view !== null;
+  const visible = celebrationVisible({ dataReady, motionKnown, openHome, hasView: view !== null });
 
   // [Keep going] and Android back: the record first, then the server call, in the background; the screen closes at once. Before the card is on screen
   // the member has seen nothing, so back only goes Home: nothing is recorded and nothing is acknowledged.
   const close = useCallback(() => {
     if (closedRef.current) return;
     closedRef.current = true;
-    if (visible && milestone !== null && userId && gymId) void finishCelebration(CLOSE_DEPS, userId, gymId, milestone);
+    const record = closeRecord({ visible, milestone, userId, gymId });
+    if (record) void finishCelebration(CLOSE_DEPS, record.userId, record.gymId, record.milestone);
     goHome();
   }, [visible, milestone, userId, gymId, goHome]);
 
