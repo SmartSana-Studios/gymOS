@@ -636,6 +636,50 @@
     "home": {
       "error": "Couldn't load your week. Pull down to refresh.",
       "settleError": "Couldn't update your streak just now. We'll try again."
+    },
+    "calendar": {
+      "title": "My visits",
+      "prev": "Previous month",
+      "next": "Next month",
+      "monthSummary_one": "{{count}} visit day in {{month}}",
+      "monthSummary_other": "{{count}} visit days in {{month}}",
+      "legend": {
+        "visit": "Visited",
+        "today": "Today"
+      },
+      "day": {
+        "visited": "{{date}}: visited",
+        "none": "{{date}}: no visit",
+        "pending": "{{date}}: waiting to sync",
+        "today": {
+          "atRisk": "Today, {{date}}: no visit yet. {{hoursLeft}}",
+          "visited": "Today, {{date}}: visited",
+          "none": "Today, {{date}}: no visit yet"
+        }
+      },
+      "empty": {
+        "current": "No visits yet this month. Your first one lights today.",
+        "past": "No visits in {{month}}."
+      },
+      "offline": {
+        "banner": "You're offline. Showing your last saved calendar.",
+        "none": "This month isn't saved on your phone yet. Connect to see it."
+      },
+      "error": "Couldn't load your calendar. Pull down to refresh.",
+      "cell": {
+        "hours_one": "{{count}} h",
+        "hours_other": "{{count}} h",
+        "minutes_one": "{{count}} m",
+        "minutes_other": "{{count}} m"
+      },
+      "week": {
+        "a11y_one": "Week of {{date}}, {{count}} visit day",
+        "a11y_other": "Week of {{date}}, {{count}} visit days"
+      },
+      "heading": {
+        "a11y_one": "{{month}}. {{count}} visit day.",
+        "a11y_other": "{{month}}. {{count}} visit days."
+      }
     }
   },
   "n08": {

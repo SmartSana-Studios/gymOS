@@ -1,31 +1,28 @@
-import { useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { AtRiskHint } from '@/components/AtRiskHint';
 import { GoalRing, WARNING_COLOR } from '@/components/GoalRing';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/Card';
 import { IconChip } from '@/components/ui/IconChip';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { RING_DIAMETER, shouldStack, type CardView, type HintView, type HomeEngagementView, type StreakView } from '@/lib/weeklyRing';
-
-const PULSE_CYCLES = 3;
-const PULSE_HALF_MS = 800;
-const PULSE_LOW = 0.45;
+import { RING_DIAMETER, shouldStack, type CardView, type HomeEngagementView, type StreakView } from '@/lib/weeklyRing';
 
 export interface WeeklyRingSectionProps {
   view: HomeEngagementView;
   onGoalPress: () => void;
   /** Tapping the one-time default-goal hint dismisses it. */
   onGoalHintPress: () => void;
+  /** The whole card opens the calendar (Story 30.5). The goal button and the goal hint above it stay separate targets. */
+  onPressCard: () => void;
 }
 
 /** Story 30.4 / MA-09 N1: the Home "This week" section: heading row, goal button, then one flat Card with the Goal Ring, the streak area, the caption
- * and the footer. Layout only: `view` (lib/weeklyRing.ts) holds every decision and every word. The card is not tappable as a whole yet (the calendar
- * route arrives with Story 30.5, which adds its onPress). The Epic 31 slots (Shield chip, comeback card, daily chip, next-Shield line) render nothing. */
-export function WeeklyRingSection({ view, onGoalPress, onGoalHintPress }: WeeklyRingSectionProps) {
+ * and the footer. Layout only: `view` (lib/weeklyRing.ts) holds every decision and every word. The card is one button that opens the calendar (Story
+ * 30.5, `onPressCard`); the skeleton and the error face are not. The Epic 31 slots (Shield chip, comeback card, daily chip, next-Shield line) render nothing. */
+export function WeeklyRingSection({ view, onGoalPress, onGoalHintPress, onPressCard }: WeeklyRingSectionProps) {
   const theme = useTheme();
   if (view.kind === 'hidden') return null;
 
@@ -53,15 +50,23 @@ export function WeeklyRingSection({ view, onGoalPress, onGoalHintPress }: Weekly
         </Pressable>
       )}
 
-      <Card variant="flat" style={styles.card}>
-        {view.kind === 'skeleton' && <CardSkeleton />}
-        {view.kind === 'error' && (
-          <ThemedText type="small" themeColor="textSecondary">
-            {view.message}
-          </ThemedText>
-        )}
-        {view.kind === 'card' && <CardBody view={view} />}
-      </Card>
+      {view.kind === 'card' ? (
+        // The whole card is one button: its label carries the ring sentence and the at-risk sentence, so nothing a screen reader read before is lost.
+        <Pressable accessibilityRole="button" accessibilityLabel={view.cardLabel} accessibilityHint={view.cardHint} onPress={onPressCard}>
+          <Card variant="flat" style={styles.card}>
+            <CardBody view={view} />
+          </Card>
+        </Pressable>
+      ) : (
+        <Card variant="flat" style={styles.card}>
+          {view.kind === 'skeleton' && <CardSkeleton />}
+          {view.kind === 'error' && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {view.message}
+            </ThemedText>
+          )}
+        </Card>
+      )}
     </View>
   );
 }
@@ -115,80 +120,6 @@ function StreakArea({ streak }: { streak: StreakView }) {
     <ThemedText type="small" themeColor="textSecondary">
       {streak.label}
     </ThemedText>
-  );
-}
-
-/** The footer hint: glyph `schedule`, the line, the hours left. It pulses three times on each focus, then stays still; with reduce-motion on it never
- * animates and a static 2pt warning outline carries the emphasis. It is announced once per focus through a polite live region (Android) or an
- * announcement (iOS), never as an alert, and the announced text is frozen at focus time so the minutes ticking do not announce again. */
-function AtRiskHint({ hint }: { hint: HintView }) {
-  const [opacity] = useState(() => new Animated.Value(1));
-  const [reduceMotion, setReduceMotion] = useState(false);
-  const [announcement, setAnnouncement] = useState('');
-  const labelRef = useRef(hint.label);
-  useEffect(() => {
-    labelRef.current = hint.label;
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    void AccessibilityInfo.isReduceMotionEnabled()
-      .then((enabled) => {
-        if (!cancelled) setReduceMotion(enabled);
-      })
-      .catch(() => {});
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      cancelled = true;
-      subscription.remove();
-    };
-  }, []);
-
-  // Announced once per focus: stable deps only, so the late answer of the reduce-motion query cannot announce it again.
-  useFocusEffect(
-    useCallback(() => {
-      setAnnouncement(labelRef.current);
-      if (Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(labelRef.current);
-      return () => setAnnouncement('');
-    }, []),
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      if (reduceMotion) {
-        opacity.setValue(1);
-        return;
-      }
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(opacity, { toValue: PULSE_LOW, duration: PULSE_HALF_MS, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 1, duration: PULSE_HALF_MS, useNativeDriver: true }),
-        ]),
-        { iterations: PULSE_CYCLES },
-      );
-      pulse.start();
-      return () => {
-        pulse.stop();
-        opacity.setValue(1);
-      };
-    }, [reduceMotion, opacity]),
-  );
-
-  return (
-    <View>
-      <View accessibilityLiveRegion="polite" style={styles.liveRegion}>
-        <ThemedText type="small">{announcement}</ThemedText>
-      </View>
-      <Animated.View
-        accessible
-        accessibilityLabel={hint.label}
-        style={[styles.hint, { opacity, borderColor: reduceMotion ? WARNING_COLOR : 'transparent' }]}>
-        <MaterialIcons name="schedule" size={20} color={WARNING_COLOR} />
-        <ThemedText type="small" style={[styles.hintText, { color: WARNING_COLOR }]}>
-          {hint.text} {hint.timeLeft}
-        </ThemedText>
-      </Animated.View>
-    </View>
   );
 }
 
@@ -267,24 +198,6 @@ const styles = StyleSheet.create({
   },
   noteText: {
     flexShrink: 1,
-  },
-  hint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    borderWidth: 2,
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
-  },
-  hintText: {
-    flexShrink: 1,
-  },
-  liveRegion: {
-    position: 'absolute',
-    width: 1,
-    height: 1,
-    overflow: 'hidden',
   },
   skeleton: {
     flexDirection: 'row',

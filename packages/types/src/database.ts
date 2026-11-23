@@ -3944,6 +3944,14 @@ export type Database = {
           week_start: string
         }[]
       }
+      my_first_visit_day: { Args: never; Returns: string }
+      my_visit_days: {
+        Args: { p_month: string }
+        Returns: {
+          milestone: number | null
+          visit_day: string
+        }[]
+      }
       my_weekly_goal: {
         Args: never
         Returns: {

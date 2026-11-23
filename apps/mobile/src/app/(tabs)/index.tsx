@@ -703,7 +703,12 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              <WeeklyRingSection view={engagementView} onGoalPress={() => router.push('/goal')} onGoalHintPress={dismissGoalHint} />
+              <WeeklyRingSection
+                view={engagementView}
+                onGoalPress={() => router.push('/goal')}
+                onGoalHintPress={dismissGoalHint}
+                onPressCard={() => router.push('/calendar')}
+              />
 
               <RewardsCard data={rewardsData} planType={chargingCtx?.planType ?? null} />
 

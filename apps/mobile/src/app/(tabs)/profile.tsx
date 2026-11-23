@@ -21,10 +21,12 @@ import { getContrastTextColor } from '@/lib/color-contrast';
 import type { MobileLocale } from '@/lib/i18n';
 import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
+import { showMyVisitsRow } from '@/lib/calendarView';
 import { profileGoalValue } from '@/lib/weeklyGoalSheet';
 import { getMemberPreferences, updateMemberPreferences } from '@/services/notificationPreferences';
 import { clearCachedProgressPayload } from '@/services/progress';
 import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
+import { getMyEngagement } from '@/services/engagement';
 import { getMyWeeklyGoal, type WeeklyGoal } from '@/services/weeklyGoal';
 
 // Narrows the untyped embedded-select response, same discipline as
@@ -90,6 +92,9 @@ export default function ProfileScreen() {
   // Story 30.1 (FR-219): the Training card's weekly goal, re-read whenever the screen takes focus (the /goal sheet closes onto it), and the
   // one-shot toast the sheet leaves behind.
   const [weeklyGoal, setWeeklyGoal] = useState<WeeklyGoal | null>(null);
+  // Story 30.5: the "My visits" row opens the calendar, so it shows only while the engagement area is on for this member (the operator has set the
+  // release week). It never shows on a read that fails: a dark area must look exactly as it did before.
+  const [engagementEnabled, setEngagementEnabled] = useState(false);
   const toast = useFocusToast();
 
   useFocusEffect(
@@ -97,6 +102,9 @@ export default function ProfileScreen() {
       let cancelled = false;
       void getMyWeeklyGoal().then((result) => {
         if (!cancelled && result.status === 'success') setWeeklyGoal(result.goal);
+      });
+      void getMyEngagement().then((result) => {
+        if (!cancelled) setEngagementEnabled(showMyVisitsRow(result));
       });
       return () => {
         cancelled = true;
@@ -567,6 +575,22 @@ export default function ProfileScreen() {
                 </View>
                 <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
               </Pressable>
+              {/* Story 30.5 (FR-224): the calendar of visit days, pushed full screen. */}
+              {engagementEnabled && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('engage.calendar.title')}
+                  onPress={() => router.push('/calendar')}
+                  style={[styles.goalRow, styles.rowDivider, { borderTopColor: theme.border }]}>
+                  <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                    <IconChip icon="event" tint="primary" />
+                  </View>
+                  <View style={styles.goalRowText}>
+                    <ThemedText type="smallBold">{t('engage.calendar.title')}</ThemedText>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
+                </Pressable>
+              )}
             </Card>
 
             {/* Story 10.1 AC #2's "or visit Progress at any later time" --

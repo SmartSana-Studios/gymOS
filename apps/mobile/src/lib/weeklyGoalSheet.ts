@@ -59,11 +59,11 @@ export interface SheetInput {
   language: string;
 }
 
-function intlLocale(language: string): string {
+export function intlLocale(language: string): string {
   return language === 'fr' ? 'fr-FR' : 'en-GB';
 }
 
-function parseDateOnly(value: string): Date {
+export function parseDateOnly(value: string): Date {
   const [year, month, day] = value.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day));
 }

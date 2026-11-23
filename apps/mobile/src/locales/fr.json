@@ -636,6 +636,50 @@
     "home": {
       "error": "Impossible de charger votre semaine. Tirez pour actualiser.",
       "settleError": "Impossible de mettre à jour votre série pour l'instant. Nous réessaierons."
+    },
+    "calendar": {
+      "title": "Mes visites",
+      "prev": "Mois précédent",
+      "next": "Mois suivant",
+      "monthSummary_one": "{{count}} jour de visite en {{month}}",
+      "monthSummary_other": "{{count}} jours de visite en {{month}}",
+      "legend": {
+        "visit": "Visite",
+        "today": "Aujourd'hui"
+      },
+      "day": {
+        "visited": "{{date}} : visite",
+        "none": "{{date}} : pas de visite",
+        "pending": "{{date}} : en attente de synchronisation",
+        "today": {
+          "atRisk": "Aujourd'hui, {{date}} : pas encore de visite. {{hoursLeft}}",
+          "visited": "Aujourd'hui, {{date}} : visite",
+          "none": "Aujourd'hui, {{date}} : pas encore de visite"
+        }
+      },
+      "empty": {
+        "current": "Aucune visite ce mois-ci pour l'instant. La première s'allumera aujourd'hui.",
+        "past": "Aucune visite en {{month}}."
+      },
+      "offline": {
+        "banner": "Vous êtes hors ligne. Dernier calendrier enregistré affiché.",
+        "none": "Ce mois n'est pas encore enregistré sur votre téléphone. Connectez-vous pour le voir."
+      },
+      "error": "Impossible de charger votre calendrier. Tirez pour actualiser.",
+      "cell": {
+        "hours_one": "{{count}} h",
+        "hours_other": "{{count}} h",
+        "minutes_one": "{{count}} min",
+        "minutes_other": "{{count}} min"
+      },
+      "week": {
+        "a11y_one": "Semaine du {{date}}, {{count}} jour de visite",
+        "a11y_other": "Semaine du {{date}}, {{count}} jours de visite"
+      },
+      "heading": {
+        "a11y_one": "{{month}}. {{count}} jour de visite.",
+        "a11y_other": "{{month}}. {{count}} jours de visite."
+      }
     }
   },
   "n08": {

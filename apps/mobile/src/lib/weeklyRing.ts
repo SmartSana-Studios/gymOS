@@ -302,6 +302,10 @@ export interface CardView {
   pendingSyncNote: string | null;
   hint: HintView | null;
   settleError: string | null;
+  /** `engage.ring.cardHint`: the hint of the whole card as a button that opens the calendar (Story 30.5). */
+  cardHint: string;
+  /** The card's one accessibility label when it is a button: the heading, the ring sentence, the streak, the caption, the pending-sync note, the at-risk sentence and the settle error, so the one button hides nothing a screen reader read before it was a button. */
+  cardLabel: string;
 }
 
 export type HomeEngagementView =
@@ -342,7 +346,8 @@ function streakFor(row: Engagement, t: TFn): StreakView {
   return { kind: 'none' };
 }
 
-function hintFor(snapshot: EngagementSnapshot, overlay: boolean, queued: number, deviceNowMs: number, t: TFn): HintView | null {
+/** The at-risk hint, or null. Shared with the calendar (Story 30.5), which adds its own `!visitedToday` and current-month conditions before calling it. */
+export function hintFor(snapshot: EngagementSnapshot, overlay: boolean, queued: number, deviceNowMs: number, t: TFn): HintView | null {
   const row = snapshot.engagement;
   // A visit already queued on this phone today is the visit the hint asks for.
   if (overlay && queued > 0) return null;
@@ -356,6 +361,18 @@ function hintFor(snapshot: EngagementSnapshot, overlay: boolean, queued: number,
   const timeLeft = parts.unit === 'hours' ? t('engage.atRisk.hoursLeft', { count: parts.value }) : t('engage.atRisk.minutesLeft', { m: parts.value });
   const text = t('engage.atRisk.weekly');
   return { text, timeLeft, label: `${text} ${timeLeft}` };
+}
+
+function streakLabel(streak: StreakView): string | null {
+  return streak.kind === 'none' ? null : streak.label;
+}
+
+/** The parts that are present, each closed with a full stop when it has no end mark, as one sentence run for a screen reader. */
+function cardLabelFor(parts: (string | null | undefined)[]): string {
+  return parts
+    .filter((part): part is string => Boolean(part))
+    .map((part) => (/[.!?:]$/.test(part) ? part : `${part}.`))
+    .join(' ');
 }
 
 /** Which of the section's four faces shows, and everything the card needs for the face that is a card. */
@@ -387,6 +404,14 @@ export function buildHomeEngagementView(input: HomeEngagementInput): HomeEngagem
 
   const shown = Math.min(row.visitsThisWeek, row.goal);
   const caption = captionFor(row);
+  const ringLabel = row.goalMet
+    ? t('engage.ring.a11y.met', { goal: row.goal })
+    : t('engage.ring.a11y.progress', { visits: row.visitsThisWeek, goal: row.goal, count: Math.max(1, row.visitsNeeded) });
+  const hint = hintFor(snapshot, overlay, queued, input.deviceNowMs, t);
+  const streak = streakFor(row, t);
+  const captionText = t(caption.key, caption.options);
+  const pendingSyncNote = dashed > 0 ? t('engage.ring.pendingSync', { count: dashed }) : null;
+  const settleError = input.settleFailed ? t('engage.home.settleError') : null;
   const pendingGoal = row.pendingGoal !== null && row.pendingEffectiveWeek !== null;
 
   return {
@@ -402,17 +427,17 @@ export function buildHomeEngagementView(input: HomeEngagementInput): HomeEngagem
       unit: t('engage.ring.unit'),
       met: row.goalMet,
       segments,
-      accessibilityLabel: row.goalMet
-        ? t('engage.ring.a11y.met', { goal: row.goal })
-        : t('engage.ring.a11y.progress', { visits: row.visitsThisWeek, goal: row.goal, count: Math.max(1, row.visitsNeeded) }),
+      accessibilityLabel: ringLabel,
       // A progressbar's value never exceeds its maximum: visits beyond the goal read as a full ring.
       accessibilityValue: { min: 0, max: row.goal, now: shown },
     },
-    streak: streakFor(row, t),
+    streak,
     captionKey: caption.key,
-    caption: t(caption.key, caption.options),
-    pendingSyncNote: dashed > 0 ? t('engage.ring.pendingSync', { count: dashed }) : null,
-    hint: hintFor(snapshot, overlay, queued, input.deviceNowMs, t),
-    settleError: input.settleFailed ? t('engage.home.settleError') : null,
+    caption: captionText,
+    pendingSyncNote,
+    hint,
+    settleError,
+    cardHint: t('engage.ring.cardHint'),
+    cardLabel: cardLabelFor([title, ringLabel, streakLabel(streak), ringLabel.includes(captionText) ? null : captionText, pendingSyncNote, hint?.label, settleError]),
   };
 }

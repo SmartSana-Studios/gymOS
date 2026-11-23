@@ -2302,10 +2302,10 @@ Lab, local results only (one machine runs the server, the database, the load and
 ## Deferred from: build of spec-30-4-weekly-ring-and-streak-on-home (2026-11-23)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
-  summary: Story 30.5 acceptance line: the "This week" card on Home is tappable as a whole and opens `/calendar`.
+  summary: ~~Story 30.5 acceptance line: the "This week" card on Home is tappable as a whole and opens `/calendar`.~~ **Closed 2026-11-23 by Story 30.5** (`onPressCard` on `WeeklyRingSection`, card-level button with `engage.ring.cardHint`, the goal button and goal hint stay separate targets; pinned by a source scan in `weeklyRing.source.test.ts`).
   evidence: 30.4 leaves the card without an `onPress` because the route does not exist until 30.5 (an absent route shows an unmatched screen). 30.5 must add the card's `onPress` in `apps/mobile/src/components/WeeklyRingCard.tsx` (the `WeeklyRingSection` Card), a card-level accessibility role and the `engage.ring.cardHint` hint (key already in both locale files), and keep the goal button and the Shield chip as their own targets.
 - source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
-  summary: Offline overlay counts one dashed segment per queued scan today even when the cached row already says `visitedToday`.
+  summary: ~~Offline overlay counts one dashed segment per queued scan today even when the cached row already says `visitedToday`.~~ **Closed for the calendar 2026-11-23 by Story 30.5** (a queued scan lights today dashed only while `!visitedToday`; `calendarView.test.ts` pins it). Home's ring still counts one dashed segment per queued scan beside a visited day; that half is not changed here.
   evidence: The spec fixes "one dashed segment per queued scan whose scannedAt is at or after the cached dayStartsAt, capped at the goal". A member who visited online earlier today and scans again offline sees one extra dashed segment until the sync corrects it (two scans on one day are one visit day). Decide in a later pass whether the overlay should skip the day when `visitedToday` is true.
 - source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
   summary: The Home engagement hook (`use-home-engagement.ts`) and the shared toast hook (`use-focus-toast.ts`) are covered only by source-text scans, so their cache write, cached fallback, settle-failure flag, hint dismissal, queued overlay and toast timing can regress with a green Vitest run.
@@ -2325,3 +2325,25 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
   summary: The offline card (cached ring, dashed queued-scan segments, `engage.home.error`) is unreachable: Home's own `users`, `gyms` and `members` queries run first and a failure sets Home's `loadError` before `loadEngagementForHome` is called.
   evidence: `apps/mobile/src/app/(tabs)/index.tsx` lines 236-252 return on any query error, the section sits inside `!loadError && hasLoadedOnce`, and the cache key needs `gym_id` from the `members` query. Review decision 2026-11-23 (delegated to the reviewer): accept for 30.4, because showing the card offline means Home itself must work offline (a last-known `gym_id` on the device, and a decision on what Home shows around the ring), which is a Home-wide change and not mobile engagement alone. The hook's cached fallback stays as written. Close in the story that makes Home usable offline, or in the epic-end device QA if the owner wants the AC met earlier.
+
+## Deferred from: build of spec-30-5-attendance-calendar (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: Story 30.6 acceptance line: its load script records the NFR-029 server time of `public.my_visit_days(date)` and `public.my_first_visit_day()` for a member with two years of attendance at the largest tier's member cap.
+  evidence: Owner decision 2026-11-23: the figure moves from 30.5's Definition of Done to 30.6, whose load script already seeds the leaderboard at that scale. 30.5 recorded only a one-off local timing (1,000,000 events over 2,000 members and two years: 13 to 23 ms per call as measured through psql, see the spec's Implementation Notes), which is not the NFR-029 baseline.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: The calendar hook (`use-calendar.ts`) and the screen are covered only by the pure view model's tests and source-text scans, so its fallback to the device cache, month sequencing, reconnect reload and the pull to refresh can regress with a green Vitest run.
+  evidence: The mobile app has no render tooling (node-env Vitest). Same remedy as the Home hook entry above: move the hook's transitions into a pure reducer in `lib/calendarView.ts` once a renderer exists or sooner. The owner's end-of-epic device pass covers it by hand.
+
+
+## Deferred from: code review of spec-30-5-attendance-calendar.md (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: The open calendar does not follow gym midnight: today, the current-month bound and the next chevron stay on yesterday until the screen is refocused or pulled to refresh.
+  evidence: `apps/mobile/src/hooks/use-calendar.ts` ticks only `deviceNowMs`; it never reloads when the server-adjusted clock passes `dayEndsAt`. Same shape as the Home deferral from 30-4 (no AppState or `dayEndsAt` reload); settle both together with a device pass (background on Sunday night, open Monday) and fix with one shared reload-at-`dayEndsAt` rule. Medium.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: The week group label ("Week of 10 November, 3 visit days") is a 1x1 `opacity: 0` text that VoiceOver may not read.
+  evidence: `CalendarGrid.tsx` draws it as a zero-alpha element. Unverified (maybe-false, medium if true): settle with a VoiceOver pass on the calendar during the owner's end-of-epic device QA; if skipped, give the week row an `accessibilityLabel` on a real grouping view instead.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: `use-calendar.ts` transitions are covered only by source scans; mutants pass.
+  evidence: Dropping the `monthRef.current === target` half of `current()` (a slow October answer overwrites November), the cached fallback, or the `shift` bounds keeps Vitest green (verification-gap review). Fix with a pure reducer in `lib/calendarView.ts`, the same fix as 30-4's hook deferral; do both at once.

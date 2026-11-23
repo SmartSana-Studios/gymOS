@@ -456,10 +456,41 @@ describe('offline overlay', () => {
   });
 });
 
+describe('the card as a button (Story 30.5)', () => {
+  it('carries the hint and one label that hides nothing the card says', () => {
+    const view = card({ row: { atRiskWeekly: true } });
+    expect(view.cardHint).toBe('Double tap to open your calendar');
+    // The caption repeats the ring sentence's last sentence here, so it is not read twice.
+    expect(view.cardLabel).toBe('This week. Weekly goal: 2 of 3 visit days this week. 1 more visit closes your ring. 5 weeks in a row. Visit today to close your ring. 6 hours left.');
+    expect(card().cardLabel).toBe('This week. Weekly goal: 2 of 3 visit days this week. 1 more visit closes your ring. 5 weeks in a row.');
+  });
+  it('adds the caption, streak, pending-sync note and settle error when present (EN)', () => {
+    const view = card({
+      row: { goalMet: true, visitsThisWeek: 3, streakIfMet: 6 },
+      offline: true,
+      queuedScanTimes: ['2026-11-25T10:00:00.000Z'],
+      settleFailed: true,
+    });
+    expect(view.cardLabel).toBe(
+      "This week. Weekly goal met: 3 of 3. 5 weeks in a row. Goal met. Your streak becomes 6 weeks when the week ends. Couldn't update your streak just now. We'll try again.",
+    );
+    const queued = card({ offline: true, queuedScanTimes: ['2026-11-25T10:00:00.000Z'] });
+    expect(queued.cardLabel).toContain('1 visit waiting to sync.');
+  });
+  it('reads in French with the same parts', () => {
+    const view = card({ row: { goalMet: true, visitsThisWeek: 3, streakIfMet: 6 }, settleFailed: true, t: makeT('fr'), language: 'fr' });
+    expect(view.cardHint).toBe('Appuyez deux fois pour ouvrir votre calendrier');
+    expect(view.cardLabel.startsWith('Cette semaine.')).toBe(true);
+    expect(view.cardLabel).toContain(view.streak.kind === 'chip' ? view.streak.label : 'x');
+    expect(view.cardLabel).toContain(view.caption);
+    expect(view.cardLabel).toContain(view.settleError as string);
+  });
+});
+
 describe('Epic 31 slots', () => {
   it('render nothing: the view carries no Shield, comeback, daily or next-Shield field, whatever the row holds', () => {
     const view = card({ row: { shieldsHeld: 2, comebackState: 'active', atRiskDaily: true, dailyRun: 4 } });
-    expect(Object.keys(view).sort()).toEqual(['captionKey', 'caption', 'goalButton', 'goalHint', 'hint', 'kind', 'pendingSyncNote', 'ring', 'settleError', 'streak', 'title'].sort());
+    expect(Object.keys(view).sort()).toEqual(['captionKey', 'caption', 'cardHint', 'cardLabel', 'goalButton', 'goalHint', 'hint', 'kind', 'pendingSyncNote', 'ring', 'settleError', 'streak', 'title'].sort());
     const everything = JSON.stringify(view);
     expect(everything).not.toMatch(/Shield|shield|comeback|bolt/);
   });

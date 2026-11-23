@@ -146,6 +146,9 @@ function RootNavigator() {
             JSX subtree, which is what let it reach useOfflineSync() without
             OfflineSyncProvider actually being an ancestor. */}
         <Stack.Screen name="workout-plan" />
+        {/* Story 30.5 (MA-18): the attendance calendar, a pushed full-screen route with no tab bar. Registered inside the group for the same reason as
+            workout-plan: it reads useOfflineSync(), so it must render under OfflineSyncProvider. */}
+        <Stack.Screen name="calendar" />
       </Stack.Protected>
 
       <Stack.Protected guard={showSuspended}>
