@@ -655,12 +655,16 @@
       "monthSummary_other": "{{count}} jours de visite en {{month}}",
       "legend": {
         "visit": "Visite",
-        "today": "Aujourd'hui"
+        "today": "Aujourd'hui",
+        "milestone": "Étape"
       },
       "day": {
         "visited": "{{date}} : visite",
         "none": "{{date}} : pas de visite",
         "pending": "{{date}} : en attente de synchronisation",
+        "milestone7": "{{date}} : votre 7e visite",
+        "milestone30": "{{date}} : votre 30e visite",
+        "milestone100": "{{date}} : votre 100e visite",
         "today": {
           "atRisk": "Aujourd'hui, {{date}} : pas encore de visite. {{hoursLeft}}",
           "visited": "Aujourd'hui, {{date}} : visite",

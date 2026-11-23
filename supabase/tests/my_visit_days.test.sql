@@ -2,7 +2,7 @@
 --
 -- Proves: the shape (one date argument / none, STABLE, SECURITY DEFINER, a pinned search_path, EXECUTE for authenticated only, the return
 -- columns), neither a support capability, neither reading attendance_events nor doing timezone arithmetic; the month filter (first and last day,
--- the neighbouring months, distinct days when a day has two check-ins, ordered, `milestone` NULL on every row); that class-only attendance and a
+-- the neighbouring months, distinct days when a day has two check-ins, ordered, `milestone` NULL on every row of March and 7 on the April row, 30.7); that class-only attendance and a
 -- voided check-in light nothing while a staff check-in and a visit that synced late light their own day; that history from before the release
 -- counts (the epoch is NULL for this whole file); a 23:30 visit keeps its day across a gyms.timezone change; that a member reads only their own
 -- days, in their own gym; the refused months (not the first of a month, NULL, after the gym's current month) with the stable error code and
@@ -13,7 +13,7 @@
 -- Fixture ids: 00000000-0000-0000-0040-00000000nnnn. Gym 1 (A) and gym 2 (B), both active, users 2xxx, members 3xxx.
 
 begin;
-select plan(45);
+select plan(48);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0040-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -135,7 +135,10 @@ select is(pg_temp.days(date '2026-03-01'), '2026-03-01,2026-03-10,2026-03-22,202
 select is(pg_temp.days(date '2026-04-01'), '2026-04-01', 'April holds only the first of April (the end of March is not in it)');
 select is(pg_temp.days(date '2026-02-01'), '2026-02-28', 'February holds only the 28th (the 1st of March is not in it)');
 select is((select count(*)::int from public.my_visit_days(date '2026-03-01')), 5, 'the row count is the summary figure (5 visit days)');
-select is((select count(*)::int from public.my_visit_days(date '2026-03-01') where milestone is not null), 0, 'milestone is NULL on every row');
+select is((select count(*)::int from public.my_visit_days(date '2026-03-01') where milestone is not null), 0, 'milestone is NULL on every March row (30.7: the member''s 7th distinct day is in April)');
+select is((select milestone::text from public.my_visit_days(date '2026-04-01')), '7', '30.7: the April row carries milestone 7 (the ordinal over ALL the member''s distinct days, not the days of the month)');
+select is((select count(*)::int from public.my_visit_days(date '2026-02-01') where milestone is not null), 0, '30.7: and the day before the 7th carries none');
+select is((select count(*)::int from engagement_facts), 0, '30.7: the marker is derived, never stored (no fact exists, the epoch is NULL in this file)');
 select is(pg_temp.days(date '2026-01-01'), '', 'a past month with no visit returns no row and no error');
 select is(pg_temp.days(date '2020-01-01'), '', 'a month long before the first visit returns no row and no error');
 select is(pg_temp.days(date '2026-03-01') like '%2026-03-15%' or pg_temp.days(date '2026-03-01') like '%2026-03-20%', false, 'a class-only day (15 March) and a voided check-in (20 March) are not lit');

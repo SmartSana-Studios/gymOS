@@ -18,9 +18,11 @@ import { BottomTabInset, Spacing } from '@/constants/theme';
 import { STATUS_COLORS, statusLabelKey, type BadgeStatus, type SubscriptionStatus } from '@/constants/subscription-status';
 import { INFO_STATUS } from '@/constants/info-status';
 import { useFocusToast } from '@/hooks/use-focus-toast';
+import { useHomeCelebration } from '@/hooks/use-home-celebration';
 import { useHomeEngagement } from '@/hooks/use-home-engagement';
 import { useHomeLeaderboard } from '@/hooks/use-home-leaderboard';
 import { useTheme } from '@/hooks/use-theme';
+import { homeReadyForCelebration } from '@/lib/celebrationView';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import {
   collapseDenials,
@@ -153,6 +155,8 @@ export default function HomeScreen() {
 
   const [noActivePlan, setNoActivePlan] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
+  // Story 30.7: the milestone celebration is pushed over Home about 600 ms after Home has painted, never to an expired plan. It takes the one engagement read.
+  const { loadForHome: loadCelebrationForHome } = useHomeCelebration(isConnected, homeReadyForCelebration({ loading, loadError, subscriptionStatus }));
   const [expiryDate, setExpiryDate] = useState<string | null>(null);
   const [planName, setPlanName] = useState<string | null>(null);
 
@@ -213,6 +217,7 @@ export default function HomeScreen() {
     // loadHome still waits for it at the very end so a pull to refresh spins until the card is current.
     let engagementDone: Promise<unknown> = Promise.resolve();
     let leaderboardDone: Promise<void> = Promise.resolve();
+    let celebrationDone: Promise<void> = Promise.resolve();
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!isCurrent()) return;
@@ -266,6 +271,7 @@ export default function HomeScreen() {
       engagementDone = engagementRead;
       // The Leaderboard card reuses that one read (it never reads the engagement row a second time).
       leaderboardDone = loadLeaderboardForHome(userId, memberResult.data.gym_id, isCurrent, engagementRead);
+      celebrationDone = loadCelebrationForHome(userId, memberResult.data.gym_id, isCurrent, engagementRead);
 
       // Story 4.15: shared with the Renew screen (services/subscriptions.ts)
       // -- same distinction onboarding/plan.tsx's loadPlan already makes
@@ -433,8 +439,8 @@ export default function HomeScreen() {
     } finally {
       if (isCurrent()) setLoading(false);
     }
-    await Promise.all([engagementDone, leaderboardDone]);
-  }, [loadEngagementForHome, loadLeaderboardForHome]);
+    await Promise.all([engagementDone, leaderboardDone, celebrationDone]);
+  }, [loadEngagementForHome, loadLeaderboardForHome, loadCelebrationForHome]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);

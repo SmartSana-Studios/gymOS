@@ -48,7 +48,7 @@ export interface Engagement {
   serverNow: string;
   /** True when open_engagement() has something to settle. */
   needsSettle: boolean;
-  /** Story 30.7 fills this; null until then. */
+  /** Story 30.7: the highest milestone (7, 30 or 100) waiting to be celebrated, or null. Read only from a live row (lib/celebrationView.ts). */
   pendingMilestone: number | null;
 }
 

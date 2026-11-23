@@ -4,12 +4,12 @@ import { supabase } from '@/lib/supabase';
  * (0187_attendance_calendar.sql). Follows engagement.ts's typed-result-union, never-throw shape. Both RPCs resolve the caller on the server;
  * neither takes a member id. The month is the first day of a gym-local month as `YYYY-MM-DD`: the screen only ever sends that, and never a month
  * after the gym's current one (the server refuses both with `invalid_month`). The returned rows are untyped (the client has no Database
- * generic), so every field is parsed defensively and a malformed row is an error, never a guess. `milestone` is NULL until Story 30.7. */
+ * generic), so every field is parsed defensively and a malformed row is an error, never a guess. `milestone` is 7, 30 or 100 on the day of that visit (Story 30.7, derived on the server). */
 
 export interface VisitDay {
   /** Gym-local day, `YYYY-MM-DD`. */
   visitDay: string;
-  /** 7, 30 or 100 on the day of that milestone visit; null in Story 30.5. */
+  /** 7, 30 or 100 on the day of that milestone visit, else null. */
   milestone: number | null;
 }
 

@@ -13,7 +13,7 @@
 
 begin;
 set local timezone = 'UTC';
-select plan(60);
+select plan(68);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0040-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -56,7 +56,10 @@ create function pg_temp.facts(p_n int) returns text language sql stable as $f$
   select coalesce(string_agg(e.subject_key || ':' || e.revision || ':' || e.outcome || ':' || e.visits, ' ' order by e.subject_key), '-')
   from private.effective_engagement_facts(pg_temp.m(p_n)) e where e.kind = 'week'
 $f$;
-create function pg_temp.rows_of(p_n int) returns int language sql stable as $f$ select count(*)::int from engagement_facts where member_id = pg_temp.m(p_n) $f$;
+create function pg_temp.rows_of(p_n int) returns int language sql stable as $f$ select count(*)::int from engagement_facts where member_id = pg_temp.m(p_n) and kind = 'week' $f$;
+-- 30.7: the milestone rows and the pending number of a member (a plain read of the view).
+create function pg_temp.ms_of(p_n int) returns int language sql stable as $f$ select count(*)::int from engagement_facts where member_id = pg_temp.m(p_n) and kind = 'milestone' $f$;
+create function pg_temp.pend(p_n int, p_now timestamptz) returns text language sql stable as $f$ select coalesce((select v.pending_milestone::text from private.engagement_state_view_at(pg_temp.m(p_n), p_now) v), 'null') $f$;
 create function pg_temp.dirty(p_n int) returns text language sql stable as $f$ select coalesce((select dirty_from::text from engagement_state where member_id = pg_temp.m(p_n)), 'none') $f$;
 
 -- ============================================================================
@@ -110,14 +113,24 @@ select is(pg_temp.chk(1, date '2026-03-12'), 'checked_in', 'late: Thursday 2026-
 select is(pg_temp.dirty(1), '2026-03-09', 'the mark is still the earliest week');
 select is(pg_temp.rd(1, '2026-03-24 09:00+01'), '1|1|0|false|null|true|true', 'a plain read after the sync: the settled streak is still 1, needs_settle is true, the ring of the open week is untouched');
 select is(pg_temp.rows_of(1), 3, 'and the plain read wrote no fact');
+select is(pg_temp.ms_of(1) || '|' || pg_temp.pend(1, '2026-03-24 09:00+01'), '0|null', '30.7: the real check-ins that made the 7th visit day wrote no milestone, and the plain read awards nothing (pending is NULL)');
 create temp table sig_b as select pg_temp.sig() as s;
 select is(pg_temp.rd(1, '2026-03-24 09:00+01'), '1|1|0|false|null|true|true', 'a second plain read is the same');
 select is(pg_temp.sig(), (select s from sig_b), 'and changed nothing');
 select is(pg_temp.op(1, '2026-03-24 09:00+01'), '3|3|0|false|null|false|true', 'open_engagement: the streak is 3 and the best is 3');
 select is(pg_temp.facts(1), '2026-03-02:1:met:3 2026-03-09:2:met:3 2026-03-16:1:met:3', 'week 2 is revision 2, met, 3 visits');
-select is(pg_temp.rows_of(1), 4, 'the ledger grew by exactly one row (revision 2); revision 1 is still there');
+select is(pg_temp.rows_of(1), 4, 'the ledger grew by exactly one week row (revision 2); revision 1 is still there');
 select is(pg_temp.op(1, '2026-03-24 09:05+01'), '3|3|0|false|null|false|true', 'a second open returns the same row');
 select is(pg_temp.rows_of(1), 4, 'and writes nothing');
+-- The 7th visit day arrived by offline sync after the week was settled: the milestone becomes pending with the open that settled it, exactly once.
+select is(pg_temp.ms_of(1) || '|' || pg_temp.pend(1, '2026-03-24 09:10+01'), '1|7', '30.7: the open that settled the offline visits awarded one milestone, and pending_milestone is 7');
+select is(pg_temp.pend(1, '2026-03-24 09:10+01'), '7', '30.7: a plain read again: still 7');
+select is((select pending_milestone::text from private.open_engagement_at(pg_temp.m(1), '2026-03-24 09:20+01')), '7', '30.7: a third open still reads 7 (pending until acknowledged)');
+select is(pg_temp.ms_of(1), 1, '30.7: with a single milestone row');
+select set_config('request.jwt.claims', json_build_object('sub', pg_temp.id(2, 1), 'role', 'authenticated', 'gym_id', pg_temp.id(1, 1), 'app_role', 'member')::text, true);
+select is(public.acknowledge_milestone(7::smallint), 7::smallint, '30.7: the member acknowledges it');
+select is(pg_temp.pend(1, '2026-03-24 09:30+01') || '|' || pg_temp.ms_of(1), 'null|1', '30.7: nothing is pending afterwards, and the next open adds no second milestone');
+select is((select pending_milestone::text from private.open_engagement_at(pg_temp.m(1), '2026-03-25 09:30+01')) is null, true, '30.7: a later open reads NULL: the celebration is pending exactly once');
 select is((select to_jsonb(d) from private.engagement_derived_state(pg_temp.m(1)) d),
           (select to_jsonb(r) from private.rebuild_engagement(pg_temp.m(1), date '2026-03-24') r), 'the derived state equals the rebuild from attendance (determinism)');
 

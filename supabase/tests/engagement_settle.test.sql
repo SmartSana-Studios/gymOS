@@ -382,16 +382,16 @@ select is(
    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname !~ '^(pg_|information_schema$)'
      and p.prosrc ~* '\m(engagement_facts|engagement_state|engagement_state_view|engagement_state_view_at|open_engagement_at|settle_engagement|engagement_settle(_[a-z_]+)?)\M'),
-  'private.effective_engagement_facts, private.engagement_epoch_guard, private.engagement_facts_append_only_guard, private.engagement_settle_candidates, private.engagement_settle_job, private.engagement_settle_member, private.engagement_settle_record_run, private.engagement_state_view, private.engagement_state_view_at, private.open_engagement_at, private.record_check_in, private.settle_engagement, public.my_engagement, public.open_engagement, public.void_staff_check_in',
-  'the functions that name the engagement tables, settle, the job or the state view are exactly: the 30.2 set (settle, the two guards, the effective-facts reader), the job and its three helpers, the view family, the two Epic 27 check-in paths and the public pair (30.7 adds the acknowledge function here)');
+  'private.award_milestones, private.effective_engagement_facts, private.engagement_epoch_guard, private.engagement_facts_append_only_guard, private.engagement_settle_candidates, private.engagement_settle_job, private.engagement_settle_member, private.engagement_settle_record_run, private.engagement_state_view, private.engagement_state_view_at, private.open_engagement_at, private.record_check_in, private.settle_engagement, public.acknowledge_milestone, public.my_engagement, public.open_engagement, public.void_staff_check_in',
+  'the functions that name the engagement tables, settle, the job or the state view are exactly: the 30.2 set (settle, the two guards, the effective-facts reader), the job and its three helpers, the view family, the two Epic 27 check-in paths and the public pair (30.7 adds award_milestones and the acknowledge function here)');
 select is(
   (select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname, p.proname)
    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname !~ '^(pg_|information_schema$)'
      and p.prosrc ~* '\m(engagement_facts|engagement_state|engagement_state_view|engagement_state_view_at|open_engagement_at|settle_engagement|engagement_settle(_[a-z_]+)?)\M'
      and has_function_privilege('authenticated', p.oid, 'execute')),
-  'public.my_engagement, public.open_engagement, public.void_staff_check_in',
-  'the only ones an authenticated client can execute are void_staff_check_in (staff, Epic 27) and the member pair my_engagement and open_engagement');
+  'public.acknowledge_milestone, public.my_engagement, public.open_engagement, public.void_staff_check_in',
+  'the only ones an authenticated client can execute are void_staff_check_in (staff, Epic 27), the member pair my_engagement and open_engagement, and acknowledge_milestone (30.7)');
 select is(
   (select count(*)::int
    from pg_proc p join pg_namespace n on n.oid = p.pronamespace, unnest(array['anon', 'service_role', 'public']) r

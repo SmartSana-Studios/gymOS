@@ -6,6 +6,9 @@ import { Platform } from 'react-native';
 import { addMonths, canGoNext, canGoPrev, earliestMonth, monthStartOf } from '@/lib/calendarGrid';
 import {
   buildCalendarView,
+  cacheWithMonth,
+  readyFromCache,
+  readyFromServer,
   readCalendarCache,
   writeCalendarFirstVisitDay,
   writeCalendarMonth,
@@ -80,8 +83,8 @@ export function useCalendar(isConnected: boolean, pendingCheckInCount: number, u
       if (!(keepOnScreen && monthDataRef.current.kind === 'ready')) commitMonthData({ kind: 'loading' });
       if (userId && gymId && !cacheRef.current) cacheRef.current = await readCalendarCache(userId, gymId);
       if (!current()) return;
-      const cached = cacheRef.current?.months[target];
-      const fallback = (): MonthData => (cached ? { kind: 'ready', days: cached, fromCache: true } : connectedRef.current ? { kind: 'error' } : { kind: 'unavailable' });
+      const cached = readyFromCache(cacheRef.current, target);
+      const fallback = (): MonthData => cached ?? (connectedRef.current ? { kind: 'error' } : { kind: 'unavailable' });
 
       // Offline, the network call would only wait to fail: the device's copy is the answer.
       if (!connectedRef.current) {
@@ -92,12 +95,12 @@ export function useCalendar(isConnected: boolean, pendingCheckInCount: number, u
         const result = await getMyVisitDays(target);
         if (!current()) return;
         if (result.status === 'success') {
-          const days = result.days.map((d) => d.visitDay);
+          const ready = readyFromServer(result.days);
           setLoadFailed(firstVisitFailedRef.current);
-          commitMonthData({ kind: 'ready', days, fromCache: false });
-          if (userId && gymId) {
-            if (cacheRef.current) cacheRef.current = { ...cacheRef.current, months: { ...cacheRef.current.months, [target]: days } };
-            void writeCalendarMonth(userId, gymId, target, days);
+          commitMonthData(ready);
+          if (userId && gymId && ready.kind === 'ready') {
+            if (cacheRef.current) cacheRef.current = cacheWithMonth(cacheRef.current, target, ready.days, ready.milestones ?? {});
+            void writeCalendarMonth(userId, gymId, target, ready.days, ready.milestones ?? {});
           }
         } else {
           setLoadFailed(true);

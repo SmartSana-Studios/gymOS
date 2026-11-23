@@ -7,7 +7,7 @@
 -- Fixture ids: 00000000-0000-0000-0031-00000000nnnn. Gym 1001, users 2001.., members 3001...
 
 begin;
-select plan(78);
+select plan(88);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0031-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -131,6 +131,26 @@ select set_config('app.engagement_acknowledge', 'off', true);
 select throws_ok(format($$update engagement_facts set acknowledged_at = null where member_id = %L and kind = 'milestone' and subject_key = '7'$$, pg_temp.m(2)),
                  '23514', null, 'clearing acknowledged_at is refused, flag off');
 select throws_ok(format($$delete from engagement_facts where member_id = %L and kind = 'milestone'$$, pg_temp.m(2)), '23514', null, 'a milestone fact cannot be deleted either');
+
+-- 30.7: the same flag through the REAL functions. award_milestones writes the fact (the epoch is set with its guard off: week facts of the cases
+-- above already exist); acknowledge_milestone is the only writer of acknowledged_at, and leaves the flag off.
+alter table platform_engagement_config disable trigger engagement_epoch_guard;
+update platform_engagement_config set release_week_start = date '2026-03-02';
+alter table platform_engagement_config enable trigger engagement_epoch_guard;
+insert into attendance_events (gym_id, member_id, checked_in_at, checked_out_at, checkout_type, visit_day)
+select pg_temp.id(1, 1), pg_temp.m(n), (d + time '10:00') at time zone 'Africa/Douala', (d + time '10:30') at time zone 'Africa/Douala', 'manual', d
+from generate_series(7, 8) n, generate_series(date '2026-03-02', date '2026-03-08', interval '1 day') g(d2), lateral (select g.d2::date as d) x;
+select lives_ok(format($$select private.award_milestones(%L)$$, pg_temp.m(7)), 'award_milestones writes a milestone fact for a member with seven visit days');
+select lives_ok(format($$select private.award_milestones(%L)$$, pg_temp.m(8)), 'and for another');
+select is((select silent::text || '|' || (acknowledged_at is null)::text from engagement_facts where member_id = pg_temp.m(7) and kind = 'milestone' and subject_key = '7'), 'false|true', 'the fact is not silent and not acknowledged');
+select throws_ok(format($$update engagement_facts set acknowledged_at = now() where member_id = %L and kind = 'milestone'$$, pg_temp.m(7)), '23514', null, 'a direct UPDATE of it, with no flag, is refused');
+select set_config('request.jwt.claims', json_build_object('sub', pg_temp.id(2, 7), 'role', 'authenticated', 'gym_id', pg_temp.id(1, 1), 'app_role', 'member')::text, true);
+select is(public.acknowledge_milestone(7::smallint), 7::smallint, 'acknowledge_milestone sets acknowledged_at through the guard');
+select is((select (acknowledged_at is not null)::text from engagement_facts where member_id = pg_temp.m(7) and kind = 'milestone'), 'true', 'it is set');
+select is(current_setting('app.engagement_acknowledge', true), 'off', 'and the flag is off again once the function returns');
+select throws_ok(format($$update engagement_facts set acknowledged_at = now() where member_id = %L and kind = 'milestone'$$, pg_temp.m(8)), '23514', null, 'so a direct UPDATE of another member''s milestone is still refused after the call');
+select is((select (acknowledged_at is null)::text from engagement_facts where member_id = pg_temp.m(8) and kind = 'milestone'), 'true', 'and member 8''s milestone was not touched by member 7''s call');
+select throws_ok(format($$delete from engagement_facts where member_id = %L and kind = 'milestone'$$, pg_temp.m(7)), '23514', null, 'an acknowledged milestone cannot be deleted');
 
 -- A new revision is an INSERT, the only way a fact changes.
 select lives_ok(pg_temp.wk(3, '2026-03-02', 2, 'met', 3, 3), 'a correction is a new revision');

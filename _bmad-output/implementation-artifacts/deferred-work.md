@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: build of spec-30-7-milestones-and-celebration (2026-11-23)
+
+- **The epoch guard still protects `week` facts only, so a milestone's `silent` flag can disagree with a moved epoch.** A milestone is silent when its Nth distinct visit day is before `release_week_start`, decided once at award time. `private.engagement_epoch_guard` (0185) freezes the epoch once a WEEK fact exists, and an existing pgTAP test pins that; it does not look at milestone facts. An operator who moves the epoch after members have opened the app (so milestone facts exist but no week fact yet, e.g. every member still inside the first week) would leave those facts with the old epoch's silent decision. Rule for the operator, recorded in decisions.md: set the epoch once and do not move it after members have opened the app. Extending the guard to `kind in ('week', 'milestone')` is one line plus an edited 30.2 test; not done here because the spec freezes that test.
+- **A suspended gym keeps a shown-but-unacknowledged milestone retrying on every Home load.** `acknowledgeMilestone` maps a suspended gym to `gym_suspended`, which the shown-store treats as "retry later" (the member is routed away from Home while suspended, so in practice the retry runs after reactivation). Nothing is lost; noted so a future change does not mark it settled.
+
 ## Deferred from: code review of spec-29-4-coach-picker-for-owner-supervisor-and-manager (2026-11-21)
 
 - **`coach_picker_indexes.test.sql` explains hand-copied SQL, not the shipped function bodies.** The `classes_sql` and `members_plan` strings re-type the two list queries with literals; nothing ties them to `pg_proc.prosrc`, so dropping `cs.gym_id = v_gym_id` or changing `c.coach_id = p_coach_id` in 0183 keeps the "no sequential scan" assertions green (the 2 s timing check passes at 40 classes). Deferred: performance guard on a bounded fixture, functional gates well covered. Cheap fix: assert the key predicates and the `idx_*` join shape appear in `prosrc` after whitespace normalisation, or run `EXPLAIN` on a SQL-language twin.

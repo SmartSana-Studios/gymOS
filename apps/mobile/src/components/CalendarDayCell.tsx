@@ -12,10 +12,12 @@ import type { DayCellView } from '@/lib/calendarView';
 export const CELL_SIZE = 44;
 const OUTLINE = 2;
 const RADIUS = 10;
+/** Story 30.7: the milestone star badge, 14pt, in the top-left corner (the check or schedule glyph holds the top-right one). */
+const STAR_SIZE = 14;
 
 /** Story 30.5 / `components.calendarDayCell`: one day of the month grid. Layout only: `cell` (lib/calendarView.ts) holds every state and every word.
  * Shape or glyph always accompanies colour: a lit day is filled with a check, today carries a 2pt outline (accent, dashed while a visit waits to sync,
- * warning with a `schedule` glyph and the hours left when at risk), a future day is faded and cannot be tapped. */
+ * warning with a `schedule` glyph and the hours left when at risk), a future day is faded and cannot be tapped. A milestone day (Story 30.7) adds a star badge: a shape, with the words in the cell's label. */
 export function CalendarDayCell({ cell, onPress }: { cell: DayCellView; onPress: (date: string) => void }) {
   const theme = useTheme();
   const accent = useGymAccentColor();
@@ -34,6 +36,11 @@ export function CalendarDayCell({ cell, onPress }: { cell: DayCellView; onPress:
       {cell.glyph && (
         <View style={styles.glyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <MaterialIcons name={cell.glyph} size={12} color={cell.glyph === 'schedule' ? WARNING_COLOR : onAccent} />
+        </View>
+      )}
+      {cell.milestone !== null && (
+        <View style={styles.star} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <MaterialIcons name="star" size={STAR_SIZE} color={onAccent} />
         </View>
       )}
       {cell.hoursText && (
@@ -116,6 +123,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     right: 2,
+  },
+  star: {
+    position: 'absolute',
+    top: 1,
+    left: 1,
   },
   hours: {
     position: 'absolute',

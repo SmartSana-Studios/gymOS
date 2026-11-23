@@ -47,6 +47,12 @@ const SCREEN_FILES = [
   'hooks/use-leaderboard-notice.ts',
   'hooks/use-home-leaderboard.ts',
   'lib/leaderboardView.ts',
+  // Story 30.7: the milestone celebration, its mini month, its Home hook and view model. Same rules: no sentence in a screen file, no date construction
+  // (the mini month goes through lib/calendarGrid.ts).
+  'app/celebration/[milestoneId].tsx',
+  'components/CelebrationMiniMonth.tsx',
+  'hooks/use-home-celebration.ts',
+  'lib/celebrationView.ts',
 ];
 
 describe('no literal sentence (FR-232)', () => {
@@ -509,5 +515,119 @@ describe('every key the board files ask for exists in both catalogs', () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// Story 30.7: the milestone celebration (FR-229, FR-232; MA-20)
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+
+describe('the celebration screen (MA-20)', () => {
+  const ROUTE = 'app/celebration/[milestoneId].tsx';
+  const CELEBRATION_FILES = [ROUTE, 'components/CelebrationMiniMonth.tsx', 'hooks/use-home-celebration.ts', 'lib/celebrationView.ts'];
+
+  it('has no looping animation, no sound and no confetti', () => {
+    for (const path of CELEBRATION_FILES) {
+      const code = stripped(path);
+      expect(code, path).not.toMatch(/Animated\.loop|\bloop:|\bloop\(|expo-av|expo-audio|\bSound\b|\.mp3|\.wav|\.m4a|confetti|Lottie|lottie|setInterval/i);
+    }
+    expect(stripped('hooks/use-at-risk-pulse.ts')).toContain('Animated.loop');
+  });
+
+  it('the scanner can see a loop and a sound (positive control)', () => {
+    expect(/Animated\.loop|expo-av/.test('Animated.loop(x)')).toBe(true);
+    expect(/Animated\.loop|expo-av/.test("import { Audio } from 'expo-av'")).toBe(true);
+  });
+
+  it('has no Share button and no badges link (Epic 31)', () => {
+    for (const path of CELEBRATION_FILES) {
+      expect(stripped(path), path).not.toMatch(/cta\.share|cta\.badges|engage\.share|engage\.badges|expo-sharing|Share\./);
+    }
+    expect(stripped(ROUTE).match(/<Button\b/g)).toHaveLength(1);
+    expect(stripped(ROUTE)).toContain('view.continueLabel');
+  });
+
+  it('takes no more from the at-risk pulse file than the reduce-motion check', () => {
+    const route = stripped(ROUTE);
+    const imports = [...route.matchAll(/import\s*\{([^}]*)\}\s*from\s*'@\/hooks\/use-at-risk-pulse'/g)].map((m) => m[1].trim());
+    expect(imports).toEqual(['useReduceMotion']);
+    expect(route).not.toMatch(/useAtRiskPulse|use-at-risk-pulse'.*AtRisk/);
+  });
+
+  it('plays the Success haptic on appear whatever the motion setting, and runs the plan from the view model', () => {
+    const route = stripped(ROUTE);
+    expect(route).toMatch(/Haptics\.notificationAsync\(Haptics\.NotificationFeedbackType\.Success\)/);
+    expect(route).toMatch(/motionPlan\(reduceMotion\)/);
+    expect(route).toContain('useReduceMotion()');
+    expect(route).toContain('isReduceMotionEnabled');
+  });
+
+  it('is announced once as an alert, with the headline focused and the numeral and mini calendar decorative', () => {
+    const route = stripped(ROUTE);
+    expect(route).toMatch(/accessibilityRole="alert"/);
+    expect(route).toMatch(/announceForAccessibility\(view\.a11y\)/);
+    expect(route).toContain('setAccessibilityFocus');
+    expect(route).toMatch(/accessibilityRole="none"/);
+    expect(stripped('components/CelebrationMiniMonth.tsx')).toMatch(/accessibilityRole="none"/);
+    // The numeral changes every frame of the count-up: a screen reader must not read the intermediate values (the sentence and the headline carry it).
+    expect(route).toMatch(/accessibilityRole="none" accessibilityElementsHidden importantForAccessibility="no" style=\{styles\.numeral\}/);
+  });
+
+  it('closes on [Keep going] and Android back only: the record is written before the call, swipe down is off', () => {
+    const route = stripped(ROUTE);
+    expect(route).toMatch(/hardwareBackPress/);
+    expect(route).toMatch(/finishCelebration\(/);
+    const view = stripped('lib/celebrationView.ts');
+    const finish = view.slice(view.indexOf('export async function finishCelebration'), view.indexOf('export async function retryAcknowledge'));
+    expect(finish.indexOf('deps.writeShown(')).toBeGreaterThan(-1);
+    expect(finish.indexOf('deps.writeShown(')).toBeLessThan(finish.indexOf('deps.acknowledge('));
+    const layout = source('app/_layout.tsx');
+    expect(layout).toMatch(/<Stack\.Screen name="celebration\/\[milestoneId\]" options=\{\{ animation: 'fade', gestureEnabled: false \}\} \/>/);
+    const group = layout.slice(layout.indexOf('<Stack.Protected guard={isFullyOnboarded}>'), layout.indexOf('</Stack.Protected>'));
+    expect(group).toContain('celebration/[milestoneId]');
+  });
+
+  it('reads its own gym by id and the mini month through the calendar grid, never a second engagement read', () => {
+    expect(stripped('services/milestones.ts')).toMatch(/\.eq\('id', gymId\)/);
+    const route = stripped(ROUTE);
+    expect(route).not.toMatch(/getMyEngagement|openEngagement|loadEngagement/);
+    expect(route).toContain('getMyVisitDays(');
+    expect(stripped('lib/celebrationView.ts')).toMatch(/buildMonthGrid\(/);
+  });
+
+  it('the Home hook takes the one engagement read it is handed and never reads the row itself', () => {
+    const hook = stripped('hooks/use-home-celebration.ts');
+    expect(hook).not.toMatch(/getMyEngagement|openEngagement|loadEngagement\(/);
+    expect(hook).toContain('await engagementRead');
+    expect(hook).toContain('pendingFromOutcome(');
+    expect(hook).toMatch(/PUSH_DELAY_MS = 600/);
+    expect(hook).toMatch(/return \(\) => clearTimeout\(timer\)/);
+    const home = stripped('app/(tabs)/index.tsx');
+    expect(home.match(/loadEngagementForHome\(/g)).toHaveLength(1);
+    expect(home.match(/loadCelebrationForHome\(/g)).toHaveLength(1);
+    expect(home).not.toMatch(/services\/visitDays|services\/milestones|acknowledgeMilestone/);
+    expect(home).toContain('homeReadyForCelebration({ loading, loadError, subscriptionStatus })');
+    expect(hook).toContain('celebrationDue({ milestone, today, ready, focused })');
+  });
+
+  it('the shown-store is cleared beside clearCachedProgressPayload at the three sign-out sites', () => {
+    for (const path of ['app/(tabs)/profile.tsx', 'app/suspended.tsx', 'app/awaiting-registration.tsx']) {
+      expect(stripped(path), path).toMatch(/clearCachedProgressPayload\(\);\s*void clearShown\(\);/);
+    }
+  });
+
+  it('the calendar hook builds its month data through the tested pure functions, so the markers cannot be dropped silently', () => {
+    const hook = stripped('hooks/use-calendar.ts');
+    expect(hook).toContain('readyFromServer(result.days)');
+    expect(hook).toContain('readyFromCache(cacheRef.current, target)');
+    expect(hook).toMatch(/writeCalendarMonth\(userId, gymId, target, ready\.days, ready\.milestones \?\? \{\}\)/);
+  });
+
+  it('the calendar marker is the star, hidden from a screen reader, and the legend has a third entry', () => {
+    const cell = stripped('components/CalendarDayCell.tsx');
+    expect(cell).toMatch(/name="star"/);
+    expect(cell).toMatch(/STAR_SIZE = 14/);
+    expect(cell).toMatch(/star: \{\s*position: 'absolute',\s*top: 1,\s*left: 1/);
+    expect(stripped('app/calendar.tsx')).toMatch(/'star'/);
   });
 });

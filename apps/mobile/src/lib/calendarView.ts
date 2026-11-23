@@ -39,6 +39,29 @@ export function myVisitsRowAfterRead(current: boolean, result: GetMyEngagementRe
   return current;
 }
 
+/** Story 30.7: the server's marker of each day of a month (`my_visit_days`), day to 7, 30 or 100; days without one are left out. */
+export function milestonesOf(days: readonly { visitDay: string; milestone: number | null }[]): Record<string, number> {
+  const marks: Record<string, number> = {};
+  for (const d of days) if (d.milestone !== null) marks[d.visitDay] = d.milestone;
+  return marks;
+}
+
+/** A month just read from the server: its days and its markers. */
+export function readyFromServer(days: readonly { visitDay: string; milestone: number | null }[]): MonthData {
+  return { kind: 'ready', days: days.map((d) => d.visitDay), fromCache: false, milestones: milestonesOf(days) };
+}
+
+/** The device's copy of a month, with the markers stored beside its days (none for a copy stored before 30.7); null when the month was never stored. */
+export function readyFromCache(cache: CalendarCache | null, month: string): MonthData | null {
+  const days = cache?.months[month];
+  return days ? { kind: 'ready', days, fromCache: true, milestones: cache?.milestones?.[month] } : null;
+}
+
+/** The in-memory cache after a month was read from the server: the days and the markers of that month replaced, everything else kept. */
+export function cacheWithMonth(cache: CalendarCache, month: string, days: readonly string[], milestones: Readonly<Record<string, number>>): CalendarCache {
+  return { ...cache, months: { ...cache.months, [month]: [...days] }, milestones: { ...(cache.milestones ?? {}), [month]: { ...milestones } } };
+}
+
 /** The skeleton grid while a month loads: 5 rows of 7. */
 export const SKELETON_CELLS = 35;
 /** Months kept on the device per member and gym. */
@@ -46,8 +69,9 @@ const MAX_CACHED_MONTHS = 36;
 
 export type MonthData =
   | { kind: 'loading' }
-  // `fromCache`: the days are the device's last good copy of this month, not this load's.
-  | { kind: 'ready'; days: readonly string[]; fromCache: boolean }
+  // `fromCache`: the days are the device's last good copy of this month, not this load's. `milestones` (Story 30.7): day to 7, 30 or 100, the server's
+  // derived marker of that day; absent on a copy stored before 30.7.
+  | { kind: 'ready'; days: readonly string[]; fromCache: boolean; milestones?: Readonly<Record<string, number>> }
   // Offline and this month has never been loaded on this phone.
   | { kind: 'unavailable' }
   | { kind: 'error' };
@@ -88,6 +112,8 @@ export interface DayCellView {
   /** Today's 2pt ring: accent, warning (at risk), or dashed (a visit waiting to sync). */
   outline: CellOutline;
   glyph: 'check' | 'schedule' | null;
+  /** Story 30.7: 7, 30 or 100 on the day of that visit (the star badge in a corner of the cell); null on every other day. */
+  milestone: number | null;
   /** "6 h" / "45 m", only in the at-risk cell. */
   hoursText: string | null;
   bold: boolean;
@@ -122,7 +148,7 @@ export interface SummaryView {
 }
 
 export interface LegendItem {
-  kind: 'visit' | 'today';
+  kind: 'visit' | 'today' | 'milestone';
   label: string;
 }
 
@@ -149,6 +175,12 @@ export interface CalendarView {
   legend: LegendItem[];
   /** Today's line, or the tapped day's; null when today is not known. */
   detail: string | null;
+}
+
+/** The marker of a day: 7, 30 or 100, else null (any other number from a damaged copy draws nothing). */
+function milestoneOn(milestones: Readonly<Record<string, number>>, date: string): number | null {
+  const value = milestones[date];
+  return value === 7 || value === 30 || value === 100 ? value : null;
 }
 
 function splitSummary(text: string, count: number): SummaryView {
@@ -186,6 +218,7 @@ export function buildCalendarView(input: CalendarInput): CalendarView {
   const currentMonth = today ? monthStartOf(today) : null;
   const viewingCurrent = month !== null && month === currentMonth;
   const days = input.monthData.kind === 'ready' ? new Set(input.monthData.days) : new Set<string>();
+  const milestones = input.monthData.kind === 'ready' ? (input.monthData.milestones ?? {}) : {};
   const loaded = face === 'grid';
 
   const monthYear = month ? formatMonthYear(month, language) : '';
@@ -227,8 +260,10 @@ export function buildCalendarView(input: CalendarInput): CalendarView {
     const lit = !future && (days.has(date) || (isToday && pending));
     const cellAtRisk = isToday && atRisk && viewingCurrent;
     const long = formatLongDate(date, language);
+    const milestone = lit && !future ? milestoneOn(milestones, date) : null;
     let label: string;
     if (future) label = long;
+    else if (milestone !== null) label = t(`engage.calendar.day.milestone${milestone}`, { date: long });
     else if (isToday && pending) label = t('engage.calendar.day.pending', { date: long });
     else if (isToday && cellAtRisk) label = t('engage.calendar.day.today.atRisk', { date: long, hoursLeft: todayHint?.timeLeft ?? '' });
     else if (isToday) label = t(lit ? 'engage.calendar.day.today.visited' : 'engage.calendar.day.today.none', { date: long });
@@ -240,6 +275,7 @@ export function buildCalendarView(input: CalendarInput): CalendarView {
       lit,
       outline: !isToday ? 'none' : cellAtRisk ? 'warning' : pending ? 'dashed' : 'accent',
       glyph: cellAtRisk ? 'schedule' : lit ? 'check' : null,
+      milestone,
       hoursText: cellAtRisk ? atRiskHours : null,
       bold: isToday,
       faded: future,
@@ -283,7 +319,9 @@ export function buildCalendarView(input: CalendarInput): CalendarView {
   if (today && loaded) {
     const target = selected ?? today;
     const long = formatLongDate(target, language);
-    if (target === today) {
+    const targetMilestone = target <= today && days.has(target) ? milestoneOn(milestones, target) : null;
+    if (targetMilestone !== null) detail = t(`engage.calendar.day.milestone${targetMilestone}`, { date: long });
+    else if (target === today) {
       if (pending) detail = t('engage.calendar.day.pending', { date: long });
       else if (todayVisited) detail = t('engage.calendar.day.today.visited', { date: long });
       else if (atRisk) detail = t('engage.calendar.day.today.atRisk', { date: long, hoursLeft: todayHint?.timeLeft ?? '' });
@@ -311,6 +349,7 @@ export function buildCalendarView(input: CalendarInput): CalendarView {
     legend: [
       { kind: 'visit', label: t('engage.calendar.legend.visit') },
       { kind: 'today', label: t('engage.calendar.legend.today') },
+      { kind: 'milestone', label: t('engage.calendar.legend.milestone') },
     ],
     detail,
   };
@@ -326,6 +365,9 @@ export interface CalendarCache {
   /** `YYYY-MM-01` to the visit days of that month. */
   months: Record<string, string[]>;
   firstVisitDay: string | null;
+  /** Story 30.7: `YYYY-MM-01` to day to milestone number (7, 30 or 100). Optional and parallel to `months`: a copy stored before 30.7 has none and reads
+   * as a month with no markers. */
+  milestones?: Record<string, Record<string, number>>;
 }
 
 export function calendarCacheKey(userId: string, gymId: string): string {
@@ -346,10 +388,25 @@ function parseCache(raw: string | null): CalendarCache {
       months[month] = days as string[];
     }
     const first = typeof parsed.firstVisitDay === 'string' && isDateOnly(parsed.firstVisitDay) ? parsed.firstVisitDay : null;
-    return { months, firstVisitDay: first };
+    const milestones = parseMilestones((parsed as { milestones?: unknown }).milestones);
+    return milestones ? { months, firstVisitDay: first, milestones } : { months, firstVisitDay: first };
   } catch {
     return { months: {}, firstVisitDay: null };
   }
+}
+
+function parseMilestones(raw: unknown): Record<string, Record<string, number>> | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const out: Record<string, Record<string, number>> = {};
+  for (const [month, byDay] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isMonthStart(month) || typeof byDay !== 'object' || byDay === null || Array.isArray(byDay)) continue;
+    const marks: Record<string, number> = {};
+    for (const [date, value] of Object.entries(byDay as Record<string, unknown>)) {
+      if (isDateOnly(date) && date.startsWith(month.slice(0, 7)) && (value === 7 || value === 30 || value === 100)) marks[date] = value;
+    }
+    out[month] = marks;
+  }
+  return out;
 }
 
 export async function readCalendarCache(userId: string, gymId: string): Promise<CalendarCache> {
@@ -377,16 +434,31 @@ async function updateNow(userId: string, gymId: string, change: (cache: Calendar
     const keep = Object.keys(next.months).sort().slice(-MAX_CACHED_MONTHS);
     const months: Record<string, string[]> = {};
     for (const month of keep) months[month] = next.months[month];
-    await AsyncStorage.setItem(key, JSON.stringify({ months, firstVisitDay: next.firstVisitDay }));
+    let milestones: Record<string, Record<string, number>> | undefined;
+    if (next.milestones) {
+      milestones = {};
+      for (const month of keep) if (next.milestones[month]) milestones[month] = next.milestones[month];
+    }
+    await AsyncStorage.setItem(key, JSON.stringify({ months, firstVisitDay: next.firstVisitDay, ...(milestones ? { milestones } : {}) }));
     return true;
   } catch {
     return false;
   }
 }
 
-/** Stores one loaded month. Returns false when it could not be stored. */
-export function writeCalendarMonth(userId: string, gymId: string, month: string, days: readonly string[]): Promise<boolean> {
-  return update(userId, gymId, (cache) => ({ ...cache, months: { ...cache.months, [month]: [...days] } }));
+/** Stores one loaded month, with its milestone markers when the caller has them (Story 30.7). Returns false when it could not be stored. */
+export function writeCalendarMonth(
+  userId: string,
+  gymId: string,
+  month: string,
+  days: readonly string[],
+  milestones?: Readonly<Record<string, number>>,
+): Promise<boolean> {
+  return update(userId, gymId, (cache) => ({
+    ...cache,
+    months: { ...cache.months, [month]: [...days] },
+    ...(milestones ? { milestones: { ...(cache.milestones ?? {}), [month]: { ...milestones } } } : {}),
+  }));
 }
 
 /** Stores the member's earliest visit day (the bound of the previous-month chevron while offline). */

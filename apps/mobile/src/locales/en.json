@@ -655,12 +655,16 @@
       "monthSummary_other": "{{count}} visit days in {{month}}",
       "legend": {
         "visit": "Visited",
-        "today": "Today"
+        "today": "Today",
+        "milestone": "Milestone"
       },
       "day": {
         "visited": "{{date}}: visited",
         "none": "{{date}}: no visit",
         "pending": "{{date}}: waiting to sync",
+        "milestone7": "{{date}}: your 7th visit",
+        "milestone30": "{{date}}: your 30th visit",
+        "milestone100": "{{date}}: your 100th visit",
         "today": {
           "atRisk": "Today, {{date}}: no visit yet. {{hoursLeft}}",
           "visited": "Today, {{date}}: visited",

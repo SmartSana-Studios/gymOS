@@ -30,6 +30,7 @@ import { useOfflineSync } from '@/lib/offline-sync-context';
 import { profileGoalValue } from '@/lib/weeklyGoalSheet';
 import { readEngagementCache } from '@/lib/weeklyRing';
 import { getMemberPreferences, updateMemberPreferences } from '@/services/notificationPreferences';
+import { clearShown } from '@/lib/celebrationView';
 import { clearCachedProgressPayload } from '@/services/progress';
 import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
 import { getMyEngagement } from '@/services/engagement';
@@ -508,6 +509,7 @@ export default function ProfileScreen() {
           // a different member signing in on the same device never sees a
           // prior member's cached weight/measurements/photos.
           clearCachedProgressPayload();
+          void clearShown();
           clearCachedWorkoutPlan();
           void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
         },

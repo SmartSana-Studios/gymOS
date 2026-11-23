@@ -228,7 +228,7 @@ create temp table cgs as
    where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.proname <> 'current_gym_status'
      and p.prosrc like '%current_gym_status()%';
 select is((select array_agg(distinct name order by name) from cgs),
-          array['add_session_note', 'assign_coach', 'book_class_session', 'cancel_class', 'cancel_class_booking', 'check_out', 'check_out_member', 'claim_page_name', 'confirm_renewal',
+          array['acknowledge_milestone', 'add_session_note', 'assign_coach', 'book_class_session', 'cancel_class', 'cancel_class_booking', 'check_out', 'check_out_member', 'claim_page_name', 'confirm_renewal',
                 'correct_plan_eligibility', 'correct_subscription_plan', 'create_class', 'create_staff_member', 'create_workout_plan', 'deactivate_staff_member', 'delete_page_media', 'edit_session_note', 'effective_loyalty',
                 'file_audit_disclosure_request', 'get_coach_assigned_member', 'get_coach_member_workout_plan', 'gym_leaderboard', 'initiate_member_payment', 'initiate_registration_fee_payment', 'initiate_session_payment', 'list_attendance_log', 'list_coach_assigned_members', 'list_coach_class_session_roster', 'list_coach_classes', 'list_coach_member_session_notes', 'list_my_class_session_roster',
                 'list_my_classes', 'list_picker_coaches', 'mark_class_attendance', 'mark_leaderboard_notice_seen', 'materialize_class_sessions', 'my_engagement', 'my_first_visit_day', 'my_leaderboard_settings', 'my_visit_days', 'my_weekly_goal', 'open_engagement', 'publish_gym_page', 'record_check_in', 'record_registration_fee', 'record_session_payment', 'register_page_media', 'renew_subscription',

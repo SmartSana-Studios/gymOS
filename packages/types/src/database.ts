@@ -2883,6 +2883,7 @@ export type Database = {
       }
     }
     Functions: {
+      acknowledge_milestone: { Args: { p_milestone: number }; Returns: number | null }
       activate_payment_provider: {
         Args: { p_provider_key: string }
         Returns: undefined

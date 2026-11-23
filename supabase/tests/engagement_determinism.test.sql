@@ -10,7 +10,7 @@
 -- Fixture ids: 00000000-0000-0000-0034-00000000nnnn.
 
 begin;
-select plan(57);
+select plan(74);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0034-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -199,7 +199,7 @@ select is((select count(*)::int from engagement_facts where member_id = pg_temp.
 
 -- The rebuild never writes, and a rebuild for a different p_up_to does not change what is stored.
 select pg_temp.rebuilt(8, date '2026-06-01');
-select is(pg_temp.nrows(8), (select count(*)::int from jsonb_array_elements(pg_temp.derived(8) -> 'weeks')), 'rebuild: writes nothing');
+select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(8) and kind = 'week'), (select count(*)::int from jsonb_array_elements(pg_temp.derived(8) -> 'weeks')), 'rebuild: writes nothing (week facts; 30.7: the member''s 7th visit day also holds one milestone fact)');
 select ok(pg_temp.rebuilt(8, date '2026-06-01') <> pg_temp.derived(8), 'rebuild: for a later p_up_to it reports the weeks that have not been settled yet (a diagnostic, not a write)');
 
 -- A gym with a different timezone setting: nothing in a settle depends on the session's time zone.
@@ -210,6 +210,54 @@ select pg_temp.visit(9, date '2026-03-02');
 select is(pg_temp.settle(9, date '2026-03-16'), 2, 'a UTC-8 session time zone settles the same weeks');
 select is(pg_temp.facts(9), '2026-03-02:1:missed:3:1 2026-03-09:1:missed:3:0', 'with the same facts');
 reset timezone;
+
+-- ============================================================================
+-- 30.7: the milestones array. derived (the effective milestone facts) equals rebuild (the thresholds the visit days reach) in the late-visit,
+-- void-then-return and timezone cases of the 7th visit day
+-- ============================================================================
+select is(pg_temp.derived(8) -> 'milestones', '[7]'::jsonb, 'milestones: member 8 (eight visit days) holds the 7');
+select is(pg_temp.derived(7) -> 'milestones', pg_temp.derived(8) -> 'milestones', 'milestones: the weekly settler and the one-shot settler agree');
+-- late visit: five days settled, then two more arrive (the second a late offline visit for the settled week)
+select pg_temp.visit(10, date '2026-03-02'); select pg_temp.visit(10, date '2026-03-03'); select pg_temp.visit(10, date '2026-03-04');
+select pg_temp.visit(10, date '2026-03-05'); select pg_temp.visit(10, date '2026-03-09'); select pg_temp.visit(10, date '2026-03-10');
+select pg_temp.settle(10, date '2026-03-12');
+select is(pg_temp.derived(10) -> 'milestones', '[]'::jsonb, 'milestones late visit: six visit days, none yet');
+select is(pg_temp.derived(10), pg_temp.rebuilt(10, date '2026-03-12'), 'milestones late visit: derived equals rebuild at six days');
+select pg_temp.visit(10, date '2026-03-06');            -- Friday of the settled week, synced on Thursday 03-12
+select pg_temp.mark_dirty(10, date '2026-03-02');
+select pg_temp.settle(10, date '2026-03-12');
+select is(pg_temp.derived(10) -> 'milestones', '[7]'::jsonb, 'milestones late visit: the late visit makes seven, one milestone fact');
+select is(pg_temp.derived(10), pg_temp.rebuilt(10, date '2026-03-12'), 'milestones late visit: derived equals rebuild after the late visit');
+select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(10) and kind = 'milestone'), 1, 'milestones late visit: exactly one milestone row');
+-- void then return to 7: the fact keeps the 7 while the count is 6, and the rebuild agrees again once the count is back
+select pg_temp.visit(11, date '2026-03-02'); select pg_temp.visit(11, date '2026-03-03'); select pg_temp.visit(11, date '2026-03-04');
+select pg_temp.visit(11, date '2026-03-05'); select pg_temp.visit(11, date '2026-03-06'); select pg_temp.visit(11, date '2026-03-09'); select pg_temp.visit(11, date '2026-03-10');
+select pg_temp.settle(11, date '2026-03-12');
+select is(pg_temp.derived(11) -> 'milestones', '[7]'::jsonb, 'milestones void: seven visit days, the 7 is held');
+select pg_temp.void(11, date '2026-03-10');
+select pg_temp.mark_dirty(11, date '2026-03-09');
+select pg_temp.settle(11, date '2026-03-12');
+select is(pg_temp.derived(11) -> 'milestones', '[7]'::jsonb, 'milestones void: the voided 7th day does not reverse the milestone');
+select pg_temp.visit(11, date '2026-03-11');
+select pg_temp.mark_dirty(11, date '2026-03-09');
+select pg_temp.settle(11, date '2026-03-12');
+select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(11) and kind = 'milestone'), 1, 'milestones void: back to seven days, still one row');
+select is(pg_temp.derived(11), pg_temp.rebuilt(11, date '2026-03-12'), 'milestones void: derived equals rebuild once the count is back at 7');
+-- timezone: the 7th day is a 23:30 Douala visit; a later gym timezone change moves nothing
+select pg_temp.visit(12, date '2026-03-02'); select pg_temp.visit(12, date '2026-03-03'); select pg_temp.visit(12, date '2026-03-04');
+select pg_temp.visit(12, date '2026-03-05'); select pg_temp.visit(12, date '2026-03-06'); select pg_temp.visit(12, date '2026-03-07');
+insert into attendance_events (gym_id, member_id, checked_in_at, checked_out_at, checkout_type)
+values (pg_temp.id(1, 1), pg_temp.m(12), timestamptz '2026-03-08 23:30:00+01', timestamptz '2026-03-09 00:20:00+01', 'manual');
+select pg_temp.settle(12, date '2026-03-16');
+create temp table tz_ms as select pg_temp.derived(12) as derived, pg_temp.rebuilt(12, date '2026-03-16') as rebuilt;
+select is((select derived from tz_ms), (select rebuilt from tz_ms), 'milestones timezone: derived equals rebuild before the change (the 23:30 visit is the 7th day)');
+select is((select derived -> 'milestones' from tz_ms), '[7]'::jsonb, 'milestones timezone: the 7th is held');
+update gyms set timezone = 'Africa/Nairobi' where id = pg_temp.id(1, 1);
+select is(pg_temp.derived(12), (select derived from tz_ms), 'milestones timezone: derived is identical after the change');
+select is(pg_temp.rebuilt(12, date '2026-03-16'), (select rebuilt from tz_ms), 'milestones timezone: and so is the rebuild');
+select is(pg_temp.settle(12, date '2026-03-16'), 0, 'milestones timezone: a settle after the change writes nothing');
+select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(12) and kind = 'milestone'), 1, 'milestones timezone: and the milestone is one row');
+update gyms set timezone = 'Africa/Douala' where id = pg_temp.id(1, 1);
 
 select * from finish();
 rollback;

@@ -19,7 +19,11 @@ import type { Engagement } from '@/services/engagement';
 
 import {
   buildCalendarView,
+  cacheWithMonth,
   calendarCacheKey,
+  milestonesOf,
+  readyFromCache,
+  readyFromServer,
   readCalendarCache,
   myVisitsRowAfterRead,
   myVisitsRowFromCache,
@@ -109,6 +113,7 @@ function cell(view: CalendarView, date: string): DayCellView {
 }
 
 const LANGS = ['en', 'fr'] as const;
+const MILESTONE_MONTH = { kind: 'ready', days: DAYS, fromCache: false, milestones: { '2026-11-10': 30 } } as const;
 const withLang = (lang: 'en' | 'fr', over: Over = {}): Over => ({ ...over, t: makeT(lang), language: lang });
 
 // One fixture per cell state of MA-18, in both languages.
@@ -121,6 +126,7 @@ describe('cell states', () => {
       lit: false,
       outline: 'none',
       glyph: null,
+      milestone: null,
       hoursText: null,
       bold: false,
       faded: false,
@@ -139,6 +145,7 @@ describe('cell states', () => {
       lit: true,
       outline: 'none',
       glyph: 'check',
+      milestone: null,
       hoursText: null,
       bold: false,
       faded: false,
@@ -158,6 +165,7 @@ describe('cell states', () => {
       lit: false,
       outline: 'accent',
       glyph: null,
+      milestone: null,
       hoursText: null,
       bold: true,
       faded: false,
@@ -184,6 +192,7 @@ describe('cell states', () => {
       lit: false,
       outline: 'warning',
       glyph: 'schedule',
+      milestone: null,
       hoursText: '6 h',
       bold: true,
       faded: false,
@@ -414,6 +423,7 @@ describe('the screen states', () => {
     expect(view.legend).toEqual([
       { kind: 'visit', label: 'Visited' },
       { kind: 'today', label: 'Today' },
+      { kind: 'milestone', label: 'Milestone' },
     ]);
     expect(view.weeks).toEqual([]);
     expect(view.summary).toBeNull();
@@ -466,6 +476,44 @@ describe('the screen states', () => {
   });
 });
 
+describe('milestone markers (Story 30.7)', () => {
+  it.each(LANGS)('a milestone day: the star, the catalog label, in %s', (lang) => {
+    const view = build(withLang(lang, { monthData: MILESTONE_MONTH }));
+    expect(cell(view, '2026-11-10')).toMatchObject({ lit: true, glyph: 'check', milestone: 30 });
+    expect(cell(view, '2026-11-10').accessibilityLabel).toBe(lang === 'en' ? 'Tuesday 10 November: your 30th visit' : 'mardi 10 novembre : votre 30e visite');
+    expect(cell(view, '2026-11-12').milestone).toBeNull();
+  });
+  it.each(LANGS)('the legend lists Milestone third, in %s', (lang) => {
+    const view = build(withLang(lang));
+    expect(view.legend.map((item) => item.kind)).toEqual(['visit', 'today', 'milestone']);
+    expect(view.legend[2].label).toBe(lang === 'en' ? 'Milestone' : 'Étape');
+  });
+  it.each(LANGS)('the day detail line of a tapped milestone day reads the catalog line (%s)', (lang) => {
+    const view = build(withLang(lang, { monthData: MILESTONE_MONTH, selected: '2026-11-10' }));
+    expect(view.detail).toBe(lang === 'en' ? 'Tuesday 10 November: your 30th visit' : 'mardi 10 novembre : votre 30e visite');
+  });
+  it.each([7, 100] as const)('the %s marker uses its own label key', (n) => {
+    const view = build({ monthData: { kind: 'ready', days: DAYS, fromCache: false, milestones: { '2026-11-03': n } } });
+    expect(cell(view, '2026-11-03').milestone).toBe(n);
+    expect(cell(view, '2026-11-03').accessibilityLabel).toBe(`Tuesday 3 November: your ${n === 7 ? '7th' : '100th'} visit`);
+  });
+  it('a number that is not a milestone, a marker on an unlit day and a month without markers draw nothing', () => {
+    const view = build({ monthData: { kind: 'ready', days: DAYS, fromCache: false, milestones: { '2026-11-03': 8, '2026-11-04': 30 } } });
+    expect(cell(view, '2026-11-03').milestone).toBeNull();
+    expect(cell(view, '2026-11-04').milestone).toBeNull();
+    expect(build().weeks.flatMap((w) => w.cells).every((c) => c.kind === 'blank' || c.milestone === null)).toBe(true);
+  });
+  it('a milestone is never colour alone: the cell carries the number and the label names it', () => {
+    const cellView = cell(build({ monthData: MILESTONE_MONTH }), '2026-11-10');
+    expect(cellView.milestone).not.toBeNull();
+    expect(cellView.accessibilityLabel).toContain('30th');
+  });
+  it('a milestone today keeps the milestone label (the visit that earned it)', () => {
+    const view = build({ monthData: { kind: 'ready', days: [...DAYS, TODAY], fromCache: false, milestones: { [TODAY]: 7 } }, row: { visitedToday: true } });
+    expect(cell(view, TODAY)).toMatchObject({ lit: true, outline: 'accent', milestone: 7 });
+  });
+});
+
 describe('wording is data (sentinel)', () => {
   function swapped(path: string[], value: string): TFn {
     const clone = JSON.parse(JSON.stringify(en)) as Record<string, unknown>;
@@ -481,6 +529,11 @@ describe('wording is data (sentinel)', () => {
     [['engage', 'calendar', 'monthSummary_other'], {}, (v: CalendarView) => v.summary?.text],
     [['engage', 'calendar', 'legend', 'visit'], {}, (v: CalendarView) => v.legend[0].label],
     [['engage', 'calendar', 'legend', 'today'], {}, (v: CalendarView) => v.legend[1].label],
+    [['engage', 'calendar', 'legend', 'milestone'], {}, (v: CalendarView) => v.legend[2].label],
+    [['engage', 'calendar', 'day', 'milestone30'], { monthData: MILESTONE_MONTH }, (v: CalendarView) => cell(v, '2026-11-10').accessibilityLabel],
+    [['engage', 'calendar', 'day', 'milestone7'], { monthData: { ...MILESTONE_MONTH, milestones: { '2026-11-12': 7 } } }, (v: CalendarView) => cell(v, '2026-11-12').accessibilityLabel],
+    [['engage', 'calendar', 'day', 'milestone100'], { monthData: { ...MILESTONE_MONTH, milestones: { '2026-11-03': 100 } } }, (v: CalendarView) => cell(v, '2026-11-03').accessibilityLabel],
+    [['engage', 'calendar', 'day', 'milestone30'], { monthData: MILESTONE_MONTH, selected: '2026-11-10' }, (v: CalendarView) => v.detail],
     [['engage', 'calendar', 'day', 'visited'], {}, (v: CalendarView) => cell(v, '2026-11-10').accessibilityLabel],
     [['engage', 'calendar', 'day', 'none'], {}, (v: CalendarView) => cell(v, '2026-11-04').accessibilityLabel],
     [['engage', 'calendar', 'day', 'today', 'none'], {}, (v: CalendarView) => cell(v, TODAY).accessibilityLabel],
@@ -525,6 +578,37 @@ describe('the device cache', () => {
     store.clear();
     storage.getItem.mockClear();
     storage.setItem.mockClear();
+  });
+
+  it('keeps the milestone markers per month, in parallel to the days (Story 30.7)', async () => {
+    await writeCalendarMonth('u1', 'g1', '2026-11-01', ['2026-11-03', '2026-11-10'], { '2026-11-10': 30 });
+    await writeCalendarMonth('u1', 'g1', '2026-10-01', ['2026-10-05'], {});
+    expect(await readCalendarCache('u1', 'g1')).toEqual({
+      months: { '2026-11-01': ['2026-11-03', '2026-11-10'], '2026-10-01': ['2026-10-05'] },
+      firstVisitDay: null,
+      milestones: { '2026-11-01': { '2026-11-10': 30 }, '2026-10-01': {} },
+    });
+  });
+  it('an old copy with no markers still reads, and a later write adds them', async () => {
+    store.set(calendarCacheKey('u1', 'g1'), JSON.stringify({ months: { '2026-11-01': ['2026-11-03'] }, firstVisitDay: '2026-03-05' }));
+    expect(await readCalendarCache('u1', 'g1')).toEqual({ months: { '2026-11-01': ['2026-11-03'] }, firstVisitDay: '2026-03-05' });
+    await writeCalendarMonth('u1', 'g1', '2026-11-01', ['2026-11-03'], { '2026-11-03': 7 });
+    expect((await readCalendarCache('u1', 'g1')).milestones).toEqual({ '2026-11-01': { '2026-11-03': 7 } });
+  });
+  it('a damaged marker is dropped, never drawn', async () => {
+    store.set(
+      calendarCacheKey('u1', 'g1'),
+      JSON.stringify({ months: { '2026-11-01': ['2026-11-03'] }, firstVisitDay: null, milestones: { '2026-11-01': { '2026-11-03': 8, '2026-10-03': 7, 'x': 30 }, bad: { '2026-11-03': 7 } } }),
+    );
+    expect((await readCalendarCache('u1', 'g1')).milestones).toEqual({ '2026-11-01': {} });
+  });
+  it('the markers of a month trimmed past the latest 36 go with it', async () => {
+    for (let i = 0; i < 38; i++) {
+      const month = `${2020 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}-01`;
+      await writeCalendarMonth('u1', 'g1', month, [], {});
+    }
+    const cache = await readCalendarCache('u1', 'g1');
+    expect(Object.keys(cache.milestones ?? {})).toEqual(Object.keys(cache.months));
   });
 
   it('keys by member and gym', () => {
@@ -574,5 +658,41 @@ describe('the device cache', () => {
     expect(await writeCalendarMonth('u1', 'g1', '2026-11-01', [])).toBe(false);
     storage.setItem.mockRejectedValueOnce(new Error('full'));
     expect(await writeCalendarMonth('u1', 'g1', '2026-11-01', [])).toBe(false);
+  });
+});
+
+describe('the milestone plumbing of the calendar hook (Story 30.7)', () => {
+  const SERVER_DAYS = [
+    { visitDay: '2026-11-03', milestone: null },
+    { visitDay: '2026-11-10', milestone: 30 },
+  ];
+
+  it('a server month with milestone 30 reaches monthData.milestones and then the cell', () => {
+    expect(milestonesOf(SERVER_DAYS)).toEqual({ '2026-11-10': 30 });
+    const monthData = readyFromServer(SERVER_DAYS);
+    expect(monthData).toEqual({ kind: 'ready', days: ['2026-11-03', '2026-11-10'], fromCache: false, milestones: { '2026-11-10': 30 } });
+    expect(cell(build({ monthData }), '2026-11-10').milestone).toBe(30);
+  });
+
+  it('the offline fallback carries the cached markers; an old copy without them still reads', () => {
+    const cache = { months: { '2026-11-01': ['2026-11-03', '2026-11-10'], '2026-10-01': ['2026-10-05'] }, firstVisitDay: null, milestones: { '2026-11-01': { '2026-11-10': 30 } } };
+    const fromCache = readyFromCache(cache, '2026-11-01');
+    expect(fromCache).toEqual({ kind: 'ready', days: ['2026-11-03', '2026-11-10'], fromCache: true, milestones: { '2026-11-10': 30 } });
+    expect(cell(build({ monthData: fromCache ?? { kind: 'error' } }), '2026-11-10').milestone).toBe(30);
+    const old = readyFromCache({ months: cache.months, firstVisitDay: null }, '2026-11-01');
+    expect(old).toMatchObject({ kind: 'ready', fromCache: true, days: ['2026-11-03', '2026-11-10'] });
+    expect(cell(build({ monthData: old ?? { kind: 'error' } }), '2026-11-10').milestone).toBeNull();
+    expect(readyFromCache(cache, '2026-09-01')).toBeNull();
+    expect(readyFromCache(null, '2026-11-01')).toBeNull();
+  });
+
+  it('the in-memory cache keeps the markers of the month just read and every other month', () => {
+    const next = cacheWithMonth({ months: { '2026-10-01': ['2026-10-05'] }, firstVisitDay: '2026-03-05', milestones: { '2026-10-01': { '2026-10-05': 7 } } }, '2026-11-01', ['2026-11-10'], { '2026-11-10': 30 });
+    expect(next).toEqual({
+      months: { '2026-10-01': ['2026-10-05'], '2026-11-01': ['2026-11-10'] },
+      firstVisitDay: '2026-03-05',
+      milestones: { '2026-10-01': { '2026-10-05': 7 }, '2026-11-01': { '2026-11-10': 30 } },
+    });
+    expect(readyFromCache(next, '2026-11-01')).toMatchObject({ milestones: { '2026-11-10': 30 } });
   });
 });
