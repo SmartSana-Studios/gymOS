@@ -1290,6 +1290,8 @@ export type Database = {
           created_at: string
           gym_id: string
           id: string
+          leaderboard_hidden: boolean
+          leaderboard_notice_seen_at: string | null
           member_id: string
           quiet_gym_alerts_opted_out: boolean
           updated_at: string
@@ -1299,6 +1301,8 @@ export type Database = {
           created_at?: string
           gym_id: string
           id?: string
+          leaderboard_hidden?: boolean
+          leaderboard_notice_seen_at?: string | null
           member_id: string
           quiet_gym_alerts_opted_out?: boolean
           updated_at?: string
@@ -1308,6 +1312,8 @@ export type Database = {
           created_at?: string
           gym_id?: string
           id?: string
+          leaderboard_hidden?: boolean
+          leaderboard_notice_seen_at?: string | null
           member_id?: string
           quiet_gym_alerts_opted_out?: boolean
           updated_at?: string
@@ -3518,6 +3524,21 @@ export type Database = {
           next_month_start_date: string
         }[]
       }
+      gym_leaderboard: {
+        Args: { p_month: string }
+        Returns: {
+          is_anonymous: boolean
+          is_self: boolean
+          is_tied: boolean
+          label: string | null
+          position: number | null
+          rank: number | null
+          ranked_total: number
+          self_ranked: boolean
+          visits: number | null
+          visits_behind: number | null
+        }[]
+      }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       gym_registration_fee_revenue_mtd: { Args: never; Returns: number }
       gym_revenue_mtd: { Args: never; Returns: number }
@@ -3906,6 +3927,7 @@ export type Database = {
         Args: { p_credentials_id?: string | null; p_gym_id: string; p_provider_key: string }
         Returns: undefined
       }
+      mark_leaderboard_notice_seen: { Args: never; Returns: undefined }
       materialize_class_sessions: {
         Args: { p_class_id: string; p_reschedule?: boolean }
         Returns: undefined
@@ -3945,6 +3967,14 @@ export type Database = {
         }[]
       }
       my_first_visit_day: { Args: never; Returns: string }
+      my_leaderboard_settings: {
+        Args: never
+        Returns: {
+          hidden: boolean
+          notice_seen: boolean
+          own_label: string
+        }[]
+      }
       my_visit_days: {
         Args: { p_month: string }
         Returns: {
@@ -4111,6 +4141,7 @@ export type Database = {
         Args: { p_content: Json; p_gym_id: string; p_plans?: Json }
         Returns: undefined
       }
+      set_leaderboard_visibility: { Args: { p_hidden: boolean }; Returns: undefined }
       set_loyalty_program: {
         Args: { p_enabled: boolean; p_k: number; p_n: number; p_r: number }
         Returns: undefined

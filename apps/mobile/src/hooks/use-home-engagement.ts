@@ -11,6 +11,7 @@ import {
   SKELETON_MAX_MS,
   TICK_MS,
   writeEngagementCache,
+  type EngagementLoadOutcome,
   type EngagementSnapshot,
   type HomeEngagementView,
 } from '@/lib/weeklyRing';
@@ -21,8 +22,9 @@ const NO_SCANS: string[] = [];
 
 export interface HomeEngagement {
   view: HomeEngagementView;
-  /** Reads the row (and settles once when it says so) for this member; call it once per Home focus and per pull to refresh. Never throws. */
-  loadForHome: (userId: string, gymId: string, isCurrent: () => boolean) => Promise<void>;
+  /** Reads the row (and settles once when it says so) for this member; call it once per Home focus and per pull to refresh. Never throws. Resolves to the
+   * outcome of that read (or null when this call was superseded), which the Home leaderboard card reuses instead of reading the row a second time. */
+  loadForHome: (userId: string, gymId: string, isCurrent: () => boolean) => Promise<EngagementLoadOutcome | null>;
   /** The member tapped the one-time default-goal hint. */
   dismissGoalHint: () => void;
 }
@@ -63,7 +65,7 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
     setSnapshot(next);
   }
 
-  const loadForHome = useCallback(async (userId: string, gymId: string, isCurrent: () => boolean) => {
+  const loadForHome = useCallback(async (userId: string, gymId: string, isCurrent: () => boolean): Promise<EngagementLoadOutcome | null> => {
     userIdRef.current = userId;
     const seq = ++seqRef.current;
     const latest = () => seq === seqRef.current;
@@ -78,7 +80,7 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
 
       // First load this session: the device cache decides whether a skeleton holds the place, and is what an offline start falls back to.
       const cached = snapshotRef.current ? null : await readEngagementCache(userId, gymId);
-      if (!canCommit()) return;
+      if (!canCommit()) return null;
       if (!snapshotRef.current) setCachedEnabled(cached ? cached.engagement.enabled : null);
 
       void readGoalHintSeen(userId).then((seen) => {
@@ -86,7 +88,7 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
       });
 
       const outcome = await loadEngagement({ getMyEngagement, openEngagement });
-      if (!canCommit()) return;
+      if (!canCommit()) return null;
       const receivedAt = Date.now();
       // The hours left are measured against the clock at this moment (the offset is taken from `receivedAt`), so the tick catches up with it now
       // instead of lagging up to a minute behind after a pull to refresh.
@@ -109,8 +111,10 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
         setLoadFailed(true);
         if (!snapshotRef.current && cached) commitSnapshot({ engagement: cached.engagement, fetchedAtDeviceMs: cached.fetchedAtDeviceMs, fromCache: true });
       }
+      return outcome;
     } catch {
       // Best-effort: whatever is on screen stays.
+      return null;
     } finally {
       if (latest()) {
         if (skeletonTimerRef.current) clearTimeout(skeletonTimerRef.current);

@@ -209,7 +209,7 @@ insert into cat_count values
   ('public.book_class_session', 'class capacity, not staff'), ('public.cancel_class', 'counts bookings on the cancelled sessions, not members'), ('public.correct_plan_eligibility', 'counts standing payments, not members'),
   ('public.correct_subscription_plan', 'counts standing payments, not members'), ('public.create_workout_plan', 'coach/member plans'),
   ('public.enforce_member_cap', 'role = member only'), ('public.guest_charging_impact', 'guest sessions'),
-  ('public.guest_sessions_summary', 'guest sessions'), ('public.gym_member_count', 'excludes support'),
+  ('public.guest_sessions_summary', 'guest sessions'), ('public.gym_leaderboard', 'role is distinct from support, one gym'), ('public.gym_member_count', 'excludes support'),
   ('public.list_bookable_class_sessions', 'class capacity'), ('public.list_free_guest_sessions', 'guest sessions'),
   ('public.list_guest_sessions_paid', 'guest sessions'), ('public.list_my_classes', 'class capacity'), ('public.list_coach_classes', 'class capacity'),
   ('public.list_session_attempts', 'attempts'), ('public.platform_metrics', 'excludes support'),

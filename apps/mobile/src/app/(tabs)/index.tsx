@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { IconChip, type IconChipTint } from '@/components/ui/IconChip';
 import { ListItem } from '@/components/ui/ListItem';
+import { LeaderboardHomeCard } from '@/components/LeaderboardHomeCard';
 import { RewardsCard } from '@/components/RewardsCard';
 import { WeeklyRingSection } from '@/components/WeeklyRingCard';
 import { ThemedText } from '@/components/themed-text';
@@ -18,6 +19,7 @@ import { STATUS_COLORS, statusLabelKey, type BadgeStatus, type SubscriptionStatu
 import { INFO_STATUS } from '@/constants/info-status';
 import { useFocusToast } from '@/hooks/use-focus-toast';
 import { useHomeEngagement } from '@/hooks/use-home-engagement';
+import { useHomeLeaderboard } from '@/hooks/use-home-leaderboard';
 import { useTheme } from '@/hooks/use-theme';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import {
@@ -123,6 +125,8 @@ export default function HomeScreen() {
   const theme = useTheme();
   // Story 30.4: the "This week" section (ring, streak, at-risk hint) and the toast a goal saved from here leaves behind.
   const { view: engagementView, loadForHome: loadEngagementForHome, dismissGoalHint } = useHomeEngagement(isConnected, pendingCheckInCount);
+  // Story 30.6: the Leaderboard card (the member's own standing only), read once per Home load and only while the engagement area is on.
+  const { view: leaderboardView, loadForHome: loadLeaderboardForHome, retry: retryLeaderboard } = useHomeLeaderboard();
   const toast = useFocusToast();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -207,7 +211,8 @@ export default function HomeScreen() {
     setLoadError(false);
     // Story 30.4: the engagement read (and its one settle) is detached from the rest of Home like Rewards, never trips loadError, and never throws;
     // loadHome still waits for it at the very end so a pull to refresh spins until the card is current.
-    let engagementDone: Promise<void> = Promise.resolve();
+    let engagementDone: Promise<unknown> = Promise.resolve();
+    let leaderboardDone: Promise<void> = Promise.resolve();
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!isCurrent()) return;
@@ -257,7 +262,10 @@ export default function HomeScreen() {
       setGymName(gymResult.data.name);
       setGymLogoUrl(gymResult.data.logo_url);
       markLoadedOnce();
-      engagementDone = loadEngagementForHome(userId, memberResult.data.gym_id, isCurrent);
+      const engagementRead = loadEngagementForHome(userId, memberResult.data.gym_id, isCurrent);
+      engagementDone = engagementRead;
+      // The Leaderboard card reuses that one read (it never reads the engagement row a second time).
+      leaderboardDone = loadLeaderboardForHome(userId, memberResult.data.gym_id, isCurrent, engagementRead);
 
       // Story 4.15: shared with the Renew screen (services/subscriptions.ts)
       // -- same distinction onboarding/plan.tsx's loadPlan already makes
@@ -425,8 +433,8 @@ export default function HomeScreen() {
     } finally {
       if (isCurrent()) setLoading(false);
     }
-    await engagementDone;
-  }, [loadEngagementForHome]);
+    await Promise.all([engagementDone, leaderboardDone]);
+  }, [loadEngagementForHome, loadLeaderboardForHome]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -709,6 +717,8 @@ export default function HomeScreen() {
                 onGoalHintPress={dismissGoalHint}
                 onPressCard={() => router.push('/calendar')}
               />
+
+              <LeaderboardHomeCard view={leaderboardView} onPress={() => router.push('/leaderboard')} onRetry={retryLeaderboard} />
 
               <RewardsCard data={rewardsData} planType={chargingCtx?.planType ?? null} />
 

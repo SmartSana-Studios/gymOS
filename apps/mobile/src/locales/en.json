@@ -625,6 +625,15 @@
       "reminder": {
         "label": "Streak reminder",
         "helper": "One reminder at {{time}}, only when a visit today keeps your week or run going."
+      },
+      "anonymous": {
+        "label": "Appear as Anonymous on the gym leaderboard",
+        "a11yOn": "Appear as Anonymous on the gym leaderboard: on",
+        "a11yOff": "Appear as Anonymous on the gym leaderboard: off",
+        "helperOn": "Other members see you as Anonymous from their next refresh. You still keep your rank.",
+        "helperOff": "Other members see you as {{label}}.",
+        "helperUnseen": "You appear as Anonymous until you open the leaderboard and choose.",
+        "link": "See the leaderboard"
       }
     },
     "atRisk": {
@@ -635,7 +644,8 @@
     },
     "home": {
       "error": "Couldn't load your week. Pull down to refresh.",
-      "settleError": "Couldn't update your streak just now. We'll try again."
+      "settleError": "Couldn't update your streak just now. We'll try again.",
+      "rank": "Rank {{n}} of {{total}} this month"
     },
     "calendar": {
       "title": "My visits",
@@ -679,6 +689,64 @@
       "heading": {
         "a11y_one": "{{month}}. {{count}} visit day.",
         "a11y_other": "{{month}}. {{count}} visit days."
+      }
+    },
+    "leaderboard": {
+      "title": "Leaderboard",
+      "tab": {
+        "thisMonth": "This month",
+        "lastMonth": "Last month"
+      },
+      "row": {
+        "visits_one": "{{count}} visit",
+        "visits_other": "{{count}} visits",
+        "you": "You",
+        "anonymous": "Anonymous",
+        "tied": "Tied",
+        "gap": "Rows between are not shown"
+      },
+      "behind_one": "{{count}} visit behind the member above",
+      "behind_other": "{{count}} visits behind the member above",
+      "level": "Level with the member above",
+      "leading": "You're leading this month.",
+      "unranked": "Visit once this month to join the board.",
+      "onlyYou": "You're the only member on the board so far.",
+      "notEnough": {
+        "body": "The leaderboard appears once {{min}} members have visited this month.",
+        "title": "Not enough members yet"
+      },
+      "empty": {
+        "month": "No visits at {{gym}} yet this month. Be the first on the board."
+      },
+      "footnote": "Each day you visit counts once. The board resets on the 1st. Just for fun: rank earns no prizes.",
+      "toggle": {
+        "label": "Appear as Anonymous on the gym leaderboard"
+      },
+      "visible": {
+        "self": "Other members see you as {{label}}."
+      },
+      "hidden": {
+        "self": "You appear as Anonymous. You still keep your rank."
+      },
+      "notice": {
+        "title": "You're on your gym's leaderboard",
+        "body": "Members of {{gym}} can see a monthly ranking of visits. Other members would see you as {{label}}: your first name and the first letter of your last name. Never your photo or phone number.",
+        "until": "Until you choose, other members see you as Anonymous.",
+        "change": "You can change this any time in your Profile.",
+        "cta": {
+          "show": "Show my name",
+          "hide": "Appear as Anonymous"
+        },
+        "error": "Couldn't save your choice. You still appear as Anonymous."
+      },
+      "offline": {
+        "notice": "Connect to the internet to choose.",
+        "applies": "A change to how you appear shows from the next load.",
+        "banner": "You're offline. Showing the last board saved on your phone."
+      },
+      "error": {
+        "short": "Couldn't load. Tap to retry.",
+        "full": "Couldn't load the leaderboard. Pull down to refresh."
       }
     }
   },

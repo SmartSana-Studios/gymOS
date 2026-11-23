@@ -388,7 +388,7 @@ select is((select count(*)::int from pg_constraint where pg_get_constraintdef(oi
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prosrc like '%''support''%'),
           array['public.assign_support', 'private.authorize_action', 'private.capability_roles', 'public.confirm_support_assignment', 'public.create_staff_member', 'private.current_member_role', 'public.custom_access_token_hook', 'private.guard_support_membership', 'private.gym_id',
-                'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'public.set_allow_gymos_support', 'private.support_email_collision', 'private.support_gym_id', 'private.support_restore_assignments', 'private.support_set_membership', 'public.switch_active_gym']::text[],
+                'public.gym_leaderboard', 'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'public.set_allow_gymos_support', 'private.support_email_collision', 'private.support_gym_id', 'private.support_restore_assignments', 'private.support_set_membership', 'public.switch_active_gym']::text[],
           'only the expected functions mention the support role');
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)

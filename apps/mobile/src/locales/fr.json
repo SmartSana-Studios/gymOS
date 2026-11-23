@@ -625,6 +625,15 @@
       "reminder": {
         "label": "Rappel de série",
         "helper": "Un rappel à {{time}}, seulement quand une visite aujourd'hui permet de garder votre semaine ou votre série."
+      },
+      "anonymous": {
+        "label": "Apparaître comme Anonyme dans le classement de la salle",
+        "a11yOn": "Apparaître comme Anonyme dans le classement de la salle : activé",
+        "a11yOff": "Apparaître comme Anonyme dans le classement de la salle : désactivé",
+        "helperOn": "Les autres membres vous voient comme Anonyme dès leur prochain affichage. Vous gardez votre rang.",
+        "helperOff": "Les autres membres vous voient sous le nom {{label}}.",
+        "helperUnseen": "Vous apparaissez comme Anonyme jusqu'à ce que vous ouvriez le classement et fassiez votre choix.",
+        "link": "Voir le classement"
       }
     },
     "atRisk": {
@@ -635,7 +644,8 @@
     },
     "home": {
       "error": "Impossible de charger votre semaine. Tirez pour actualiser.",
-      "settleError": "Impossible de mettre à jour votre série pour l'instant. Nous réessaierons."
+      "settleError": "Impossible de mettre à jour votre série pour l'instant. Nous réessaierons.",
+      "rank": "Rang {{n}} sur {{total}} ce mois-ci"
     },
     "calendar": {
       "title": "Mes visites",
@@ -679,6 +689,64 @@
       "heading": {
         "a11y_one": "{{month}}. {{count}} jour de visite.",
         "a11y_other": "{{month}}. {{count}} jours de visite."
+      }
+    },
+    "leaderboard": {
+      "title": "Classement",
+      "tab": {
+        "thisMonth": "Ce mois-ci",
+        "lastMonth": "Mois dernier"
+      },
+      "row": {
+        "visits_one": "{{count}} visite",
+        "visits_other": "{{count}} visites",
+        "you": "Vous",
+        "anonymous": "Anonyme",
+        "tied": "Ex æquo",
+        "gap": "Les lignes intermédiaires ne sont pas affichées"
+      },
+      "behind_one": "{{count}} visite de retard sur le membre au-dessus",
+      "behind_other": "{{count}} visites de retard sur le membre au-dessus",
+      "level": "À égalité avec le membre au-dessus",
+      "leading": "Vous êtes en tête ce mois-ci.",
+      "unranked": "Venez une fois ce mois-ci pour entrer au classement.",
+      "onlyYou": "Vous êtes le seul membre classé pour l'instant.",
+      "notEnough": {
+        "body": "Le classement apparaît dès que {{min}} membres sont venus ce mois-ci.",
+        "title": "Pas encore assez de membres"
+      },
+      "empty": {
+        "month": "Aucune visite chez {{gym}} ce mois-ci. Soyez le premier du classement."
+      },
+      "footnote": "Chaque jour de visite compte une fois. Le classement repart à zéro le 1er. Pour le plaisir : le classement ne rapporte aucun prix.",
+      "toggle": {
+        "label": "Apparaître comme Anonyme dans le classement de la salle"
+      },
+      "visible": {
+        "self": "Les autres membres vous voient sous le nom {{label}}."
+      },
+      "hidden": {
+        "self": "Vous apparaissez comme Anonyme. Vous gardez votre rang."
+      },
+      "notice": {
+        "title": "Vous êtes dans le classement de votre salle",
+        "body": "Les membres de {{gym}} voient un classement mensuel des visites. Les autres membres vous verraient sous le nom {{label}} : votre prénom et l'initiale de votre nom. Jamais votre photo ni votre numéro de téléphone.",
+        "until": "Tant que vous n'avez pas choisi, les autres membres vous voient comme Anonyme.",
+        "change": "Vous pouvez le changer à tout moment dans votre profil.",
+        "cta": {
+          "show": "Afficher mon nom",
+          "hide": "Apparaître comme Anonyme"
+        },
+        "error": "Impossible d'enregistrer votre choix. Vous apparaissez toujours comme Anonyme."
+      },
+      "offline": {
+        "notice": "Connectez-vous à internet pour choisir.",
+        "applies": "Un changement de votre affichage s'applique au prochain chargement.",
+        "banner": "Vous êtes hors ligne. Dernier classement enregistré affiché."
+      },
+      "error": {
+        "short": "Chargement impossible. Touchez pour réessayer.",
+        "full": "Impossible de charger le classement. Tirez pour actualiser."
       }
     }
   },

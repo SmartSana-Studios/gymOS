@@ -149,6 +149,8 @@ function RootNavigator() {
         {/* Story 30.5 (MA-18): the attendance calendar, a pushed full-screen route with no tab bar. Registered inside the group for the same reason as
             workout-plan: it reads useOfflineSync(), so it must render under OfflineSyncProvider. */}
         <Stack.Screen name="calendar" />
+        {/* Story 30.6 (MA-19): the gym leaderboard, a pushed full-screen route with no tab bar. Same reason as calendar: it reads useOfflineSync(). */}
+        <Stack.Screen name="leaderboard" />
       </Stack.Protected>
 
       <Stack.Protected guard={showSuspended}>

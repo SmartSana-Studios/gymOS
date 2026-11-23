@@ -37,6 +37,16 @@ const SCREEN_FILES = [
   'hooks/use-calendar.ts',
   'hooks/use-at-risk-pulse.ts',
   'lib/calendarView.ts',
+  // Story 30.6: the leaderboard screen, its notice, row and Home card, their hooks and view model. Same rules: no sentence in a screen file, no date
+  // construction. (The one time-of-day format lives in lib/clockTime.ts, which is not scanned: it decides no day, month or rank.)
+  'app/leaderboard.tsx',
+  'components/LeaderboardRow.tsx',
+  'components/LeaderboardNotice.tsx',
+  'components/LeaderboardHomeCard.tsx',
+  'hooks/use-leaderboard.ts',
+  'hooks/use-leaderboard-notice.ts',
+  'hooks/use-home-leaderboard.ts',
+  'lib/leaderboardView.ts',
 ];
 
 describe('no literal sentence (FR-232)', () => {
@@ -248,5 +258,234 @@ describe('the at-risk hint is shared, not copied (Story 30.5)', () => {
     expect(view).toMatch(/msLeftInDay\(/);
     expect(view).toMatch(/queuedTodayCount\(/);
     expect(view).toMatch(/timeLeftParts\(/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// Story 30.6: the gym leaderboard (FR-226, FR-227, FR-228, NFR-027)
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+
+const BOARD_FILES = [
+  'app/leaderboard.tsx',
+  'components/LeaderboardRow.tsx',
+  'components/LeaderboardNotice.tsx',
+  'components/LeaderboardHomeCard.tsx',
+  'hooks/use-leaderboard.ts',
+  'hooks/use-leaderboard-notice.ts',
+  'hooks/use-home-leaderboard.ts',
+  'lib/leaderboardView.ts',
+];
+
+const stripped = (path: string) => stripComments(source(path));
+
+describe('the device never derives a label, a rank, a tie or a total', () => {
+  // The server decides everything about a member. A sort, a reduce, a split of a name, a first letter, a case change, a comparison of names, or
+  // arithmetic on a rank, a visit count or the total would be the device deriving one of them.
+  const FORBIDDEN: [string, RegExp][] = [
+    ['sort', /\.(sort|toSorted)\(/],
+    ['reduce', /\.(reduce|reduceRight)\(/],
+    ['split', /\.split\(/],
+    ['charAt', /\.charAt\(|\.at\(0\)|\[0\]\.toUpperCase/],
+    ['case change', /\.(toUpperCase|toLowerCase|toLocaleUpperCase|toLocaleLowerCase)\(/],
+    ['name comparison', /\.localeCompare\(|\.substring\(|\.substr\(/],
+    ['Math', /Math\./],
+    ['arithmetic on a rank, a count or the total', /\b(rank|rankedTotal|visits|visitsBehind)\b\s*[-+*/%]\s*[\w(]|[\w)]\s*[-+*/%]\s*\b(rank|rankedTotal|visits|visitsBehind)\b/],
+    ['a count of rows used as a total', /rows\.length\s*[<>=!]|items\.length\s*[<>=!]/],
+  ];
+
+  it.each(BOARD_FILES.flatMap((path) => FORBIDDEN.map(([name, rule]) => [path, name, rule] as const)))('%s has no %s', (path, _name, rule) => {
+    expect(rule.test(stripped(path))).toBe(false);
+  });
+
+  it('the scanner can see each violation (positive control)', () => {
+    const samples = [
+      'rows.sort((a, b) => a.rank - b.rank)',
+      'rows.reduce((n, r) => n + r.visits, 0)',
+      'name.split(" ")',
+      'name.charAt(0)',
+      'label.toUpperCase()',
+      'a.label.localeCompare(b.label)',
+      'Math.max(rank)',
+      'const next = rank + 1;',
+      'const n = rankedTotal - 1;',
+      'if (rows.length < 3) {}',
+    ];
+    for (const sample of samples) expect(FORBIDDEN.some(([, rule]) => rule.test(sample)), sample).toBe(true);
+    // The separator compares server positions: that is allowed, and is not a rank.
+    expect(FORBIDDEN.some(([, rule]) => rule.test('row.position !== previous + 1'))).toBe(false);
+  });
+
+  it('the view model takes its labels and numbers from the rows and chooses the state from the server total', () => {
+    const view = stripped('lib/leaderboardView.ts');
+    expect(view).toMatch(/row\.label/);
+    expect(view).toMatch(/String\(row\.rank\)/);
+    expect(view).toMatch(/board\.rows\[0\]\.rankedTotal < MIN_RANKED/);
+    expect(view).toMatch(/standing\.rankedTotal < MIN_RANKED/);
+  });
+});
+
+describe('the leaderboard service is the only caller of the four RPCs, and touches nothing else', () => {
+  it('calls exactly the four functions, never attendance, and never the preferences table', () => {
+    const service = stripped('services/leaderboard.ts');
+    for (const name of ['gym_leaderboard', 'my_leaderboard_settings', 'set_leaderboard_visibility', 'mark_leaderboard_notice_seen']) expect(service).toContain(`rpc('${name}'`);
+    expect(service.match(/\.rpc\(/g)).toHaveLength(4);
+    expect(service).not.toMatch(/attendance_events|attendance_counted|member_preferences|updateMemberPreferences|\.update\(|\.insert\(|\.upsert\(|\.delete\(/);
+    for (const path of BOARD_FILES) expect(stripped(path)).not.toMatch(/attendance_events|attendance_counted|member_preferences|updateMemberPreferences|\.from\(/);
+  });
+
+  it('the Profile toggle never goes through updateMemberPreferences', () => {
+    const profile = stripped('app/(tabs)/profile.tsx');
+    const handler = profile.slice(profile.indexOf('async function handleToggleAnonymous'), profile.indexOf('function renderAnonymousRow'));
+    expect(handler).toContain('setLeaderboardVisibility(');
+    expect(handler).not.toContain('updateMemberPreferences');
+  });
+});
+
+describe('the notice: nothing is marked by opening or leaving, and the board waits for the choice', () => {
+  it('markLeaderboardNoticeSeen is reached only from the notice hook, through runNoticeChoice', () => {
+    expect(stripped('hooks/use-leaderboard-notice.ts')).toMatch(/markSeen: markLeaderboardNoticeSeen/);
+    for (const path of ['app/leaderboard.tsx', 'hooks/use-leaderboard.ts', 'hooks/use-home-leaderboard.ts', 'app/(tabs)/profile.tsx', 'app/(tabs)/index.tsx', 'components/LeaderboardNotice.tsx']) {
+      expect(stripped(path)).not.toContain('markLeaderboardNoticeSeen');
+    }
+  });
+
+  it('the notice component is shared: the route renders it in place and Profile in a full-screen modal that only closes', () => {
+    expect(stripped('app/leaderboard.tsx')).toContain('<LeaderboardNotice');
+    const profile = stripped('app/(tabs)/profile.tsx');
+    expect(profile).toContain('<LeaderboardNotice');
+    expect(profile).toMatch(/<Modal visible=\{noticeOpen\} animationType="slide" presentationStyle="fullScreen" onRequestClose=\{\(\) => setNoticeOpen\(false\)\}>/);
+    expect(profile).not.toMatch(/pageSheet|formSheet/);
+    expect(profile).toMatch(/onPress=\{\(\) => setNoticeOpen\(false\)\}/);
+  });
+
+  it('gym_leaderboard is called only after the settings say the notice was chosen on', () => {
+    const hook = stripped('hooks/use-leaderboard.ts');
+    expect(hook.match(/getGymLeaderboard\(/g)).toHaveLength(1);
+    // The one board load sits in loadBoard; loadAll, selectTab and the notice result reach it only behind the notice flag.
+    expect(hook).toMatch(/if \(next && next\.noticeSeen\) await loadBoard\(/);
+    expect(hook).toMatch(/if \(settingsRef\.current\?\.noticeSeen\) void loadBoard\(/);
+    expect(hook).toMatch(/if \(outcome\.ok\) \{[\s\S]*?await loadBoard\(/);
+    // A device copy is written only after a live board, and with the settings once noticeSeen is true.
+    expect(hook.match(/writeLeaderboardBoard\(/g)).toHaveLength(1);
+    expect(hook).toMatch(/if \(next && mayKeepSettingsCopy\(next\) && userId && gymId\) \{\s*void writeLeaderboardSettings\(/);
+  });
+
+  it('leaving never calls anything: the screen back button only goes back', () => {
+    expect(stripped('app/leaderboard.tsx')).toMatch(/onPress=\{\(\) => router\.back\(\)\}/);
+  });
+});
+
+describe('the leaderboard is dark while the engagement area is', () => {
+  it('Home reuses the ring card\x27s engagement read (never a second one) and calls the board only past the dark check, with one load call from the screen', () => {
+    const hook = stripped('hooks/use-home-leaderboard.ts');
+    expect(hook).not.toMatch(/getMyEngagement|openEngagement|services\/engagement/);
+    expect(hook).toContain('await engagementRead');
+    expect(hook.indexOf("outcome.kind === 'dark'")).toBeLessThan(hook.indexOf('getGymLeaderboard('));
+    expect(hook.indexOf("outcome.kind !== 'row'")).toBeLessThan(hook.indexOf('getGymLeaderboard('));
+    expect(hook.match(/getGymLeaderboard\(/g)).toHaveLength(1);
+    const screen = stripped('app/(tabs)/index.tsx');
+    expect(screen.match(/loadLeaderboardForHome\(/g)).toHaveLength(1);
+    expect(screen).not.toMatch(/getGymLeaderboard|services\/leaderboard|weekStart|weekEnd|dayStartsAt|dayEndsAt|serverNow|gymToday/);
+  });
+
+  it('Profile reads the settings only when the pure plan says read (the area is on), and clears the row for a dark area', () => {
+    const profile = stripped('app/(tabs)/profile.tsx');
+    expect(profile.match(/getMyLeaderboardSettings\(/g)).toHaveLength(1);
+    expect(profile).toContain('gateFromResult(result)');
+    expect(profile).toContain('profileSettingsPlan(gate, myVisitsRowFromCache(deviceCopy))');
+    const planAt = profile.indexOf('profileSettingsPlan(');
+    expect(planAt).toBeGreaterThan(-1);
+    expect(planAt).toBeLessThan(profile.indexOf("plan === 'read'"));
+    expect(profile.indexOf("plan === 'read'")).toBeLessThan(profile.indexOf('getMyLeaderboardSettings('));
+    expect(profile).toMatch(/engagementEnabled && renderAnonymousRow\(\)/);
+  });
+
+  it('every consumer follows the same pure functions (gate, Home plan, toggle result, notice result)', () => {
+    const screen = stripped('hooks/use-leaderboard.ts');
+    const home = stripped('hooks/use-home-leaderboard.ts');
+    const profile = stripped('app/(tabs)/profile.tsx');
+    // The screen calls the settings read only past mayCallLeaderboard, and never in a dark area.
+    expect(screen).toContain('gateFromResult(engagement)');
+    expect(screen.indexOf('if (mayCallLeaderboard(gate))')).toBeGreaterThan(-1);
+    expect(screen.indexOf('if (mayCallLeaderboard(gate))')).toBeLessThan(screen.indexOf('getMyLeaderboardSettings('));
+    // Home acts on planHomeLoad and returns before any call when it says not to call.
+    expect(home).toMatch(/planHomeLoad\(\{ gate, cached, month \}\)/);
+    expect(home).toMatch(/if \(!plan\.call\) \{\s*commit\(plan\.show \?\? \{ kind: 'hidden' \}\);\s*return;\s*\}/);
+    expect(home).toContain('writeHomeStanding(userId, gymId, standing, now, board)');
+    // The toggle and the notice result go through the same two functions in the screen hook and in Profile.
+    for (const code of [screen, profile]) {
+      expect(code).toContain('settingsAfterToggle(current, nextHidden, ok)');
+      expect(code).toContain('settingsAfterNotice(current, outcome)');
+      expect(code).toContain('mayKeepSettingsCopy(after)');
+    }
+    // A settings read that returns during a save does not overwrite the optimistic value.
+    expect(screen).toMatch(/if \(pendingRef\.current\) next = settingsRef\.current;/);
+    expect(profile).toContain('anonymousPendingRef.current');
+  });
+
+  it('the screen hook reads the engagement row for the months and refuses a dark area', () => {
+    const hook = stripped('hooks/use-leaderboard.ts');
+    expect(hook.match(/getMyEngagement\(/g)).toHaveLength(1);
+    expect(hook).toMatch(/monthsFromToday\(/);
+    expect(hook).toMatch(/dark = true/);
+  });
+});
+
+describe('placement and registration', () => {
+  it('the route is registered inside the fully-onboarded group', () => {
+    const layout = stripped('app/_layout.tsx');
+    const group = layout.slice(layout.indexOf('<Stack.Protected guard={isFullyOnboarded}>'), layout.indexOf('</Stack.Protected>'));
+    expect(group).toContain('<Stack.Screen name="leaderboard" />');
+  });
+
+  it('the Home card sits between the ring section and the Rewards card, and opens /leaderboard', () => {
+    const home = stripped('app/(tabs)/index.tsx');
+    const ring = home.indexOf('<WeeklyRingSection');
+    const card = home.indexOf('<LeaderboardHomeCard');
+    const rewards = home.indexOf('<RewardsCard');
+    expect(ring).toBeGreaterThan(-1);
+    expect(card).toBeGreaterThan(ring);
+    expect(rewards).toBeGreaterThan(card);
+    expect(home).toMatch(/onPress=\{\(\) => router\.push\('\/leaderboard'\)\}/);
+  });
+
+  it('the Profile row sits in the Training card after My visits, under the same enabled gate, and links to the board', () => {
+    const profile = stripped('app/(tabs)/profile.tsx');
+    const visits = profile.indexOf("router.push('/calendar')");
+    const row = profile.indexOf('engagementEnabled && renderAnonymousRow()');
+    expect(visits).toBeGreaterThan(-1);
+    expect(row).toBeGreaterThan(visits);
+    expect(profile).toMatch(/router\.push\('\/leaderboard'\)/);
+    expect(profile).toMatch(/pending: anonymousPending/);
+  });
+
+  it('no crown, medal, trophy or star glyph and no rank-based colour anywhere on the board', () => {
+    for (const path of BOARD_FILES) {
+      expect(stripped(path)).not.toMatch(/emoji-events|military-tech|workspace-premium|\bstars?\b|crown|medal|trophy|gold|silver|bronze/i);
+    }
+  });
+
+  it('rows are not tappable', () => {
+    expect(stripped('components/LeaderboardRow.tsx')).not.toMatch(/Pressable|onPress|TouchableOpacity/);
+  });
+});
+
+describe('every key the board files ask for exists in both catalogs', () => {
+  it.each(['en', 'fr'] as const)('%s', (lang) => {
+    const catalog = JSON.parse(readFileSync(fileURLToPath(new URL(`../locales/${lang}.json`, import.meta.url)), 'utf8')) as Record<string, unknown>;
+    const lookup = (key: string): unknown => {
+      let node: unknown = catalog;
+      for (const part of key.split('.')) node = node && typeof node === 'object' ? (node as Record<string, unknown>)[part] : undefined;
+      return node;
+    };
+    const missing: string[] = [];
+    for (const path of [...BOARD_FILES, 'app/(tabs)/profile.tsx']) {
+      for (const [, key] of stripped(path).matchAll(/\bt\(\s*['"](engage\.[\w.]+)['"]/g)) {
+        const plain = lookup(key);
+        const plural = lookup(`${key}_one`);
+        if (typeof plain !== 'string' && typeof plural !== 'string') missing.push(`${path}: ${key}`);
+      }
+    }
+    expect(missing).toEqual([]);
   });
 });
