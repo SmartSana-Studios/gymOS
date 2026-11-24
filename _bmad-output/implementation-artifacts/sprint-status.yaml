@@ -526,7 +526,7 @@ development_status:
 
   epic-31: in-progress
   31-1-streak-shields-and-comeback: done
-  31-2-streak-reminder-n-08: review
+  31-2-streak-reminder-n-08: done
   31-3-badge-shelf-and-share-image: backlog
   epic-31-retrospective: optional
 
@@ -2269,3 +2269,4 @@ last_updated: 11-15-2026 12:00
 # last_updated: 2026-11-24 (31-2 spec approved and implementation started on story/31-2-streak-reminder-n-08, baseline b3149cc on epic/31; 31-2 backlog -> in-progress; spec spec-31-2-streak-reminder-n-08.md created; one migration 0191 provisional; Streak reminder N-08 sender, job, delivery branch and Profile toggle)
 # last_updated: 2026-11-24 (dev 31-2 implemented on story/31-2-streak-reminder-n-08, uncommitted: migration 0191_streak_reminder_n08.sql provisional + scripts/rollback-0191 (apply, rollback, apply, rollback, apply rehearsed), new pgTAP engagement_reminder.test.sql (185), engagement-race.sh phase D overlapping runs, job-runs-alert.sql and its test, existing pins edited and disclosed in docs/decisions.md 2026-11-24 Story 31.2 (notification_history, engagement_config, engagement_settle, suspension_rpc_coverage, support_proxy_actor), packages/types, mobile Profile Streak reminder row + N-08 history type/icon + lib/streakReminder.ts + drift test; two deferred-work entries added; 31-2 in-progress -> review; scripts/ci-local.sh NOT yet run on a committed head)
 # last_updated: 2026-11-24 (31-2 code review pass 1 (Blind Hunter 15, Edge Case Hunter 10, Verification Gap 2): 5 patches applied (sender re-checks opt-out, deactivation, role and gym status; job writes the failed-member count into the success row error; service and schema tests; drift test finds the migration by glob; failed-save toast priority), 2 deferred to deferred-work.md, 10 rejected groups, 0 intent_gap, 0 bad_spec; 31-2 review -> done pending ci-local; story committed on story/31-2-streak-reminder-n-08, NOT yet merged to epic/31; migration 0191 is provisional; no push)
+# last_updated: 2026-11-24 (31-2 merged to epic/31 (fast-forward, local, no push) at 1ada2cc; scripts/ci-local.sh GREEN on 1ada2cc in one full run (static 60s, deno 3s, pgtap 842s, unit 5s turbo-cached, layout 291s, e2e 800s, E2E_LANDING_PORT=3220), stamp written; two earlier runs did not count: run 1 static FAILED on stale gitignored dashboard playwright-report (removed), run 2 pgtap FAILED support_payment_connection 105 because 103 pending fixture.gymos.test rows left in the local email_outbox by earlier landing e2e runs starved claim_email_outbox(50) (rows deleted, local DB only, no code change); 31-2 review -> done; migration 0191 is provisional; story branch story/31-2-streak-reminder-n-08 kept; Epics 30 and 31 are browser-tested together after 31-3, no push before then)
