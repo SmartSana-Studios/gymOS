@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/theme';
 /** Story 30.5 / MA-18: the Monday-first weekday header and the rows of day cells, inside the screen's flat Card. Layout only. Each row opens with its
  * group label ("Week of 10 November, 3 visit days"); the weekday header is decoration (every cell carries its full date in its label). */
 export function CalendarGrid({ weekdays, weeks, onPressDay }: { weekdays: string[]; weeks: WeekView[]; onPressDay: (date: string) => void }) {
+  const theme = useTheme();
   return (
     <View style={styles.grid}>
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.row}>
@@ -22,7 +23,7 @@ export function CalendarGrid({ weekdays, weeks, onPressDay }: { weekdays: string
         ))}
       </View>
       {weeks.map((week) => (
-        <View key={week.key} style={styles.row}>
+        <View key={week.key} style={[styles.row, week.saved && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border, paddingBottom: Spacing.one }]}>
           {/* The row's group label: a screen reader meets it just before the row's cells. It takes no room on screen. */}
           <ThemedText type="small" style={styles.groupLabel}>
             {week.accessibilityLabel}

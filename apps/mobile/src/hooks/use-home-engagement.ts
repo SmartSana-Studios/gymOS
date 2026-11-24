@@ -16,6 +16,7 @@ import {
   type HomeEngagementView,
 } from '@/lib/weeklyRing';
 import { getMyEngagement, openEngagement } from '@/services/engagement';
+import { readDismissed, recordDismissed } from '@/services/shieldNotices';
 import { markGoalHintSeen, readGoalHintSeen } from '@/services/weeklyGoal';
 
 const NO_SCANS: string[] = [];
@@ -27,6 +28,8 @@ export interface HomeEngagement {
   loadForHome: (userId: string, gymId: string, isCurrent: () => boolean) => Promise<EngagementLoadOutcome | null>;
   /** The member tapped the one-time default-goal hint. */
   dismissGoalHint: () => void;
+  /** Story 31.1: the member dismissed a Shield notice row; its id is recorded on this device (per user and gym) and the row goes at once. */
+  dismissShieldNotice: (id: string) => void;
 }
 
 /** Story 30.4: the Home "This week" data flow. The numbers are the server's (services/engagement.ts); this hook sequences the calls, keeps the last good
@@ -44,11 +47,15 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
   const [loadFailed, setLoadFailed] = useState(false);
   const [settleFailed, setSettleFailed] = useState(false);
   const [goalHintSeen, setGoalHintSeen] = useState(true);
+  // Story 31.1: dismissed Shield notices and restored cards already shown; null until read, and null when storage cannot be read (fail closed).
+  const [shieldSeen, setShieldSeen] = useState<ReadonlySet<string> | null>(null);
   const [queuedScanTimes, setQueuedScanTimes] = useState<string[]>([]);
   const [deviceNowMs, setDeviceNowMs] = useState(() => Date.now());
 
   const snapshotRef = useRef<EngagementSnapshot | null>(null);
   const userIdRef = useRef<string | null>(null);
+  const gymIdRef = useRef<string | null>(null);
+  const restoredRecordedRef = useRef<string | null>(null);
   const skeletonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Each loadForHome call takes a number; only the latest owns `busy` and the skeleton timer, so an older call finishing late can neither leave them
   // set nor clear a newer call's.
@@ -66,7 +73,10 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
   }
 
   const loadForHome = useCallback(async (userId: string, gymId: string, isCurrent: () => boolean): Promise<EngagementLoadOutcome | null> => {
+    // A different member or gym is a different record: the restored card of the old one says nothing about the new one.
+    if (userIdRef.current !== userId || gymIdRef.current !== gymId) restoredRecordedRef.current = null;
     userIdRef.current = userId;
+    gymIdRef.current = gymId;
     const seq = ++seqRef.current;
     const latest = () => seq === seqRef.current;
     const canCommit = () => latest() && isCurrent();
@@ -85,6 +95,11 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
 
       void readGoalHintSeen(userId).then((seen) => {
         if (canCommit()) setGoalHintSeen(seen);
+      });
+      // Read at every load: a restored card recorded on the previous load is gone now.
+      void readDismissed(userId, gymId).then((seen) => {
+        // Merged with what is on screen: a dismissal made while this read was in flight must not come back.
+        if (canCommit()) setShieldSeen((prev) => (seen === null ? null : new Set([...seen, ...(prev ?? [])])));
       });
 
       const outcome = await loadEngagement({ getMyEngagement, openEngagement });
@@ -156,10 +171,46 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
     if (userId) void markGoalHintSeen(userId);
   }, []);
 
+  const dismissShieldNotice = useCallback((id: string) => {
+    setShieldSeen((prev) => (prev === null ? prev : new Set([...prev, id])));
+    const userId = userIdRef.current;
+    const gymId = gymIdRef.current;
+    if (userId && gymId) void recordDismissed(userId, gymId, id);
+  }, []);
+
   const view = useMemo(
-    () => buildHomeEngagementView({ snapshot, dark, busy, skeletonExpired, cachedEnabled, loadFailed, offline, settleFailed, queuedScanTimes: offline ? queuedScanTimes : NO_SCANS, goalHintSeen, deviceNowMs, t, language }),
-    [snapshot, dark, busy, skeletonExpired, cachedEnabled, loadFailed, offline, settleFailed, queuedScanTimes, goalHintSeen, deviceNowMs, t, language],
+    () =>
+      buildHomeEngagementView({
+        snapshot,
+        dark,
+        busy,
+        skeletonExpired,
+        cachedEnabled,
+        loadFailed,
+        offline,
+        settleFailed,
+        queuedScanTimes: offline ? queuedScanTimes : NO_SCANS,
+        goalHintSeen,
+        shieldSeen,
+        deviceNowMs,
+        t,
+        language,
+      }),
+    [snapshot, dark, busy, skeletonExpired, cachedEnabled, loadFailed, offline, settleFailed, queuedScanTimes, goalHintSeen, shieldSeen, deviceNowMs, t, language],
   );
 
-  return { view, loadForHome, dismissGoalHint };
+  // The one-time "you're back" card is recorded as shown the moment it is on screen: it stays for this render and the next load reads it as gone.
+  const restoredId = view.kind === 'card' ? (view.shield.comeback?.restored?.id ?? null) : null;
+  useEffect(() => {
+    const userId = userIdRef.current;
+    const gymId = gymIdRef.current;
+    if (!restoredId || !userId || !gymId || restoredRecordedRef.current === restoredId) return;
+    restoredRecordedRef.current = restoredId;
+    void recordDismissed(userId, gymId, restoredId).then((stored) => {
+      // A write that did not land must be tried again, not remembered as done.
+      if (!stored && restoredRecordedRef.current === restoredId) restoredRecordedRef.current = null;
+    });
+  }, [restoredId]);
+
+  return { view, loadForHome, dismissGoalHint, dismissShieldNotice };
 }

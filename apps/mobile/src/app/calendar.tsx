@@ -164,15 +164,18 @@ function ChevronButton({ name, label, enabled, onPress }: { name: 'chevron-left'
 /** A legend sample: the shape beside its word. The samples repeat the cell shapes (filled with a check, outlined), never colour alone. */
 function LegendEntry({ item }: { item: LegendItem }) {
   const accent = useGymAccentColor();
+  const theme = useTheme();
   const lit = item.kind === 'visit' || item.kind === 'milestone';
+  const shield = item.kind === 'shield';
   return (
     <View accessible accessibilityLabel={item.label} style={styles.legendEntry}>
       <View
         style={[
           styles.legendSwatch,
-          lit ? { backgroundColor: accent, borderColor: accent } : { borderColor: accent, borderWidth: 2 },
+          lit ? { backgroundColor: accent, borderColor: accent } : shield ? { borderColor: theme.border } : { borderColor: accent, borderWidth: 2 },
         ]}>
         {lit && <MaterialIcons name={item.kind === 'milestone' ? 'star' : 'check'} size={12} color={getContrastTextColor(accent)} />}
+        {shield && <MaterialIcons name="shield" size={12} color={accent} />}
       </View>
       <ThemedText type="small" themeColor="textSecondary">
         {item.label}

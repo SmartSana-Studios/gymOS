@@ -9,6 +9,7 @@ import {
   cacheWithMonth,
   readyFromCache,
   readyFromServer,
+  savedWeeksChoice,
   readCalendarCache,
   writeCalendarFirstVisitDay,
   writeCalendarMonth,
@@ -19,7 +20,7 @@ import {
 import { getOfflineCheckIns } from '@/lib/sqlite';
 import { readEngagementCache, TICK_MS, type EngagementSnapshot } from '@/lib/weeklyRing';
 import { getMyEngagement } from '@/services/engagement';
-import { getMyFirstVisitDay, getMyVisitDays } from '@/services/visitDays';
+import { getMyFirstVisitDay, getMySavedWeeks, getMyVisitDays } from '@/services/visitDays';
 
 export interface Calendar {
   view: CalendarView;
@@ -92,15 +93,17 @@ export function useCalendar(isConnected: boolean, pendingCheckInCount: number, u
         return;
       }
       try {
-        const result = await getMyVisitDays(target);
+        // The saved weeks (Story 31.1) are best effort: a failed read keeps the device's copy of them and never fails the month.
+        const [result, saved] = await Promise.all([getMyVisitDays(target), getMySavedWeeks(target)]);
         if (!current()) return;
         if (result.status === 'success') {
-          const ready = readyFromServer(result.days);
+          const { shown: savedWeeks, store: savedToStore } = savedWeeksChoice(saved, cacheRef.current?.savedWeeks?.[target]);
+          const ready = readyFromServer(result.days, savedWeeks);
           setLoadFailed(firstVisitFailedRef.current);
           commitMonthData(ready);
           if (userId && gymId && ready.kind === 'ready') {
-            if (cacheRef.current) cacheRef.current = cacheWithMonth(cacheRef.current, target, ready.days, ready.milestones ?? {});
-            void writeCalendarMonth(userId, gymId, target, ready.days, ready.milestones ?? {});
+            if (cacheRef.current) cacheRef.current = cacheWithMonth(cacheRef.current, target, ready.days, ready.milestones ?? {}, savedToStore);
+            void writeCalendarMonth(userId, gymId, target, ready.days, ready.milestones ?? {}, savedToStore);
           }
         } else {
           setLoadFailed(true);

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a) } }));
 
-import { getMyFirstVisitDay, getMyVisitDays, parseVisitDays } from './visitDays';
+import { getMyFirstVisitDay, getMySavedWeeks, getMyVisitDays, parseSavedWeeks, parseVisitDays } from './visitDays';
 
 beforeEach(() => rpc.mockReset());
 
@@ -71,5 +71,34 @@ describe('getMyFirstVisitDay', () => {
     await expect(getMyFirstVisitDay()).resolves.toEqual({ status: 'error' });
     rpc.mockRejectedValueOnce(new Error('offline'));
     await expect(getMyFirstVisitDay()).resolves.toEqual({ status: 'error' });
+  });
+});
+
+describe('parseSavedWeeks and getMySavedWeeks (Story 31.1)', () => {
+  it('maps the Mondays and accepts an empty list', () => {
+    expect(parseSavedWeeks([{ week_start: '2026-11-09' }, { week_start: '2026-11-16' }])).toEqual(['2026-11-09', '2026-11-16']);
+    expect(parseSavedWeeks([])).toEqual([]);
+  });
+  it('refuses a non-array, a malformed row and a bad date', () => {
+    expect(parseSavedWeeks(null)).toBeNull();
+    expect(parseSavedWeeks({ week_start: '2026-11-09' })).toBeNull();
+    expect(parseSavedWeeks([null])).toBeNull();
+    expect(parseSavedWeeks([{ week_start: '9 Nov' }])).toBeNull();
+    expect(parseSavedWeeks([{}])).toBeNull();
+  });
+  it('calls my_saved_weeks with the month', async () => {
+    rpc.mockResolvedValue({ data: [{ week_start: '2026-11-09' }], error: null });
+    await expect(getMySavedWeeks('2026-11-01')).resolves.toEqual({ status: 'success', weeks: ['2026-11-09'] });
+    expect(rpc).toHaveBeenCalledWith('my_saved_weeks', { p_month: '2026-11-01' });
+  });
+  it('maps invalid_month, other errors, a malformed row and a throw', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'invalid_month' } });
+    await expect(getMySavedWeeks('2026-11-15')).resolves.toEqual({ status: 'invalid_month' });
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '57014', message: 'timeout' } });
+    await expect(getMySavedWeeks('2026-11-01')).resolves.toEqual({ status: 'error' });
+    rpc.mockResolvedValueOnce({ data: [{ week_start: 'x' }], error: null });
+    await expect(getMySavedWeeks('2026-11-01')).resolves.toEqual({ status: 'error' });
+    rpc.mockRejectedValueOnce(new Error('offline'));
+    await expect(getMySavedWeeks('2026-11-01')).resolves.toEqual({ status: 'error' });
   });
 });

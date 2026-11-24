@@ -27,8 +27,8 @@ export interface Engagement {
   visitsThisWeek: number;
   goalMet: boolean;
   visitedToday: boolean;
-  /** The SETTLED streak: never counts the open week. */
-  streakWeeks: number;
+  /** The SETTLED streak: never counts the open week. Null (Story 31.1) when no run is active, never a bare 0. */
+  streakWeeks: number | null;
   /** The streak if the open week ends as it is now, or null when the goal is not met yet or the week is not counted. */
   streakIfMet: number | null;
   bestStreakWeeks: number;
@@ -37,10 +37,12 @@ export interface Engagement {
   daysLeftInWeek: number;
   visitsNeeded: number;
   atRiskWeekly: boolean;
-  /** Epic 31 slots, constant until then. */
+  /** The daily streak is deferred (Epic 31 keeps the hooks): constant until it ships. */
   atRiskDaily: boolean;
   dailyRun: number | null;
+  /** Story 31.1: Shields held now (0 to `shieldCap`), derived by the server's fold. */
   shieldsHeld: number;
+  /** Story 31.1: 'none', 'active', 'lapsed' or 'restored'. Completed by a met week reads 'none'. */
   comebackState: string;
   /** The gym-local day around `serverNow`, ISO timestamps. */
   dayStartsAt: string;
@@ -48,6 +50,22 @@ export interface Engagement {
   serverNow: string;
   /** True when open_engagement() has something to settle. */
   needsSettle: boolean;
+  /** Story 31.1 (configuration read by the server, never hard-coded here): the Shield interval in weeks and the most Shields held. */
+  shieldEveryWeeks: number;
+  shieldCap: number;
+  /** Weeks of met weeks to the next Shield (1 to `shieldEveryWeeks`); null at the cap or with no run. */
+  weeksToNextShield: number | null;
+  /** The newest effective saved week (its Monday) and the streak after it, else null. */
+  savedWeekStart: string | null;
+  savedWeekStreak: number | null;
+  /** The Monday of the newest week that earned a Shield, else null. */
+  shieldEarnedWeek: string | null;
+  /** Comeback progress, all from the server: visits done in the window, the goal, the window length, and the window dates (null until a window starts). */
+  comebackVisitsDone: number;
+  comebackVisitsGoal: number;
+  comebackWindowDays: number;
+  comebackWindowStart: string | null;
+  comebackWindowEndsOn: string | null;
   /** Story 30.7: the highest milestone (7, 30 or 100) waiting to be celebrated, or null. Read only from a live row (lib/celebrationView.ts). */
   pendingMilestone: number | null;
 }
@@ -79,6 +97,10 @@ function isTimestamp(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && !Number.isNaN(Date.parse(value));
 }
 
+function isNullableDate(value: unknown): value is string | null {
+  return value === null || isDateOnly(value);
+}
+
 function isNullableInt(value: unknown): value is number | null {
   return value === null || isInt(value);
 }
@@ -95,8 +117,10 @@ export function parseEngagement(data: unknown): Engagement | null {
   const r = row;
   const bools = [r.enabled, r.in_release_week, r.goal_is_default, r.goal_met, r.visited_today, r.has_settled_week, r.at_risk_weekly, r.at_risk_daily, r.needs_settle];
   if (bools.some((b) => typeof b !== 'boolean')) return null;
-  const ints = [r.goal, r.visits_this_week, r.streak_weeks, r.best_streak_weeks, r.days_left_in_week, r.visits_needed, r.shields_held];
+  const ints = [r.goal, r.visits_this_week, r.best_streak_weeks, r.days_left_in_week, r.visits_needed, r.shields_held, r.shield_every_weeks, r.shield_cap, r.comeback_visits_done, r.comeback_visits_goal, r.comeback_window_days];
   if (ints.some((n) => !isInt(n))) return null;
+  if (!isNullableInt(r.streak_weeks) || !isNullableInt(r.weeks_to_next_shield) || !isNullableInt(r.saved_week_streak)) return null;
+  if (!isNullableDate(r.saved_week_start) || !isNullableDate(r.shield_earned_week) || !isNullableDate(r.comeback_window_start) || !isNullableDate(r.comeback_window_ends_on)) return null;
   if (!isDateOnly(r.gym_today) || !isDateOnly(r.week_start) || !isDateOnly(r.week_end)) return null;
   if (!isTimestamp(r.day_starts_at) || !isTimestamp(r.day_ends_at) || !isTimestamp(r.server_now)) return null;
   if (!isNullableInt(r.streak_if_met) || !isNullableInt(r.daily_run) || !isNullableInt(r.pending_milestone) || !isNullableInt(r.pending_goal)) return null;
@@ -116,7 +140,7 @@ export function parseEngagement(data: unknown): Engagement | null {
     visitsThisWeek: r.visits_this_week as number,
     goalMet: r.goal_met as boolean,
     visitedToday: r.visited_today as boolean,
-    streakWeeks: r.streak_weeks as number,
+    streakWeeks: r.streak_weeks as number | null,
     streakIfMet: (r.streak_if_met ?? null) as number | null,
     bestStreakWeeks: r.best_streak_weeks as number,
     hasSettledWeek: r.has_settled_week as boolean,
@@ -131,6 +155,17 @@ export function parseEngagement(data: unknown): Engagement | null {
     dayEndsAt: r.day_ends_at,
     serverNow: r.server_now,
     needsSettle: r.needs_settle as boolean,
+    shieldEveryWeeks: r.shield_every_weeks as number,
+    shieldCap: r.shield_cap as number,
+    weeksToNextShield: r.weeks_to_next_shield as number | null,
+    savedWeekStart: r.saved_week_start as string | null,
+    savedWeekStreak: r.saved_week_streak as number | null,
+    shieldEarnedWeek: r.shield_earned_week as string | null,
+    comebackVisitsDone: r.comeback_visits_done as number,
+    comebackVisitsGoal: r.comeback_visits_goal as number,
+    comebackWindowDays: r.comeback_window_days as number,
+    comebackWindowStart: r.comeback_window_start as string | null,
+    comebackWindowEndsOn: r.comeback_window_ends_on as string | null,
     pendingMilestone: (r.pending_milestone ?? null) as number | null,
   };
 }

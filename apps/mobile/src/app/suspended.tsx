@@ -8,6 +8,7 @@ import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { clearShown } from '@/lib/celebrationView';
 import { clearCachedProgressPayload } from '@/services/progress';
+import { clearShieldNotices } from '@/services/shieldNotices';
 import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
 
 /**
@@ -33,6 +34,7 @@ export default function SuspendedScreen() {
         onPress: () => {
           clearCachedProgressPayload();
           void clearShown();
+          void clearShieldNotices();
           clearCachedWorkoutPlan();
           void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
         },

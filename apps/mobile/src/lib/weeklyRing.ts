@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { buildShieldView, type ShieldView } from '@/lib/shieldView';
 import { formatDayMonth, type TFn } from '@/lib/weeklyGoalSheet';
 import type { Engagement, GetMyEngagementResult, OpenEngagementResult } from '@/services/engagement';
 
@@ -136,7 +137,8 @@ export async function loadEngagement(deps: EngagementLoadDeps): Promise<Engageme
 
 // Last good row per member and gym, with the phone clock at the moment it arrived (the offset of the hours left). Same fail-open pattern as
 // services/loyaltySeen.ts: a storage failure is "no cache".
-const CACHE_KEY_PREFIX = 'gymos.engageHome.v1.';
+// v2 (Story 31.1): the row gained the Shield and comeback fields and `streakWeeks` may be null; a v1 copy is simply never read.
+const CACHE_KEY_PREFIX = 'gymos.engageHome.v2.';
 
 export interface CachedEngagement {
   engagement: Engagement;
@@ -161,7 +163,7 @@ const ENGAGEMENT_FIELDS: Record<keyof Engagement, FieldKind> = {
   visitsThisWeek: 'int',
   goalMet: 'boolean',
   visitedToday: 'boolean',
-  streakWeeks: 'int',
+  streakWeeks: 'nullableInt',
   streakIfMet: 'nullableInt',
   bestStreakWeeks: 'int',
   hasSettledWeek: 'boolean',
@@ -177,6 +179,17 @@ const ENGAGEMENT_FIELDS: Record<keyof Engagement, FieldKind> = {
   serverNow: 'string',
   needsSettle: 'boolean',
   pendingMilestone: 'nullableInt',
+  shieldEveryWeeks: 'int',
+  shieldCap: 'int',
+  weeksToNextShield: 'nullableInt',
+  savedWeekStart: 'nullableString',
+  savedWeekStreak: 'nullableInt',
+  shieldEarnedWeek: 'nullableString',
+  comebackVisitsDone: 'int',
+  comebackVisitsGoal: 'int',
+  comebackWindowDays: 'int',
+  comebackWindowStart: 'nullableString',
+  comebackWindowEndsOn: 'nullableString',
 };
 
 function fieldMatches(kind: FieldKind, value: unknown): boolean {
@@ -255,6 +268,9 @@ export interface HomeEngagementInput {
   /** `scannedAt` of every scan queued on this device (device-wide). */
   queuedScanTimes: readonly string[];
   goalHintSeen: boolean;
+  /** Story 31.1: the Shield notice ids dismissed on this device and the restored cards already shown (services/shieldNotices.ts); null while unread or
+   * unreadable, which shows no notice and no restored card. */
+  shieldSeen: ReadonlySet<string> | null;
   deviceNowMs: number;
   t: TFn;
   /** `en` or `fr`; anything else formats as English. */
@@ -273,7 +289,9 @@ export interface HintView {
   text: string;
   /** "6 hours left" / "40 min left": recomputed every minute. */
   timeLeft: string;
-  /** `text` and `timeLeft` as one sentence. */
+  /** Story 31.1: `engage.atRisk.shieldReady`, the optional second line while a Shield is held (Home only; the calendar's hint never has it). */
+  shieldReady?: string | null;
+  /** `text`, `timeLeft` and `shieldReady` as one sentence. */
   label: string;
 }
 
@@ -302,6 +320,8 @@ export interface CardView {
   pendingSyncNote: string | null;
   hint: HintView | null;
   settleError: string | null;
+  /** Story 31.1: the Shield chip, next-Shield line, notice row, explainer sheet and comeback card. */
+  shield: ShieldView;
   /** `engage.ring.cardHint`: the hint of the whole card as a button that opens the calendar (Story 30.5). */
   cardHint: string;
   /** The card's one accessibility label when it is a button: the heading, the ring sentence, the streak, the caption, the pending-sync note, the at-risk sentence and the settle error, so the one button hides nothing a screen reader read before it was a button. */
@@ -340,8 +360,10 @@ function streakFor(row: Engagement, t: TFn): StreakView {
     if (row.goalMet) return { kind: 'none' };
     return { kind: 'firstWeek', label: t('engage.streak.firstWeek') };
   }
-  if (row.streakWeeks >= 2) return { kind: 'chip', label: t('engage.streak.weeks', { count: row.streakWeeks }) };
-  if (row.streakWeeks === 1) return { kind: 'chip', label: t('engage.streak.first') };
+  // A null streak (no run active) reads as no run: the best line, never a bare 0.
+  const weeks = row.streakWeeks ?? 0;
+  if (weeks >= 2) return { kind: 'chip', label: t('engage.streak.weeks', { count: weeks }) };
+  if (weeks === 1) return { kind: 'chip', label: t('engage.streak.first') };
   if (row.bestStreakWeeks >= 1) return { kind: 'best', label: t('engage.streak.best', { count: row.bestStreakWeeks }) };
   return { kind: 'none' };
 }
@@ -407,7 +429,16 @@ export function buildHomeEngagementView(input: HomeEngagementInput): HomeEngagem
   const ringLabel = row.goalMet
     ? t('engage.ring.a11y.met', { goal: row.goal })
     : t('engage.ring.a11y.progress', { visits: row.visitsThisWeek, goal: row.goal, count: Math.max(1, row.visitsNeeded) });
-  const hint = hintFor(snapshot, overlay, queued, input.deviceNowMs, t);
+  const shield = buildShieldView({
+    row,
+    seen: input.shieldSeen,
+    // A day counts once: a visit queued on this phone today turns one comeback segment dashed, and no figure moves.
+    queuedVisit: overlay && !row.visitedToday && queuedTodayCount(row.dayStartsAt, input.queuedScanTimes) > 0,
+    t,
+    language,
+  });
+  const baseHint = hintFor(snapshot, overlay, queued, input.deviceNowMs, t);
+  const hint = baseHint && shield.shieldReady ? { ...baseHint, shieldReady: shield.shieldReady, label: `${baseHint.label} ${shield.shieldReady}` } : baseHint;
   const streak = streakFor(row, t);
   const captionText = t(caption.key, caption.options);
   const pendingSyncNote = dashed > 0 ? t('engage.ring.pendingSync', { count: dashed }) : null;
@@ -437,6 +468,7 @@ export function buildHomeEngagementView(input: HomeEngagementInput): HomeEngagem
     pendingSyncNote,
     hint,
     settleError,
+    shield,
     cardHint: t('engage.ring.cardHint'),
     cardLabel: cardLabelFor([title, ringLabel, streakLabel(streak), ringLabel.includes(captionText) ? null : captionText, pendingSyncNote, hint?.label, settleError]),
   };

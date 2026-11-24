@@ -534,7 +534,8 @@
       "nextShield_one": "{{count}} more week to your next Shield",
       "nextShield_other": "{{count}} more weeks to your next Shield",
       "shieldMax": "You're holding the maximum of {{max}} Shields.",
-      "daily": "{{n}} days in a row",
+      "daily_one": "{{count}} day in a row",
+      "daily_other": "{{count}} days in a row",
       "best_one": "Best: {{count}} week",
       "best_other": "Best: {{count}} weeks"
     },
@@ -563,12 +564,14 @@
       "saved": {
         "week_one": "Your Shield saved the week of {{date}}. Your streak is still {{count}} week.",
         "week_other": "Your Shield saved the week of {{date}}. Your streak is still {{count}} weeks.",
+        "weekShort": "Your Shield saved the week of {{date}}.",
         "day": "Your Shield saved {{date}}. Your run goes on."
       },
       "earned": "You earned a Shield. It will keep a missed week from ending your streak.",
       "explainer": {
         "title": "Streak Shield",
-        "body": "Every 4 weeks in a row earns a Shield. If you miss a week, a Shield keeps your streak going on its own. You can hold up to {{max}}. Shields can't be bought or given."
+        "body_one": "Every {{count}} week in a row earns a Shield. If you miss a week, a Shield keeps your streak going on its own. You can hold up to {{max}}. Shields can't be bought or given.",
+        "body_other": "Every {{count}} weeks in a row earns a Shield. If you miss a week, a Shield keeps your streak going on its own. You can hold up to {{max}}. Shields can't be bought or given."
       },
       "gotIt": "Got it",
       "mascot": ""
@@ -640,7 +643,8 @@
       "weekly": "Visit today to close your ring.",
       "hoursLeft_one": "{{count}} hour left",
       "hoursLeft_other": "{{count}} hours left",
-      "minutesLeft": "{{m}} min left"
+      "minutesLeft": "{{m}} min left",
+      "shieldReady": "A Shield is ready if you can't make it."
     },
     "home": {
       "error": "Couldn't load your week. Pull down to refresh.",
@@ -656,7 +660,8 @@
       "legend": {
         "visit": "Visited",
         "today": "Today",
-        "milestone": "Milestone"
+        "milestone": "Milestone",
+        "shield": "Saved by a Shield"
       },
       "day": {
         "visited": "{{date}}: visited",

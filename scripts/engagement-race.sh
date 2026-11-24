@@ -25,6 +25,8 @@
 # message), a re-run (success, nothing settled, no fact written), the commit after every member (a failure AFTER the loop leaves the members
 # settled), a member whose lock another session holds (skipped, settled on the next run) and the epoch unset (success, no member touched).
 #
+# Phase C (Story 31.1) settles one member twice at once behind the member lock: one `saved` fact, one Shield spent, derived = rebuild.
+#
 # Mutation checks (run once, Story 30.2 and 30.3): move the settle lock after the member_visit_days read -> phase A fails; remove the dirty mark
 # from record_check_in -> phase A fails; drop `skip locked` from private.engagement_settle_member -> phase B fails; restore all.
 set -uo pipefail
@@ -302,5 +304,59 @@ SQL
   bcheck "epoch unset: the member's state is untouched" "$state_after" "$state_before"
 }
 phase_b
+
+# ============================================================================================================================
+# Phase C (Story 31.1): a double settle. Two sessions (the cron job and a first open) both settle ONE member whose fifth week is below the
+# goal while a Shield is held, behind a third session that holds the member lock. The lock serialises them: one writes the five week facts
+# (the fifth `saved`), the other finds nothing to write. Afterwards: exactly one `saved` fact, five week rows, one Shield spent (held 0, run 4),
+# derived state equals rebuild. The member's four met weeks are 2026-03-02 to 03-23; week 5 (03-30) has no visit; p_up_to 2026-04-06.
+# ============================================================================================================================
+UP_TO_C=2026-04-06
+c_member() { # c_member <nn>: twelve counted visit days, Mon-Wed of four weeks, no visit in the fifth
+  local nn=$1
+  psql_ <<SQL >/dev/null
+insert into auth.users (id) values ('${U}${nn}');
+insert into members (id, gym_id, user_id, role, name, join_date) values ('${M}${nn}', '$G', '${U}${nn}', 'member', 'Eng Shield Race ${nn}', date '2026-01-05');
+insert into attendance_events (gym_id, member_id, checked_in_at, checked_out_at, checkout_type, visit_day)
+select '$G', '${M}${nn}', (d + time '10:00') at time zone 'Africa/Douala', (d + time '11:00') at time zone 'Africa/Douala', 'manual', d::date
+from (select date '2026-03-02' + 7 * w + i as d from generate_series(0, 3) w, generate_series(0, 2) i) x;
+SQL
+}
+settle_c_sql() { echo "begin; select 'SETTLED ' || private.settle_engagement('${M}$1', '$G', date '$UP_TO_C'); commit;"; }
+phase_c() {
+  wipe_members
+  psql_ -c "update platform_engagement_config set release_week_start = date '$WEEK'" >/dev/null
+  local i nn
+  for i in 1 2 3 4 5 6; do
+    nn=$(printf '%02x' $((0x20 + i)))
+    c_member "$nn"
+    hold_lock "$nn" & local holder=$!
+    sleep 0.6
+    psql_ -c "$(settle_c_sql "$nn")" > /tmp/ci-eng-a.$$ 2>&1 & local a=$!
+    sleep 0.6
+    psql_ -c "$(settle_c_sql "$nn")" > /tmp/ci-eng-b.$$ 2>&1 & local b=$!
+    sleep 0.4
+    local w; w=$(waiting_count)
+    wait "$a"; wait "$b"; wait "$holder"
+    local out; out=$(cat /tmp/ci-eng-a.$$ /tmp/ci-eng-b.$$)
+    local five zero deadlock saved rows held streak same
+    five=$(echo "$out" | grep -c "^SETTLED 5")
+    zero=$(echo "$out" | grep -c "^SETTLED 0")
+    deadlock=$(echo "$out" | grep -ci "deadlock")
+    saved=$(psql_ -c "select count(*) from engagement_facts where member_id = '${M}$nn' and kind = 'week' and outcome = 'saved'")
+    rows=$(psql_ -c "select count(*) from engagement_facts where member_id = '${M}$nn' and kind = 'week'")
+    held=$(psql_ -c "select shields_held || '|' || coalesce(streak_weeks::text, 'null') from private.engagement_state_view_at('${M}$nn', timestamptz '2026-04-06 12:00+01')")
+    same=$(psql_ -c "select (select to_jsonb(d) from private.engagement_derived_state('${M}$nn') d) = (select to_jsonb(r) from private.rebuild_engagement('${M}$nn', date '$UP_TO_C') r)")
+    if [ "$deadlock" = 0 ] && [ "$five" = 1 ] && [ "$zero" = 1 ] && [ "$saved" = 1 ] && [ "$rows" = 5 ] && [ "$held" = "0|4" ] && [ "$same" = t ] && [ "${w:-0}" -ge 2 ]; then
+      echo "ok   phase C iteration $i: both settles waited behind the holder (waiting=$w), one wrote five weeks and one wrote none, one saved fact, one Shield spent (held|streak $held), derived = rebuild"
+    else
+      echo "FAIL phase C iteration $i: deadlocks=$deadlock settles writing five=$five none=$zero saved facts=$saved (want 1) week rows=$rows (want 5) held|streak=$held (want 0|4) derived=rebuild:$same waiting=$w (want >= 2)"
+      echo "$out" | sed 's/^/     | /'
+      fail=1
+    fi
+    rm -f /tmp/ci-eng-a.$$ /tmp/ci-eng-b.$$
+  done
+}
+phase_c
 
 [ "$fail" = 0 ] && echo "race: all passed" || { echo "race: FAILED"; exit 1; }

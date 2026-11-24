@@ -126,7 +126,7 @@ export default function HomeScreen() {
   const { isConnected, pendingCheckInCount, sessionDenials, dismissSessionDenials } = useOfflineSync();
   const theme = useTheme();
   // Story 30.4: the "This week" section (ring, streak, at-risk hint) and the toast a goal saved from here leaves behind.
-  const { view: engagementView, loadForHome: loadEngagementForHome, dismissGoalHint } = useHomeEngagement(isConnected, pendingCheckInCount);
+  const { view: engagementView, loadForHome: loadEngagementForHome, dismissGoalHint, dismissShieldNotice } = useHomeEngagement(isConnected, pendingCheckInCount);
   // Story 30.6: the Leaderboard card (the member's own standing only), read once per Home load and only while the engagement area is on.
   const { view: leaderboardView, loadForHome: loadLeaderboardForHome, retry: retryLeaderboard } = useHomeLeaderboard();
   const toast = useFocusToast();
@@ -721,6 +721,7 @@ export default function HomeScreen() {
                 view={engagementView}
                 onGoalPress={() => router.push('/goal')}
                 onGoalHintPress={dismissGoalHint}
+                onDismissNotice={dismissShieldNotice}
                 onPressCard={() => router.push('/calendar')}
               />
 

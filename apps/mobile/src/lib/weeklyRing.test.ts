@@ -75,6 +75,17 @@ const ROW: Engagement = {
   dayEndsAt: DAY_ENDS,
   serverNow: SERVER_NOW,
   needsSettle: false,
+  shieldEveryWeeks: 4,
+  shieldCap: 2,
+  weeksToNextShield: 3,
+  savedWeekStart: null,
+  savedWeekStreak: null,
+  shieldEarnedWeek: null,
+  comebackVisitsDone: 0,
+  comebackVisitsGoal: 3,
+  comebackWindowDays: 10,
+  comebackWindowStart: null,
+  comebackWindowEndsOn: null,
   pendingMilestone: null,
 };
 
@@ -91,6 +102,7 @@ function input(over: Partial<Omit<HomeEngagementInput, 'snapshot'>> & { row?: Pa
     settleFailed: false,
     queuedScanTimes: [],
     goalHintSeen: true,
+    shieldSeen: new Set<string>(),
     deviceNowMs: NOW_MS,
     t: makeT('en'),
     language: 'en',
@@ -487,12 +499,71 @@ describe('the card as a button (Story 30.5)', () => {
   });
 });
 
-describe('Epic 31 slots', () => {
-  it('render nothing: the view carries no Shield, comeback, daily or next-Shield field, whatever the row holds', () => {
-    const view = card({ row: { shieldsHeld: 2, comebackState: 'active', atRiskDaily: true, dailyRun: 4 } });
-    expect(Object.keys(view).sort()).toEqual(['captionKey', 'caption', 'cardHint', 'cardLabel', 'goalButton', 'goalHint', 'hint', 'kind', 'pendingSyncNote', 'ring', 'settleError', 'streak', 'title'].sort());
-    const everything = JSON.stringify(view);
-    expect(everything).not.toMatch(/Shield|shield|comeback|bolt/);
+describe('Epic 31 Shield and comeback on the card (Story 31.1)', () => {
+  it('a member with no Shield and no comeback gets no chip, no line about holding, no notice and no comeback card (nothing changes while the area is dark or quiet)', () => {
+    const view = card({ row: { weeksToNextShield: null, streakWeeks: null, bestStreakWeeks: 0, hasSettledWeek: false } });
+    expect(view.shield.chip).toBeNull();
+    expect(view.shield.nextLine).toBeNull();
+    expect(view.shield.notice).toBeNull();
+    expect(view.shield.comeback).toBeNull();
+    expect(view.shield.shieldReady).toBeNull();
+    expect(view.hint).toBeNull();
+  });
+
+  it('the card carries the shield view and nothing else new, and never a bare zero', () => {
+    const view = card({ row: { shieldsHeld: 0 } });
+    expect(Object.keys(view).sort()).toEqual(
+      ['captionKey', 'caption', 'cardHint', 'cardLabel', 'goalButton', 'goalHint', 'hint', 'kind', 'pendingSyncNote', 'ring', 'settleError', 'shield', 'streak', 'title'].sort(),
+    );
+    expect(JSON.stringify(view.shield)).not.toMatch(/"label":"0|0 Shield|0 bouclier/);
+  });
+
+  it('a null streak (no run) reads as no run: the best line, never a bare 0', () => {
+    const view = card({ row: { streakWeeks: null, bestStreakWeeks: 8 } });
+    expect(view.streak).toEqual({ kind: 'best', label: 'Best: 8 weeks' });
+    expect(card({ row: { streakWeeks: null, bestStreakWeeks: 0 } }).streak).toEqual({ kind: 'none' });
+  });
+
+  it('the at-risk hint gains the Shield-ready second line only while a Shield is held, in both languages', () => {
+    const plain = card({ row: { atRiskWeekly: true } });
+    expect(plain.hint?.shieldReady ?? null).toBeNull();
+    const held = card({ row: { atRiskWeekly: true, shieldsHeld: 1 } });
+    expect(held.hint?.shieldReady).toBe("A Shield is ready if you can't make it.");
+    expect(held.hint?.label).toBe("Visit today to close your ring. 6 hours left A Shield is ready if you can't make it.");
+    expect(held.hint?.text).toBe('Visit today to close your ring.');
+    const fr = card({ row: { atRiskWeekly: true, shieldsHeld: 2 }, t: makeT('fr'), language: 'fr' });
+    expect(fr.hint?.shieldReady).toBe('Un bouclier est prêt si vous ne pouvez pas venir.');
+  });
+
+  it('a queued scan today turns ONE comeback segment dashed while the comeback is active, and only offline (or from the cache) and not already visited today', () => {
+    const comeback = { comebackState: 'active' as const, comebackVisitsDone: 1, streakWeeks: null };
+    const queuedScanTimes = ['2026-11-25T15:30:00.000Z'];
+    const offline = card({ row: comeback, offline: true, queuedScanTimes });
+    expect(offline.shield.comeback?.phase).toBe('progress');
+    expect(offline.shield.comeback?.segments).toEqual({ total: 3, done: 1, dashed: 1 });
+    // the figures never move: still 1 of 3
+    expect(offline.shield.comeback?.numeral).toBe('1 / 3');
+    expect(card({ row: comeback, fromCache: true, queuedScanTimes }).shield.comeback?.segments?.dashed).toBe(1);
+    expect(card({ row: comeback, queuedScanTimes }).shield.comeback?.segments?.dashed).toBe(0);
+    expect(card({ row: { ...comeback, visitedToday: true }, offline: true, queuedScanTimes }).shield.comeback?.segments?.dashed).toBe(0);
+    expect(card({ row: comeback, offline: true, queuedScanTimes: ['2026-11-24T10:00:00.000Z'] }).shield.comeback?.segments?.dashed).toBe(0);
+  });
+
+  it('the "Shield saved" notice shows for the newest settled week and goes once its id is in the device set', () => {
+    const row = { savedWeekStart: '2026-11-16', savedWeekStreak: 6, shieldsHeld: 1 };
+    const shown = card({ row }).shield;
+    expect(shown.notice).toMatchObject({ id: 'saved:2026-11-16', kind: 'saved' });
+    expect(shown.chip).not.toBeNull();
+    expect(card({ row, shieldSeen: new Set(['saved:2026-11-16']) }).shield.notice).toBeNull();
+    expect(card({ row, shieldSeen: null }).shield.notice).toBeNull();
+    // a saved week older than the newest settled week is not announced
+    expect(card({ row: { ...row, savedWeekStart: '2026-11-09' } }).shield.notice).toBeNull();
+  });
+
+  it('the daily slots stay unrendered: atRiskDaily and dailyRun change nothing on the card', () => {
+    const base = card();
+    const daily = card({ row: { atRiskDaily: true, dailyRun: 4 } });
+    expect(JSON.stringify(daily)).toBe(JSON.stringify(base));
   });
 });
 
@@ -592,7 +663,7 @@ describe('the device cache', () => {
   });
 
   it('is keyed per member and gym', () => {
-    expect(engagementCacheKey('u1', 'g1')).toBe('gymos.engageHome.v1.u1.g1');
+    expect(engagementCacheKey('u1', 'g1')).toBe('gymos.engageHome.v2.u1.g1');
   });
 
   it('round-trips a row with the phone clock it arrived on', async () => {

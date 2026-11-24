@@ -53,6 +53,16 @@ const SCREEN_FILES = [
   'components/CelebrationMiniMonth.tsx',
   'hooks/use-home-celebration.ts',
   'lib/celebrationView.ts',
+  // Story 31.1: the Shield chip, explainer sheet, notice row, comeback card and stamp segments, their view model and the device store of dismissed
+  // notices. Same rules: no sentence, no date construction (the one date step goes through lib/calendarGrid.ts), and no Shield or comeback figure
+  // derived on the device (the scan below).
+  'components/ShieldChip.tsx',
+  'components/ShieldExplainerSheet.tsx',
+  'components/ShieldNoticeRow.tsx',
+  'components/ComebackCard.tsx',
+  'components/StampSegments.tsx',
+  'lib/shieldView.ts',
+  'services/shieldNotices.ts',
 ];
 
 describe('no literal sentence (FR-232)', () => {
@@ -189,6 +199,7 @@ describe('the calendar reads only what the spec allows', () => {
     const service = stripComments(source('services/visitDays.ts'));
     expect(service).toMatch(/rpc\('my_visit_days'/);
     expect(service).toMatch(/rpc\('my_first_visit_day'/);
+    expect(service).toMatch(/rpc\('my_saved_weeks'/);
   });
 
   it('never remembers the month viewed: the screen and the hook write no storage themselves, only the loaded days go through the cache functions', () => {
@@ -625,17 +636,18 @@ describe('the celebration screen (MA-20)', () => {
     expect(hook).toContain('celebrationDue({ milestone, today, ready, focused })');
   });
 
-  it('the shown-store is cleared beside clearCachedProgressPayload at the three sign-out sites', () => {
+  it('the shown-store and the Shield-notice store are cleared beside clearCachedProgressPayload at the three sign-out sites', () => {
     for (const path of ['app/(tabs)/profile.tsx', 'app/suspended.tsx', 'app/awaiting-registration.tsx']) {
-      expect(stripped(path), path).toMatch(/clearCachedProgressPayload\(\);\s*void clearShown\(\);/);
+      expect(stripped(path), path).toMatch(/clearCachedProgressPayload\(\);\s*void clearShown\(\);\s*void clearShieldNotices\(\);/);
     }
   });
 
   it('the calendar hook builds its month data through the tested pure functions, so the markers cannot be dropped silently', () => {
     const hook = stripped('hooks/use-calendar.ts');
-    expect(hook).toContain('readyFromServer(result.days)');
+    expect(hook).toContain('readyFromServer(result.days, savedWeeks)');
     expect(hook).toContain('readyFromCache(cacheRef.current, target)');
-    expect(hook).toMatch(/writeCalendarMonth\(userId, gymId, target, ready\.days, ready\.milestones \?\? \{\}\)/);
+    expect(hook).toMatch(/writeCalendarMonth\(userId, gymId, target, ready\.days, ready\.milestones \?\? \{\}, savedToStore\)/);
+    expect(hook).toContain('savedWeeksChoice(saved, cacheRef.current?.savedWeeks?.[target])');
   });
 
   it('the calendar marker is the star, hidden from a screen reader, and the legend has a third entry', () => {
@@ -645,5 +657,151 @@ describe('the celebration screen (MA-20)', () => {
     expect(cell).toMatch(/STAR_SIZE = 14/);
     expect(cell).toMatch(/star: \{\s*position: 'absolute',\s*top: 1,\s*left: 1/);
     expect(stripped('app/calendar.tsx')).toMatch(/'star'/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// Story 31.1: Streak Shields and comeback (FR-222, FR-223, NFR-028; MA-09, MA-18)
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+
+const SHIELD_FILES = [
+  'components/ShieldChip.tsx',
+  'components/ShieldExplainerSheet.tsx',
+  'components/ShieldNoticeRow.tsx',
+  'components/ComebackCard.tsx',
+  'components/StampSegments.tsx',
+  'lib/shieldView.ts',
+];
+
+describe('the device never derives a Shield or a comeback figure (Story 31.1)', () => {
+  // The server's fold decides every Shield, saved week and comeback number. A sum, a count, a sort or a date step on one of them would be the device
+  // deciding it. (A segment layout reads the server numbers as they are; a queued visit only picks which empty segment is dashed.)
+  const FIGURES = '(shieldsHeld|shieldCap|shieldEveryWeeks|weeksToNextShield|savedWeekStreak|comebackVisitsDone|comebackVisitsGoal|comebackWindowDays|bestStreakWeeks|streakWeeks)';
+  const FORBIDDEN: [string, RegExp][] = [
+    ['arithmetic on a figure', new RegExp(`\\b${FIGURES}\\b\\s*[-+*/%]\\s*[\\w(]|[\\w)]\\s*[-+*/%]\\s*\\b${FIGURES}\\b`)],
+    ['increment', new RegExp(`\\b${FIGURES}\\b\\s*(\\+\\+|--)|(\\+\\+|--)\\s*\\w*\\.?${FIGURES}\\b`)],
+    ['sort or reduce', /\.(sort|toSorted|reduce|reduceRight)\(/],
+    ['date construction', /new Date\(|Date\.(now|UTC)\(/],
+  ];
+
+  it.each(SHIELD_FILES.flatMap((path) => FORBIDDEN.map(([name, rule]) => [path, name, rule] as const)))('%s has no %s', (path, _name, rule) => {
+    expect(rule.test(stripped(path))).toBe(false);
+  });
+
+  it('the scanner can see each violation (positive control)', () => {
+    const samples = ['const next = row.shieldsHeld + 1;', 'const n = row.shieldCap - row.shieldsHeld;', 'row.comebackVisitsDone++', 'weeks.sort()', 'new Date(row.weekStart)'];
+    for (const sample of samples) expect(FORBIDDEN.some(([, rule]) => rule.test(sample)), sample).toBe(true);
+    expect(FORBIDDEN.some(([, rule]) => rule.test('done < row.comebackVisitsGoal'))).toBe(false);
+  });
+
+  it('the one date step of the view model is the calendar grid\'s addDays, for the newest settled week', () => {
+    const view = stripped('lib/shieldView.ts');
+    expect(view).toMatch(/import \{ addDays \} from '@\/lib\/calendarGrid'/);
+    expect(view.match(/addDays\(/g)).toHaveLength(1);
+  });
+
+  it('nothing here reads the loyalty ledger, guest sessions, stamps or attendance', () => {
+    for (const path of [...SHIELD_FILES, 'hooks/use-home-engagement.ts', 'services/shieldNotices.ts']) {
+      expect(stripped(path), path).not.toMatch(/attendance_events|attendance_counted|loyalty|guest_sessions|supabase/);
+    }
+  });
+});
+
+describe('the Shield pieces on Home (Story 31.1)', () => {
+  it('the chip is a 44pt Pressable BESIDE the card button, never inside it: a tap on it cannot open the calendar', () => {
+    const chip = stripped('components/ShieldChip.tsx');
+    expect(chip).toMatch(/<Pressable accessibilityRole="button"/);
+    expect(chip).toMatch(/minHeight: 44/);
+    expect(chip).toMatch(/minWidth: 44/);
+    const card = stripped('components/WeeklyRingCard.tsx');
+    const start = card.indexOf('accessibilityLabel={view.cardLabel}');
+    const end = card.indexOf('</Pressable>', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const outer = card.slice(start, end);
+    expect(outer).not.toMatch(/Shield|Comeback|shield/);
+    expect(card).toMatch(/\{view\.kind === 'card' && <ShieldArea view=\{view\} onDismissNotice=\{onDismissNotice\} \/>\}/);
+    expect(card.indexOf('<ShieldArea view')).toBeGreaterThan(end);
+    // The calendar push stays on the outer button only.
+    expect(card.match(/onPress=\{onPressCard\}/g)).toHaveLength(1);
+  });
+
+  it('holds at a large text size: the chip row wraps, the targets grow (minHeight, never a fixed height) and the notice text takes the free width', () => {
+    const card = stripped('components/WeeklyRingCard.tsx');
+    expect(card).toMatch(/shieldRow: \{[^}]*flexWrap: 'wrap'/);
+    for (const path of ['components/ShieldChip.tsx', 'components/ShieldNoticeRow.tsx']) expect(stripped(path), path).not.toMatch(/\bheight: \d/);
+    expect(stripped('components/ShieldNoticeRow.tsx')).toMatch(/text: \{\s*flex: 1/);
+    expect(stripped('components/ShieldChip.tsx')).toMatch(/text: \{\s*flexShrink: 1/);
+  });
+
+  it('the explainer is a sliding RN Modal with a Got it button and the back-button close', () => {
+    const sheet = stripped('components/ShieldExplainerSheet.tsx');
+    expect(sheet).toMatch(/<Modal visible=\{visible\} animationType="slide" transparent onRequestClose=\{onClose\}>/);
+    expect(sheet).toContain('view.gotIt');
+    expect(sheet).toContain('view.body');
+  });
+
+  it('the notice row dismisses by its own id and the chip opens the sheet', () => {
+    expect(stripped('components/ShieldNoticeRow.tsx')).toMatch(/onPress=\{\(\) => onDismiss\(notice\.id\)\}/);
+    const card = stripped('components/WeeklyRingCard.tsx');
+    expect(card).toMatch(/<ShieldChip chip=\{chip\} onPress=\{\(\) => setExplainerOpen\(true\)\} \/>/);
+    expect(card).toMatch(/<ShieldNoticeRow notice=\{notice\} onDismiss=\{onDismissNotice\} \/>/);
+  });
+
+  it('Home hands the dismissal to the hook, which records it per user and gym and reads the store at every load', () => {
+    expect(stripped('app/(tabs)/index.tsx')).toMatch(/onDismissNotice=\{dismissShieldNotice\}/);
+    const hook = stripped('hooks/use-home-engagement.ts');
+    expect(hook).toMatch(/readDismissed\(userId, gymId\)/);
+    expect(hook).toMatch(/recordDismissed\(userId, gymId, id\)/);
+    // A store that cannot be read stays null (no notice, no restored card); the restored card is recorded the moment it shows.
+    expect(hook).toMatch(/setShieldSeen\(\(prev\) => \(seen === null \? null : new Set\(\[\.\.\.seen, \.\.\.\(prev \?\? \[\]\)\]\)\)\)/);
+    expect(hook).toMatch(/recordDismissed\(userId, gymId, restoredId\)/);
+    expect(hook).toMatch(/restoredRecordedRef/);
+  });
+
+  it('the device store key is per user and gym, capped at 50, and read failures fail closed', () => {
+    const store = stripped('services/shieldNotices.ts');
+    expect(store).toContain("'gymos.shieldNotices.v1.'");
+    expect(store).toMatch(/MAX_IDS = 50/);
+    expect(store).toMatch(/error instanceof SyntaxError \? new Set\(\) : null/);
+  });
+
+  it('the ring cache moved to v2 so a v1 copy is never read', () => {
+    expect(stripped('lib/weeklyRing.ts')).toContain("CACHE_KEY_PREFIX = 'gymos.engageHome.v2.'");
+    expect(stripped('lib/weeklyRing.ts')).not.toContain('engageHome.v1');
+  });
+
+  it('the stamp segments are shared by the Rewards card and the comeback card', () => {
+    expect(stripped('components/RewardsCard.tsx')).toContain('<StampSegments');
+    expect(stripped('components/ComebackCard.tsx')).toContain('<StampSegments');
+    expect(stripped('components/RewardsCard.tsx')).not.toMatch(/segment:/);
+  });
+
+  it('the comeback card never draws a "0 / 3" numeral: the numeral exists only when the view gives one', () => {
+    const card = stripped('components/ComebackCard.tsx');
+    expect(card).toMatch(/\{view\.numeral && </);
+    expect(card).not.toMatch(/\b0 \/ /);
+  });
+});
+
+describe('the calendar saved-week glyph (Story 31.1, MA-18)', () => {
+  it('the glyph is hidden from a screen reader, sits in the bottom-right corner (not the star, check or hours slots), and the row has a hairline', () => {
+    const cell = stripped('components/CalendarDayCell.tsx');
+    expect(cell).toMatch(/\{cell\.shield && \(\s*<View style=\{styles\.shield\} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">\s*<MaterialIcons name="shield"/);
+    expect(cell).toMatch(/shield: \{\s*position: 'absolute',\s*bottom: 1,\s*right: 1/);
+    expect(stripped('components/CalendarGrid.tsx')).toMatch(/week\.saved && \{ borderBottomWidth: StyleSheet\.hairlineWidth/);
+  });
+
+  it('the legend appends the Shield entry fourth and the screen draws it with the shield glyph', () => {
+    const view = stripped('lib/calendarView.ts');
+    expect(view.indexOf("kind: 'milestone', label")).toBeLessThan(view.indexOf("kind: 'shield', label"));
+    expect(stripped('app/calendar.tsx')).toMatch(/name="shield"/);
+  });
+
+  it('the saved weeks come from my_saved_weeks through the visit-days service, never from the engagement row', () => {
+    const hook = stripped('hooks/use-calendar.ts');
+    expect(hook).toContain('getMySavedWeeks(target)');
+    expect(hook).not.toMatch(/savedWeekStart|savedWeekStreak/);
+    expect(stripped('lib/calendarView.ts')).not.toMatch(/savedWeekStart|savedWeekStreak/);
   });
 });

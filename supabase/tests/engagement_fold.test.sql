@@ -64,7 +64,7 @@ select is(pg_temp.fold(6), '1|2|2026-03-23|0|none', 'regained streak: met, met, 
 select pg_temp.seq(7, array['met', 'met', 'met', 'missed', 'met', 'met']);
 select is(pg_temp.fold(7), '2|3|2026-04-06|0|none', 'a shorter later run does not lower best (3 then 2)');
 select pg_temp.seq(8, array['met', 'met', 'met', 'missed', 'met', 'met', 'met', 'met']);
-select is(pg_temp.fold(8), '4|4|2026-04-20|0|none', 'a longer later run raises best');
+select is(pg_temp.fold(8), '4|4|2026-04-20|1|none', 'a longer later run raises best (and its fourth met week stored a Shield)');
 
 -- A gap: a week that is not the Monday after the previous one restarts the run, whatever its outcome.
 select pg_temp.seq(9, array['met', 'met']);

@@ -14,6 +14,8 @@ const OUTLINE = 2;
 const RADIUS = 10;
 /** Story 30.7: the milestone star badge, 14pt, in the top-left corner (the check or schedule glyph holds the top-right one). */
 const STAR_SIZE = 14;
+/** Story 31.1: the Shield glyph of a Shield-saved week, 12pt, in the bottom-right corner (the top corners hold the star and the check, the bottom centre the hours). */
+const SHIELD_SIZE = 12;
 
 /** Story 30.5 / `components.calendarDayCell`: one day of the month grid. Layout only: `cell` (lib/calendarView.ts) holds every state and every word.
  * Shape or glyph always accompanies colour: a lit day is filled with a check, today carries a 2pt outline (accent, dashed while a visit waits to sync,
@@ -41,6 +43,11 @@ export function CalendarDayCell({ cell, onPress }: { cell: DayCellView; onPress:
       {cell.milestone !== null && (
         <View style={styles.star} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <MaterialIcons name="star" size={STAR_SIZE} color={onAccent} />
+        </View>
+      )}
+      {cell.shield && (
+        <View style={styles.shield} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <MaterialIcons name="shield" size={SHIELD_SIZE} color={cell.lit ? onAccent : accent} />
         </View>
       )}
       {cell.hoursText && (
@@ -128,6 +135,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 1,
     left: 1,
+  },
+  shield: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
   },
   hours: {
     position: 'absolute',

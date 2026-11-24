@@ -45,11 +45,11 @@ create function pg_temp.sig() returns text language sql stable as $f$
 $f$;
 -- A plain read: 'streak|best|visits_this_week|goal_met|streak_if_met|needs_settle|has_settled_week'; the hash is compared by the caller.
 create function pg_temp.rd(p_n int, p_now timestamptz) returns text language sql stable as $f$
-  select v.streak_weeks || '|' || v.best_streak_weeks || '|' || v.visits_this_week || '|' || v.goal_met || '|' || coalesce(v.streak_if_met::text, 'null') || '|' || v.needs_settle || '|' || v.has_settled_week
+  select coalesce(v.streak_weeks, 0) || '|' || v.best_streak_weeks || '|' || v.visits_this_week || '|' || v.goal_met || '|' || coalesce(v.streak_if_met::text, 'null') || '|' || v.needs_settle || '|' || v.has_settled_week
   from private.engagement_state_view_at(pg_temp.m(p_n), p_now) v
 $f$;
 create function pg_temp.op(p_n int, p_now timestamptz) returns text language sql as $f$
-  select v.streak_weeks || '|' || v.best_streak_weeks || '|' || v.visits_this_week || '|' || v.goal_met || '|' || coalesce(v.streak_if_met::text, 'null') || '|' || v.needs_settle || '|' || v.has_settled_week
+  select coalesce(v.streak_weeks, 0) || '|' || v.best_streak_weeks || '|' || v.visits_this_week || '|' || v.goal_met || '|' || coalesce(v.streak_if_met::text, 'null') || '|' || v.needs_settle || '|' || v.has_settled_week
   from private.open_engagement_at(pg_temp.m(p_n), p_now) v
 $f$;
 create function pg_temp.facts(p_n int) returns text language sql stable as $f$

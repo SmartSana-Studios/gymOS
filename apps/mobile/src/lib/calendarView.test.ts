@@ -24,7 +24,9 @@ import {
   milestonesOf,
   readyFromCache,
   readyFromServer,
+  savedWeeksChoice,
   readCalendarCache,
+  type CalendarCache,
   myVisitsRowAfterRead,
   myVisitsRowFromCache,
   SKELETON_CELLS,
@@ -79,6 +81,17 @@ const ROW: Engagement = {
   dayEndsAt: DAY_ENDS,
   serverNow: SERVER_NOW,
   needsSettle: false,
+  shieldEveryWeeks: 4,
+  shieldCap: 2,
+  weeksToNextShield: 3,
+  savedWeekStart: null,
+  savedWeekStreak: null,
+  shieldEarnedWeek: null,
+  comebackVisitsDone: 0,
+  comebackVisitsGoal: 3,
+  comebackWindowDays: 10,
+  comebackWindowStart: null,
+  comebackWindowEndsOn: null,
   pendingMilestone: null,
 };
 
@@ -127,6 +140,7 @@ describe('cell states', () => {
       outline: 'none',
       glyph: null,
       milestone: null,
+      shield: false,
       hoursText: null,
       bold: false,
       faded: false,
@@ -146,6 +160,7 @@ describe('cell states', () => {
       outline: 'none',
       glyph: 'check',
       milestone: null,
+      shield: false,
       hoursText: null,
       bold: false,
       faded: false,
@@ -166,6 +181,7 @@ describe('cell states', () => {
       outline: 'accent',
       glyph: null,
       milestone: null,
+      shield: false,
       hoursText: null,
       bold: true,
       faded: false,
@@ -193,6 +209,7 @@ describe('cell states', () => {
       outline: 'warning',
       glyph: 'schedule',
       milestone: null,
+      shield: false,
       hoursText: '6 h',
       bold: true,
       faded: false,
@@ -424,6 +441,7 @@ describe('the screen states', () => {
       { kind: 'visit', label: 'Visited' },
       { kind: 'today', label: 'Today' },
       { kind: 'milestone', label: 'Milestone' },
+      { kind: 'shield', label: 'Saved by a Shield' },
     ]);
     expect(view.weeks).toEqual([]);
     expect(view.summary).toBeNull();
@@ -483,10 +501,11 @@ describe('milestone markers (Story 30.7)', () => {
     expect(cell(view, '2026-11-10').accessibilityLabel).toBe(lang === 'en' ? 'Tuesday 10 November: your 30th visit' : 'mardi 10 novembre : votre 30e visite');
     expect(cell(view, '2026-11-12').milestone).toBeNull();
   });
-  it.each(LANGS)('the legend lists Milestone third, in %s', (lang) => {
+  it.each(LANGS)('the legend lists Milestone third and the Shield fourth, in %s', (lang) => {
     const view = build(withLang(lang));
-    expect(view.legend.map((item) => item.kind)).toEqual(['visit', 'today', 'milestone']);
+    expect(view.legend.map((item) => item.kind)).toEqual(['visit', 'today', 'milestone', 'shield']);
     expect(view.legend[2].label).toBe(lang === 'en' ? 'Milestone' : 'Étape');
+    expect(view.legend[3].label).toBe(lang === 'en' ? 'Saved by a Shield' : 'Sauvé par un bouclier');
   });
   it.each(LANGS)('the day detail line of a tapped milestone day reads the catalog line (%s)', (lang) => {
     const view = build(withLang(lang, { monthData: MILESTONE_MONTH, selected: '2026-11-10' }));
@@ -595,6 +614,14 @@ describe('the device cache', () => {
     await writeCalendarMonth('u1', 'g1', '2026-11-01', ['2026-11-03'], { '2026-11-03': 7 });
     expect((await readCalendarCache('u1', 'g1')).milestones).toEqual({ '2026-11-01': { '2026-11-03': 7 } });
   });
+  it('keeps the Shield-saved weeks per month in parallel, drops a damaged one, and trims them with the month (Story 31.1)', async () => {
+    await writeCalendarMonth('u1', 'g1', '2026-11-01', ['2026-11-03'], {}, ['2026-11-09']);
+    expect((await readCalendarCache('u1', 'g1')).savedWeeks).toEqual({ '2026-11-01': ['2026-11-09'] });
+    await writeCalendarMonth('u1', 'g1', '2026-10-01', ['2026-10-05'], {});
+    expect((await readCalendarCache('u1', 'g1')).savedWeeks).toEqual({ '2026-11-01': ['2026-11-09'] });
+    store.set(calendarCacheKey('u1', 'g1'), JSON.stringify({ months: { '2026-11-01': [] }, firstVisitDay: null, savedWeeks: { '2026-11-01': ['2026-11-09', 'x', 5], bad: ['2026-11-09'] } }));
+    expect((await readCalendarCache('u1', 'g1')).savedWeeks).toEqual({ '2026-11-01': ['2026-11-09'] });
+  });
   it('a damaged marker is dropped, never drawn', async () => {
     store.set(
       calendarCacheKey('u1', 'g1'),
@@ -694,5 +721,60 @@ describe('the milestone plumbing of the calendar hook (Story 30.7)', () => {
       milestones: { '2026-10-01': { '2026-10-05': 7 }, '2026-11-01': { '2026-11-10': 30 } },
     });
     expect(readyFromCache(next, '2026-11-01')).toMatchObject({ milestones: { '2026-11-10': 30 } });
+  });
+});
+
+describe('Shield-saved weeks (Story 31.1)', () => {
+  // The week of Monday 9 November 2026: its Sunday is the 15th.
+  const SAVED = { kind: 'ready' as const, days: DAYS, fromCache: false, savedWeeks: ['2026-11-09'] };
+
+  it.each(LANGS)('the Sunday of a saved week carries the shield glyph and its words, no other day does (%s)', (lang) => {
+    const view = build({ ...withLang(lang), monthData: SAVED });
+    expect(cell(view, '2026-11-15').shield).toBe(true);
+    expect(cell(view, '2026-11-14').shield).toBe(false);
+    expect(cell(view, '2026-11-09').shield).toBe(false);
+    expect(cell(view, '2026-11-08').shield).toBe(false);
+    const words = lang === 'en' ? 'Your Shield saved Sunday 15 November. Your run goes on.' : 'Votre bouclier a sauvé le dimanche 15 novembre. Votre série continue.';
+    expect(cell(view, '2026-11-15').accessibilityLabel).toContain(words);
+    expect(cell(view, '2026-11-14').accessibilityLabel).not.toContain('Shield');
+  });
+
+  it('the saved row has the hairline flag, the others do not', () => {
+    const view = build({ monthData: SAVED });
+    expect(view.weeks.filter((w) => w.saved).map((w) => w.key)).toEqual(['2026-11-09']);
+  });
+
+  it.each(LANGS)('a tapped day inside the saved week adds the short saved-week sentence to the detail line (%s)', (lang) => {
+    const view = build({ ...withLang(lang), monthData: SAVED, selected: '2026-11-12' });
+    expect(view.detail).toContain(lang === 'en' ? 'Your Shield saved the week of 9 November.' : 'Votre bouclier a sauvé la semaine du 9 novembre.');
+    expect(build({ ...withLang(lang), monthData: SAVED, selected: '2026-11-04' }).detail).not.toContain('Shield');
+  });
+
+  it('a month with no saved weeks, or a copy stored before 31.1, shows no glyph and no hairline', () => {
+    const view = build();
+    expect(view.weeks.some((w) => w.saved)).toBe(false);
+    expect(view.weeks.flatMap((w) => w.cells).some((c) => c.kind === 'day' && c.shield)).toBe(false);
+  });
+
+  it('the saved weeks travel through the server read and the in-memory cache, and an old cache still reads', () => {
+    expect(readyFromServer([], ['2026-11-09'])).toMatchObject({ savedWeeks: ['2026-11-09'] });
+    expect('savedWeeks' in readyFromServer([])).toBe(false);
+    const cache = cacheWithMonth({ months: {}, firstVisitDay: null }, '2026-11-01', ['2026-11-10'], {}, ['2026-11-09']);
+    expect(cache.savedWeeks).toEqual({ '2026-11-01': ['2026-11-09'] });
+    expect(readyFromCache(cache, '2026-11-01')).toMatchObject({ fromCache: true, savedWeeks: ['2026-11-09'] });
+    expect(readyFromCache({ months: { '2026-11-01': ['2026-11-10'] }, firstVisitDay: null }, '2026-11-01')).not.toHaveProperty('savedWeeks');
+  });
+
+  it('savedWeeksChoice: only a successful read is authoritative for the cache', () => {
+    // success: shown and stored, an empty list included (the server said "none")
+    expect(savedWeeksChoice({ status: 'success', weeks: ['2026-11-09'] }, ['2026-10-26'])).toEqual({ shown: ['2026-11-09'], store: ['2026-11-09'] });
+    expect(savedWeeksChoice({ status: 'success', weeks: [] }, ['2026-10-26'])).toEqual({ shown: [], store: [] });
+    // failure with a cached copy: the copy is shown and nothing new is stored
+    expect(savedWeeksChoice({ status: 'error' }, ['2026-10-26'])).toEqual({ shown: ['2026-10-26'], store: undefined });
+    // failure without a copy: nothing is shown, and the empty fallback is NOT written as if the server had said so
+    expect(savedWeeksChoice({ status: 'error' }, undefined)).toEqual({ shown: [], store: undefined });
+    const base: CalendarCache = { months: {}, firstVisitDay: null, savedWeeks: { '2026-11-01': ['2026-11-09'] } };
+    expect(cacheWithMonth(base, '2026-11-01', ['2026-11-10'], {}, undefined).savedWeeks).toEqual({ '2026-11-01': ['2026-11-09'] });
+    expect(cacheWithMonth({ months: {}, firstVisitDay: null }, '2026-11-01', [], {}, undefined)).not.toHaveProperty('savedWeeks');
   });
 });

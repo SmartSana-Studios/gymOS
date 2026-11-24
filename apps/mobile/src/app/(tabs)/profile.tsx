@@ -32,6 +32,7 @@ import { readEngagementCache } from '@/lib/weeklyRing';
 import { getMemberPreferences, updateMemberPreferences } from '@/services/notificationPreferences';
 import { clearShown } from '@/lib/celebrationView';
 import { clearCachedProgressPayload } from '@/services/progress';
+import { clearShieldNotices } from '@/services/shieldNotices';
 import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
 import { getMyEngagement } from '@/services/engagement';
 import { getMyLeaderboardSettings, setLeaderboardVisibility, type LeaderboardSettings } from '@/services/leaderboard';
@@ -510,6 +511,7 @@ export default function ProfileScreen() {
           // prior member's cached weight/measurements/photos.
           clearCachedProgressPayload();
           void clearShown();
+          void clearShieldNotices();
           clearCachedWorkoutPlan();
           void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
         },

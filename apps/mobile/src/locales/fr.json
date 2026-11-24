@@ -534,7 +534,8 @@
       "nextShield_one": "Encore {{count}} semaine avant votre prochain bouclier",
       "nextShield_other": "Encore {{count}} semaines avant votre prochain bouclier",
       "shieldMax": "Vous détenez le maximum de {{max}} boucliers.",
-      "daily": "{{n}} jours d'affilée",
+      "daily_one": "{{count}} jour d'affilée",
+      "daily_other": "{{count}} jours d'affilée",
       "best_one": "Meilleure série : {{count}} semaine",
       "best_other": "Meilleure série : {{count}} semaines"
     },
@@ -563,12 +564,14 @@
       "saved": {
         "week_one": "Votre bouclier a sauvé la semaine du {{date}}. Votre série reste à {{count}} semaine.",
         "week_other": "Votre bouclier a sauvé la semaine du {{date}}. Votre série reste à {{count}} semaines.",
+        "weekShort": "Votre bouclier a sauvé la semaine du {{date}}.",
         "day": "Votre bouclier a sauvé le {{date}}. Votre série continue."
       },
       "earned": "Vous avez gagné un bouclier. Il évitera qu'une semaine manquée mette fin à votre série.",
       "explainer": {
         "title": "Bouclier de série",
-        "body": "Chaque tranche de 4 semaines d'affilée vous rapporte un bouclier. Si vous manquez une semaine, un bouclier maintient votre série tout seul. Vous pouvez en détenir {{max}} au maximum. Les boucliers ne s'achètent pas et ne se donnent pas."
+        "body_one": "Chaque tranche de {{count}} semaine d'affilée vous rapporte un bouclier. Si vous manquez une semaine, un bouclier maintient votre série tout seul. Vous pouvez en détenir {{max}} au maximum. Les boucliers ne s'achètent pas et ne se donnent pas.",
+        "body_other": "Chaque tranche de {{count}} semaines d'affilée vous rapporte un bouclier. Si vous manquez une semaine, un bouclier maintient votre série tout seul. Vous pouvez en détenir {{max}} au maximum. Les boucliers ne s'achètent pas et ne se donnent pas."
       },
       "gotIt": "Compris",
       "mascot": ""
@@ -640,7 +643,8 @@
       "weekly": "Venez aujourd'hui pour fermer votre cercle.",
       "hoursLeft_one": "{{count}} heure restante",
       "hoursLeft_other": "{{count}} heures restantes",
-      "minutesLeft": "{{m}} min restantes"
+      "minutesLeft": "{{m}} min restantes",
+      "shieldReady": "Un bouclier est prêt si vous ne pouvez pas venir."
     },
     "home": {
       "error": "Impossible de charger votre semaine. Tirez pour actualiser.",
@@ -656,7 +660,8 @@
       "legend": {
         "visit": "Visite",
         "today": "Aujourd'hui",
-        "milestone": "Étape"
+        "milestone": "Étape",
+        "shield": "Sauvé par un bouclier"
       },
       "day": {
         "visited": "{{date}} : visite",

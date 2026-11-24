@@ -74,7 +74,7 @@ $f$;
 select is(
   (select array_to_string(array(select x.name from pg_proc p, unnest(p.proargnames, p.proargmodes) with ordinality as x(name, mode, ord)
      where p.oid = 'private.engagement_state_view_at(uuid, timestamptz)'::regprocedure and x.mode = 't' order by x.ord), ',')),
-  'enabled,gym_today,week_start,week_end,in_release_week,goal,goal_is_default,pending_goal,pending_effective_week,visits_this_week,goal_met,visited_today,streak_weeks,streak_if_met,best_streak_weeks,has_settled_week,days_left_in_week,visits_needed,at_risk_weekly,at_risk_daily,daily_run,shields_held,comeback_state,day_starts_at,day_ends_at,server_now,needs_settle,pending_milestone',
+  'enabled,gym_today,week_start,week_end,in_release_week,goal,goal_is_default,pending_goal,pending_effective_week,visits_this_week,goal_met,visited_today,streak_weeks,streak_if_met,best_streak_weeks,has_settled_week,days_left_in_week,visits_needed,at_risk_weekly,at_risk_daily,daily_run,shields_held,comeback_state,day_starts_at,day_ends_at,server_now,needs_settle,shield_every_weeks,shield_cap,weeks_to_next_shield,saved_week_start,saved_week_streak,shield_earned_week,comeback_visits_done,comeback_visits_goal,comeback_window_days,comeback_window_start,comeback_window_ends_on,pending_milestone',
   'the view returns exactly the AC columns, in order');
 select is((select proretset from pg_proc where oid = 'private.engagement_state_view_at(uuid, timestamptz)'::regprocedure), true, 'it returns a set (one row per member that exists)');
 select is((select provolatile::text from pg_proc where oid = 'private.engagement_state_view(uuid)'::regprocedure), 's', 'engagement_state_view is STABLE');
@@ -106,11 +106,14 @@ select is(
     'enabled', true, 'gym_today', '2026-03-07', 'week_start', '2026-03-02', 'week_end', '2026-03-08', 'in_release_week', false,
     'goal', 3, 'goal_is_default', true, 'pending_goal', null, 'pending_effective_week', null,
     'visits_this_week', 1, 'goal_met', false, 'visited_today', false,
-    'streak_weeks', 0, 'streak_if_met', null, 'best_streak_weeks', 0, 'has_settled_week', false,
+    'streak_weeks', null, 'streak_if_met', null, 'best_streak_weeks', 0, 'has_settled_week', false,
     'days_left_in_week', 2, 'visits_needed', 2, 'at_risk_weekly', true, 'at_risk_daily', false,
     'daily_run', null, 'shields_held', 0, 'comeback_state', 'none',
     'day_starts_at', '2026-03-06T23:00:00+00:00', 'day_ends_at', '2026-03-07T23:00:00+00:00', 'server_now', '2026-03-07T11:00:00+00:00',
-    'needs_settle', false, 'pending_milestone', null),
+    'needs_settle', false,
+    'shield_every_weeks', 4, 'shield_cap', 2, 'weeks_to_next_shield', null, 'saved_week_start', null, 'saved_week_streak', null, 'shield_earned_week', null,
+    'comeback_visits_done', 0, 'comeback_visits_goal', 3, 'comeback_window_days', 10, 'comeback_window_start', null, 'comeback_window_ends_on', null,
+    'pending_milestone', null),
   'every column: Saturday, goal 3, one visit day (two check-ins that day count once; the next week and the voided visit do not), at risk');
 
 -- ============================================================================
@@ -194,7 +197,7 @@ select is(pg_temp.cs(15, '2026-03-20 12:00+01', array['streak_weeks', 'best_stre
 select pg_temp.visit(25, date '2026-03-16');
 select is(pg_temp.cs(25, '2026-03-20 12:00+01', array['streak_weeks', 'goal_met', 'streak_if_met']), '2|false|null', 'the open week not met yet: streak_if_met is NULL');
 select is(pg_temp.cs(26, '2026-03-31 12:00+01', array['streak_weeks', 'best_streak_weeks']), '1|2', 'met, met, missed, met: the streak is 1 and the best stays 2');
-select is(pg_temp.cs(1, '2026-03-20 12:00+01', array['streak_weeks', 'best_streak_weeks', 'has_settled_week']), '0|0|false', 'a member with no week fact: 0, 0 and has_settled_week false');
+select is(pg_temp.cs(1, '2026-03-20 12:00+01', array['streak_weeks', 'best_streak_weeks', 'has_settled_week']), 'null|0|false', 'a member with no week fact: no run (NULL, not 0), best 0 and has_settled_week false');
 select is(pg_temp.c(15, '2026-03-12 12:00+01', 'streak_weeks'), '2', 'the streak read is the same wherever in the open week the call is made');
 
 -- ============================================================================
@@ -219,7 +222,7 @@ select is(pg_temp.c(24, '2026-03-21 12:00+01', 'needs_settle'), 'true', 'a week 
 -- After the settle that the view asks for, it no longer asks.
 select is(private.settle_engagement(pg_temp.m(16), pg_temp.id(1, 1), date '2026-03-14'), 1, 'settle writes the one closed week of member 16');
 select is(pg_temp.c(16, '2026-03-14 12:00+01', 'needs_settle'), 'false', 'and then needs_settle is false');
-select is(pg_temp.cs(16, '2026-03-14 12:00+01', array['streak_weeks', 'best_streak_weeks', 'has_settled_week']), '0|0|true', 'the settled week (1 visit, goal 3: missed) is in the fold: streak 0, has_settled_week true');
+select is(pg_temp.cs(16, '2026-03-14 12:00+01', array['streak_weeks', 'best_streak_weeks', 'has_settled_week']), 'null|0|true', 'the settled week (1 visit, goal 3: missed) is in the fold: no run (NULL), has_settled_week true');
 
 -- ============================================================================
 -- The day: local midnight, 23 h and 25 h days, the gym's current timezone

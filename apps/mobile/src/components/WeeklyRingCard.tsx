@@ -1,8 +1,13 @@
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AtRiskHint } from '@/components/AtRiskHint';
+import { ComebackCard } from '@/components/ComebackCard';
 import { GoalRing, WARNING_COLOR } from '@/components/GoalRing';
+import { ShieldChip } from '@/components/ShieldChip';
+import { ShieldExplainerSheet } from '@/components/ShieldExplainerSheet';
+import { ShieldNoticeRow } from '@/components/ShieldNoticeRow';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/Card';
 import { IconChip } from '@/components/ui/IconChip';
@@ -17,12 +22,15 @@ export interface WeeklyRingSectionProps {
   onGoalHintPress: () => void;
   /** The whole card opens the calendar (Story 30.5). The goal button and the goal hint above it stay separate targets. */
   onPressCard: () => void;
+  /** Story 31.1: the member dismissed the Shield notice row with this id. */
+  onDismissNotice: (id: string) => void;
 }
 
 /** Story 30.4 / MA-09 N1: the Home "This week" section: heading row, goal button, then one flat Card with the Goal Ring, the streak area, the caption
  * and the footer. Layout only: `view` (lib/weeklyRing.ts) holds every decision and every word. The card is one button that opens the calendar (Story
- * 30.5, `onPressCard`); the skeleton and the error face are not. The Epic 31 slots (Shield chip, comeback card, daily chip, next-Shield line) render nothing. */
-export function WeeklyRingSection({ view, onGoalPress, onGoalHintPress, onPressCard }: WeeklyRingSectionProps) {
+ * 30.5, `onPressCard`); the skeleton and the error face are not. Story 31.1 adds, BESIDE that button (siblings, so their taps never open the calendar), the Shield
+ * chip with its next-Shield line, one notice row and the comeback card; the daily chip stays unrendered. */
+export function WeeklyRingSection({ view, onGoalPress, onGoalHintPress, onPressCard, onDismissNotice }: WeeklyRingSectionProps) {
   const theme = useTheme();
   if (view.kind === 'hidden') return null;
 
@@ -67,7 +75,32 @@ export function WeeklyRingSection({ view, onGoalPress, onGoalHintPress, onPressC
           )}
         </Card>
       )}
+
+      {view.kind === 'card' && <ShieldArea view={view} onDismissNotice={onDismissNotice} />}
     </View>
+  );
+}
+
+/** Story 31.1: everything Shield and comeback under the card. The chip and the line sit in one row; the explainer sheet opens from the chip. */
+function ShieldArea({ view, onDismissNotice }: { view: CardView; onDismissNotice: (id: string) => void }) {
+  const [explainerOpen, setExplainerOpen] = useState(false);
+  const { chip, nextLine, notice, explainer, comeback } = view.shield;
+  return (
+    <>
+      {(chip || nextLine) && (
+        <View style={styles.shieldRow}>
+          {chip && <ShieldChip chip={chip} onPress={() => setExplainerOpen(true)} />}
+          {nextLine && (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.shieldLine}>
+              {nextLine}
+            </ThemedText>
+          )}
+        </View>
+      )}
+      {notice && <ShieldNoticeRow notice={notice} onDismiss={onDismissNotice} />}
+      {comeback && <ComebackCard view={comeback} />}
+      {chip && <ShieldExplainerSheet visible={explainerOpen} view={explainer} onClose={() => setExplainerOpen(false)} />}
+    </>
   );
 }
 
@@ -189,6 +222,15 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   chipText: {
+    flexShrink: 1,
+  },
+  shieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    columnGap: Spacing.three,
+  },
+  shieldLine: {
     flexShrink: 1,
   },
   noteRow: {

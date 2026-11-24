@@ -40,9 +40,16 @@ export function AtRiskHint({ hint }: { hint: HintView }) {
         accessibilityLabel={hint.label}
         style={[styles.hint, { opacity, borderColor: reduceMotion ? WARNING_COLOR : 'transparent' }]}>
         <MaterialIcons name="schedule" size={20} color={WARNING_COLOR} />
-        <ThemedText type="small" style={[styles.hintText, { color: WARNING_COLOR }]}>
-          {hint.text} {hint.timeLeft}
-        </ThemedText>
+        <View style={styles.hintText}>
+          <ThemedText type="small" style={{ color: WARNING_COLOR }}>
+            {hint.text} {hint.timeLeft}
+          </ThemedText>
+          {hint.shieldReady && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {hint.shieldReady}
+            </ThemedText>
+          )}
+        </View>
       </Animated.View>
     </View>
   );

@@ -26,6 +26,7 @@ const REQUIRED: readonly (readonly [string, boolean])[] = [
   ["engage.atRisk.weekly", false],
   ["engage.atRisk.hoursLeft", true],
   ["engage.atRisk.minutesLeft", false],
+  ["engage.atRisk.shieldReady", false],
   ["engage.calendar.title", false],
   ["engage.calendar.prev", false],
   ["engage.calendar.next", false],
@@ -33,6 +34,7 @@ const REQUIRED: readonly (readonly [string, boolean])[] = [
   ["engage.calendar.legend.visit", false],
   ["engage.calendar.legend.today", false],
   ["engage.calendar.legend.milestone", false],
+  ["engage.calendar.legend.shield", false],
   ["engage.calendar.day.visited", false],
   ["engage.calendar.day.none", false],
   ["engage.calendar.day.pending", false],
@@ -59,7 +61,7 @@ const REQUIRED: readonly (readonly [string, boolean])[] = [
   ["engage.streak.startsMonday", false],
   ["engage.streak.nextShield", true],
   ["engage.streak.shieldMax", false],
-  ["engage.streak.daily", false],
+  ["engage.streak.daily", true],
   ["engage.streak.best", true],
   ["engage.goal.title", false],
   ["engage.goal.prompt", false],
@@ -78,7 +80,8 @@ const REQUIRED: readonly (readonly [string, boolean])[] = [
   ["engage.shield.saved.day", false],
   ["engage.shield.earned", false],
   ["engage.shield.explainer.title", false],
-  ["engage.shield.explainer.body", false],
+  ["engage.shield.saved.weekShort", false],
+  ["engage.shield.explainer.body", true],
   ["engage.shield.gotIt", false],
   ["engage.comeback.title", false],
   ["engage.comeback.best", true],
@@ -254,10 +257,22 @@ describe('engagement catalog: plural forms', () => {
     expect(i18n.t('engage.atRisk.hoursLeft', { count: 1 })).toBe('1 hour left');
     expect(i18n.t('engage.atRisk.hoursLeft', { count: 6 })).toBe('6 hours left');
     expect(i18n.t('engage.atRisk.minutesLeft', { m: 40 })).toBe('40 min left');
+    expect(i18n.t('engage.shield.explainer.body', { count: 4, max: 2 })).toContain('Every 4 weeks in a row earns a Shield');
+    expect(i18n.t('engage.shield.explainer.body', { count: 1, max: 2 })).toContain('Every 1 week in a row');
+    expect(i18n.t('engage.streak.daily', { count: 1 })).toBe('1 day in a row');
+    expect(i18n.t('engage.streak.daily', { count: 5 })).toBe('5 days in a row');
+    expect(i18n.t('engage.shield.chip', { count: 1 })).toBe('1 Shield');
+    expect(i18n.t('engage.shield.chip', { count: 2 })).toBe('2 Shields');
     await i18n.changeLanguage('fr');
     expect(i18n.t('engage.atRisk.hoursLeft', { count: 1 })).toBe('1 heure restante');
     expect(i18n.t('engage.atRisk.hoursLeft', { count: 6 })).toBe('6 heures restantes');
     expect(i18n.t('engage.ring.goalHint.default', { count: 4 })).toContain('4 jours par semaine');
+    expect(i18n.t('engage.shield.explainer.body', { count: 4, max: 2 })).toContain('Chaque tranche de 4 semaines');
+    expect(i18n.t('engage.shield.explainer.body', { count: 1, max: 2 })).toContain('Chaque tranche de 1 semaine');
+    expect(i18n.t('engage.streak.daily', { count: 1 })).toBe("1 jour d'affilée");
+    expect(i18n.t('engage.streak.daily', { count: 5 })).toBe("5 jours d'affilée");
+    expect(i18n.t('engage.shield.chip', { count: 1 })).toBe('1 bouclier');
+    expect(i18n.t('engage.shield.chip', { count: 2 })).toBe('2 boucliers');
     expect(i18n.t('engage.ring.goalLabel', { count: 1 })).toBe('Objectif : 1 jour');
     expect(i18n.t('engage.ring.goalLabel', { count: 5 })).toBe('Objectif : 5 jours');
     expect(i18n.t('engage.profile.goal.pending', { count: 3, next: 4, date: 'lun. 24 nov.' })).toBe('3 jours, puis 4 dès le lun. 24 nov.');
@@ -269,19 +284,49 @@ describe('engagement catalog: operator-tunable values', () => {
   // edit never leaves the copy wrong. A literal count of days or weeks in a catalog value is a copy of a config value (the milestone numbers of the
   // celebration, 7, 30 and 100 visits, are product constants and name visits, not days or weeks).
   const LITERAL_CONFIG = /(^|[^\d{])\d+\s*(days?|weeks?|jours?|semaines?)\b/i;
-  // Epic 31 turns the Shield explainer's "Every 4 weeks" into a placeholder (deferred-work.md, 30.1 review); until its consumer ships it is the one exception.
-  const KNOWN_LITERALS = ['engage.shield.explainer.body'];
+  // Story 31.1 turned the Shield explainer's "Every 4 weeks" into a {{count}} placeholder (the server's shield_every_weeks), so no key is excepted.
 
   it.each(['en', 'fr'] as const)('no engage.* value in %s carries a literal day or week count', (lang) => {
     const flat = lang === 'en' ? EN : FR;
-    const offenders = engageKeys(flat).filter((k) => !KNOWN_LITERALS.includes(k) && LITERAL_CONFIG.test(flat[k]));
+    const offenders = engageKeys(flat).filter((k) => LITERAL_CONFIG.test(flat[k]));
     expect(offenders).toEqual([]);
+  });
+
+  it('the Shield explainer takes the interval and the cap as placeholders in both languages', () => {
+    for (const flat of [EN, FR]) {
+      for (const form of ['_one', '_other']) {
+        expect(placeholders(flat['engage.shield.explainer.body' + form])).toEqual(['count', 'max']);
+      }
+    }
   });
 
   it('the check can see a literal config value (positive control)', () => {
     expect(LITERAL_CONFIG.test('We started you at 3 days a week.')).toBe(true);
     expect(LITERAL_CONFIG.test('Nous démarrons à 3 jours par semaine.')).toBe(true);
     expect(LITERAL_CONFIG.test('We started you at {{count}} days a week.')).toBe(false);
+  });
+});
+
+describe('engagement catalog: Shield glossary', () => {
+  // UX glossary (FR-232): a Shield is never a "freeze", "insurance" or "token". French says "bouclier".
+  const BANNED = /freeze|insurance|token|assurance|jeton|gel\b/i;
+
+  it.each(['en', 'fr'] as const)('no engage.shield.* value in %s uses a banned word', (lang) => {
+    const flat = lang === 'en' ? EN : FR;
+    const offenders = Object.keys(flat).filter((k) => k.startsWith('engage.shield.') && BANNED.test(flat[k]));
+    expect(offenders).toEqual([]);
+  });
+
+  it('the glossary check can see a banned word (positive control)', () => {
+    expect(BANNED.test('Your streak freeze is ready')).toBe(true);
+    expect(BANNED.test('A streak token')).toBe(true);
+    expect(BANNED.test('Streak insurance')).toBe(true);
+    expect(BANNED.test('Your Shield saved the week')).toBe(false);
+  });
+
+  it('French names the Shield "bouclier"', () => {
+    expect(FR['engage.shield.chip_one']).toContain('bouclier');
+    expect(FR['engage.shield.earned']).toContain('bouclier');
   });
 });
 

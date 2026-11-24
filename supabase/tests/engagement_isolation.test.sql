@@ -82,26 +82,33 @@ insert into calls values
   ('derived',       format($$select count(*)::text from private.engagement_derived_state(%L)$$, pg_temp.m(3))),
   ('rebuild',       format($$select count(*)::text from private.rebuild_engagement(%L, date '2026-03-16')$$, pg_temp.m(3))),
   ('append_guard',  $$select private.engagement_facts_append_only_guard()::text$$),
-  ('epoch_guard',   $$select private.engagement_epoch_guard()::text$$);
+  ('epoch_guard',   $$select private.engagement_epoch_guard()::text$$),
+  ('shield_params', $$select count(*)::text from private.engagement_shield_params()$$),
+  ('shield_walk',   $$select count(*)::text from private.engagement_shield_walk('[]'::jsonb, true, 4, 2)$$),
+  ('comeback_walk', $$select count(*)::text from private.engagement_comeback_walk('[]'::jsonb, '{}'::date[], date '2026-03-16', 3, 10)$$),
+  ('comeback_fold', $$select count(*)::text from private.engagement_comeback_fold('[]'::jsonb, '[]'::jsonb, 10)$$),
+  ('comeback_live', format($$select count(*)::text from private.engagement_comeback_live(%L, %L, 'active', date '2026-03-16', null, 3, 10)$$, pg_temp.m(3), pg_temp.id(1, 1))),
+  ('day_guard',     $$select private.engagement_daily_streak_enabled()::text$$),
+  ('day_reserve',   $$select count(*)::text from private.engagement_day_reservation(2, 1, false)$$);
 
 select is(
   (select count(*)::int from calls c
    where left(pg_temp.as_role('authenticated', pg_temp.id(2, 3), pg_temp.id(1, 1), 'member', c.sql), 6) = '42501:'),
-  9, 'a member of gym A is refused (42501) on all nine functions');
+  16, 'a member of gym A is refused (42501) on all sixteen functions (31.1 added seven)');
 select is(
   (select count(*)::int from calls c
    where left(pg_temp.as_role('authenticated', pg_temp.id(2, 1), pg_temp.id(1, 1), 'owner', c.sql), 6) = '42501:'),
-  9, 'the owner of gym A is refused on all nine');
+  16, 'the owner of gym A is refused on all sixteen');
 select is(
   (select count(*)::int from calls c
    where left(pg_temp.as_role('authenticated', pg_temp.id(2, 2), pg_temp.id(1, 2), 'owner', c.sql), 6) = '42501:'),
-  9, 'the owner of gym B is refused on all nine');
+  16, 'the owner of gym B is refused on all sixteen');
 select is(
   (select count(*)::int from calls c where left(pg_temp.as_role('anon', null, null, 'anon', c.sql), 6) = '42501:'),
-  9, 'anon is refused on all nine');
+  16, 'anon is refused on all sixteen');
 select is(
   (select count(*)::int from calls c where left(pg_temp.as_role('service_role', null, null, 'service_role', c.sql), 6) = '42501:'),
-  9, 'service_role is refused on all nine');
+  16, 'service_role is refused on all sixteen');
 select is((select count(*)::int from engagement_facts) + (select count(*)::int from engagement_state), 0, 'none of those calls wrote a fact or a state row');
 
 -- ============================================================================
@@ -131,7 +138,7 @@ select is(private.settle_engagement(pg_temp.m(5), pg_temp.id(1, 1), date '2026-0
 select is(pg_temp.digest(2), (select b_after_b from digests), 'gym A''s settles left every gym B row exactly as it was (digest of facts and state)');
 select is((select count(*)::int from engagement_facts where member_id in (pg_temp.m(3), pg_temp.m(5)) and gym_id <> pg_temp.id(1, 1)), 0, 'every fact of a gym A member carries gym A');
 select is((select count(*)::int from engagement_state where member_id in (pg_temp.m(3), pg_temp.m(5)) and gym_id <> pg_temp.id(1, 1)), 0, 'and so does every state row');
-select is((select count(*)::int from engagement_facts where gym_id = pg_temp.id(1, 2)), 2, 'gym B holds exactly its own member''s two facts');
+select is((select count(*)::int from engagement_facts where gym_id = pg_temp.id(1, 2)), 3, 'gym B holds exactly its own member''s facts (two weeks and the comeback the missed week started)');
 
 create temp table digests2 as select pg_temp.digest(1) as a, pg_temp.digest(2) as b;
 select throws_ok(format($$select private.settle_engagement(%L, %L, date '2026-03-23')$$, pg_temp.m(4), pg_temp.id(1, 1)), 'P0001', null, 'a gym B member settled as gym A raises');

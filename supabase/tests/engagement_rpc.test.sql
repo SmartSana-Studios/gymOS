@@ -126,7 +126,7 @@ select is(pg_temp.asrole('authenticated', 'select count(*)::text from public.my_
 select is((select to_jsonb(v) from public.my_engagement() v), (select to_jsonb(v) from private.engagement_state_view_at(pg_temp.m(10), now()) v),
           'it is the view row of the caller''s own member row at now()');
 select is((select needs_settle from public.my_engagement()), true, 'member 10 has closed weeks to settle (needs_settle)');
-select is((select streak_weeks from public.my_engagement()), 0, 'and nothing is settled yet');
+select is((select streak_weeks from public.my_engagement()), null::integer, 'and nothing is settled yet (no run: streak_weeks is NULL, not 0, since 31.1)');
 select is(pg_temp.same_tables(), true, 'my_engagement wrote nothing: engagement_state and engagement_facts are identical before and after, contents included');
 select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(10)), 0, 'no fact exists for the caller');
 select is((select enabled from public.my_engagement()), true, 'enabled is true with the epoch set');

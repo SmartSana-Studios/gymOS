@@ -51,7 +51,7 @@ create function pg_temp.facts(p_n int) returns text language sql stable as $f$
   select coalesce(string_agg(e.subject_key || ':' || e.revision || ':' || e.outcome || ':' || e.goal || ':' || e.visits, ' ' order by e.subject_key), '-')
   from private.effective_engagement_facts(pg_temp.m(p_n)) e where e.kind = 'week'
 $f$;
-create function pg_temp.nrows(p_n int) returns int language sql stable as $f$ select count(*)::int from engagement_facts where member_id = pg_temp.m(p_n) $f$;
+create function pg_temp.nrows(p_n int) returns int language sql stable as $f$ select count(*)::int from engagement_facts where member_id = pg_temp.m(p_n) and kind = 'week' $f$;  -- week rows only since 31.1 (a run that ends also writes a comeback fact)
 create function pg_temp.st(p_n int) returns text language sql stable as $f$
   select coalesce((select coalesce(s.settled_through::text, 'null') || '|' || coalesce(s.dirty_from::text, 'null') from engagement_state s where s.member_id = pg_temp.m(p_n)), 'none')
 $f$;
@@ -344,22 +344,22 @@ select is(pg_temp.facts(19), '2026-03-02:1:met:3:3 2026-03-09:2:met:3:3 2026-03-
 select ok(pg_temp.same(19, date '2026-03-30'), 'frozen goal: derived equals rebuild');
 
 -- ============================================================================
--- A Shield-saved week is not taken back by a recount (the fold of Epic 31 plugs in here)
+-- A saved week is decided by the in-order fold, not kept by the stand-in rule of 30.2 (31.1)
 -- ============================================================================
 select pg_temp.visit(20, date '2026-03-03');
 insert into engagement_facts (member_id, gym_id, kind, subject_key, revision, outcome, goal, visits)
 values (pg_temp.m(20), pg_temp.id(1, 1), 'week', '2026-03-02', 1, 'saved', 3, 1);
 select pg_temp.mark_dirty(20, date '2026-03-02');
-select is(pg_temp.settle(20, date '2026-03-09'), '0', 'saved: a recount of a saved week with the same count writes nothing');
-select is(pg_temp.facts(20), '2026-03-02:1:saved:3:1', 'saved: the saved fact stays the effective one');
+select is(pg_temp.settle(20, date '2026-03-09'), '1', 'saved: a hand-written saved fact with no run behind it is re-decided (a Shield is only ever spent inside a run): revision 2');
+select is(pg_temp.facts(20), '2026-03-02:2:missed:3:1', 'saved: it is now missed');
 select pg_temp.visit(20, date '2026-03-04');
 select pg_temp.mark_dirty(20, date '2026-03-02');
 select is(pg_temp.settle(20, date '2026-03-09'), '1', 'saved: another visit below the goal is a new revision');
-select is(pg_temp.facts(20), '2026-03-02:2:saved:3:2', 'saved: still saved, with the new count');
+select is(pg_temp.facts(20), '2026-03-02:3:missed:3:2', 'saved: still missed, with the new count');
 select pg_temp.visit(20, date '2026-03-05');
 select pg_temp.mark_dirty(20, date '2026-03-02');
 select is(pg_temp.settle(20, date '2026-03-09'), '1', 'saved: reaching the goal makes it met');
-select is(pg_temp.facts(20), '2026-03-02:3:met:3:3', 'saved: revision 3 is met');
+select is(pg_temp.facts(20), '2026-03-02:4:met:3:3', 'saved: revision 4 is met');
 
 -- ============================================================================
 -- Epoch guard: frozen once any week fact exists

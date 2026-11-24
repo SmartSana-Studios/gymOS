@@ -33,6 +33,17 @@ const ROW = {
   day_ends_at: '2026-11-21T23:00:00+00:00',
   server_now: '2026-11-21T11:00:00+00:00',
   needs_settle: false,
+  shield_every_weeks: 4,
+  shield_cap: 2,
+  weeks_to_next_shield: 2,
+  saved_week_start: null,
+  saved_week_streak: null,
+  shield_earned_week: null,
+  comeback_visits_done: 0,
+  comeback_visits_goal: 3,
+  comeback_window_days: 10,
+  comeback_window_start: null,
+  comeback_window_ends_on: null,
   pending_milestone: null,
 };
 
@@ -70,6 +81,17 @@ describe('parseEngagement', () => {
       dayEndsAt: '2026-11-21T23:00:00+00:00',
       serverNow: '2026-11-21T11:00:00+00:00',
       needsSettle: false,
+      shieldEveryWeeks: 4,
+      shieldCap: 2,
+      weeksToNextShield: 2,
+      savedWeekStart: null,
+      savedWeekStreak: null,
+      shieldEarnedWeek: null,
+      comebackVisitsDone: 0,
+      comebackVisitsGoal: 3,
+      comebackWindowDays: 10,
+      comebackWindowStart: null,
+      comebackWindowEndsOn: null,
       pendingMilestone: null,
     });
   });
@@ -79,6 +101,48 @@ describe('parseEngagement', () => {
     expect(parsed?.pendingGoal).toBeNull();
     expect(parsed?.pendingEffectiveWeek).toBeNull();
     expect(parsed?.streakIfMet).toBe(3);
+  });
+
+  it('reads the Shield and comeback fields, and a null streak as no run', () => {
+    const parsed = parseEngagement([
+      {
+        ...ROW,
+        streak_weeks: null,
+        shields_held: 2,
+        weeks_to_next_shield: null,
+        saved_week_start: '2026-11-09',
+        saved_week_streak: 4,
+        shield_earned_week: '2026-11-02',
+        comeback_state: 'active',
+        comeback_visits_done: 1,
+        comeback_window_start: '2026-11-17',
+        comeback_window_ends_on: '2026-11-26',
+      },
+    ]);
+    expect(parsed).toMatchObject({
+      streakWeeks: null,
+      shieldsHeld: 2,
+      weeksToNextShield: null,
+      savedWeekStart: '2026-11-09',
+      savedWeekStreak: 4,
+      shieldEarnedWeek: '2026-11-02',
+      comebackState: 'active',
+      comebackVisitsDone: 1,
+      comebackWindowStart: '2026-11-17',
+      comebackWindowEndsOn: '2026-11-26',
+    });
+  });
+
+  it.each([
+    ['a missing Shield interval', [{ ...ROW, shield_every_weeks: undefined }]],
+    ['a missing cap', [{ ...ROW, shield_cap: null }]],
+    ['a missing comeback goal', [{ ...ROW, comeback_visits_goal: undefined }]],
+    ['a malformed saved week', [{ ...ROW, saved_week_start: '9 Nov' }]],
+    ['a malformed window end', [{ ...ROW, comeback_window_ends_on: 'soon' }]],
+    ['a fractional weeks_to_next_shield', [{ ...ROW, weeks_to_next_shield: 1.5 }]],
+    ['an undefined streak (a column the server dropped)', [{ ...ROW, streak_weeks: undefined }]],
+  ])('rejects %s', (_label, data) => {
+    expect(parseEngagement(data)).toBeNull();
   });
 
   it.each([

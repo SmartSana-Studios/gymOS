@@ -3941,6 +3941,11 @@ export type Database = {
           at_risk_weekly: boolean
           best_streak_weeks: number
           comeback_state: string
+          comeback_visits_done: number
+          comeback_visits_goal: number
+          comeback_window_days: number
+          comeback_window_ends_on: string | null
+          comeback_window_start: string | null
           daily_run: number | null
           day_ends_at: string
           day_starts_at: string
@@ -3956,15 +3961,21 @@ export type Database = {
           pending_effective_week: string | null
           pending_goal: number | null
           pending_milestone: number | null
+          saved_week_start: string | null
+          saved_week_streak: number | null
           server_now: string
+          shield_cap: number
+          shield_earned_week: string | null
+          shield_every_weeks: number
           shields_held: number
           streak_if_met: number | null
-          streak_weeks: number
+          streak_weeks: number | null
           visited_today: boolean
           visits_needed: number
           visits_this_week: number
           week_end: string
           week_start: string
+          weeks_to_next_shield: number | null
         }[]
       }
       my_first_visit_day: { Args: never; Returns: string }
@@ -3974,6 +3985,12 @@ export type Database = {
           hidden: boolean
           notice_seen: boolean
           own_label: string
+        }[]
+      }
+      my_saved_weeks: {
+        Args: { p_month: string }
+        Returns: {
+          week_start: string
         }[]
       }
       my_visit_days: {
@@ -4002,6 +4019,11 @@ export type Database = {
           at_risk_weekly: boolean
           best_streak_weeks: number
           comeback_state: string
+          comeback_visits_done: number
+          comeback_visits_goal: number
+          comeback_window_days: number
+          comeback_window_ends_on: string | null
+          comeback_window_start: string | null
           daily_run: number | null
           day_ends_at: string
           day_starts_at: string
@@ -4017,15 +4039,21 @@ export type Database = {
           pending_effective_week: string | null
           pending_goal: number | null
           pending_milestone: number | null
+          saved_week_start: string | null
+          saved_week_streak: number | null
           server_now: string
+          shield_cap: number
+          shield_earned_week: string | null
+          shield_every_weeks: number
           shields_held: number
           streak_if_met: number | null
-          streak_weeks: number
+          streak_weeks: number | null
           visited_today: boolean
           visits_needed: number
           visits_this_week: number
           week_end: string
           week_start: string
+          weeks_to_next_shield: number | null
         }[]
       }
       phone_has_membership: { Args: { p_phone: string }; Returns: boolean }
