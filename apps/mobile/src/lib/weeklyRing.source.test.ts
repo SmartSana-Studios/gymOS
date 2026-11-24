@@ -79,6 +79,7 @@ const SCREEN_FILES = [
   'lib/badgeCodes.ts',
   'lib/shareImage.ts',
   'lib/shareFlow.ts',
+  'lib/logoGate.ts',
   'services/badges.ts',
 ];
 
@@ -623,6 +624,16 @@ describe('the celebration screen (MA-20)', () => {
     expect(route.match(/router\.replace\(/g)).toHaveLength(2);
     expect(route).toContain("if (closeDestination(action) === 'badges') router.replace('/badges');");
     expect(route).toMatch(/if \(openHome && !closedRef\.current\) \{\s*closedRef\.current = true;\s*goHome\(\);/);
+  });
+
+  it('Story 31.3: the See your badges link calls close(\'badges\'), and the record and acknowledge start BEFORE the route is replaced with the shelf', () => {
+    const route = stripped(ROUTE);
+    expect(route).toMatch(/<Pressable[^>]*accessibilityLabel=\{view\.badgesLabel\} onPress=\{\(\) => close\('badges'\)\}/);
+    expect(route).toContain("onPress={() => close('continue')}");
+    const body = route.slice(route.indexOf('const close = useCallback('), route.indexOf('useEffect(() => {\n    const subscription = BackHandler'));
+    expect(body.indexOf('finishCelebration(CLOSE_DEPS')).toBeGreaterThan(-1);
+    expect(body.indexOf('finishCelebration(CLOSE_DEPS')).toBeLessThan(body.indexOf("router.replace('/badges')"));
+    expect(body.indexOf('closedRef.current = true')).toBeLessThan(body.indexOf('finishCelebration(CLOSE_DEPS'));
   });
 
   it('closes on [Keep going] and Android back only: the record is written before the call, swipe down is off', () => {

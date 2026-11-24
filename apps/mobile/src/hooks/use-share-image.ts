@@ -11,10 +11,12 @@ import {
   runShareFlow,
   shareFileName,
   shareStatusAfter,
+  visibleShareStatus,
   type ShareFlowDeps,
   type ShareStatus,
 } from '@/lib/shareFlow';
-import { buildShareComposition, buildShareOptions, captureSize, type ShareAnchor, type ShareComposition, type ShareImageInput } from '@/lib/shareImage';
+import { createLogoGate } from '@/lib/logoGate';
+import { buildShareComposition, buildShareOptions, captureSize, shareSubjectKey, type ShareAnchor, type ShareComposition, type ShareImageInput } from '@/lib/shareImage';
 
 /** How long the capture waits for the logo before making the image without it. */
 const LOGO_WAIT_MS = 3000;
@@ -57,27 +59,25 @@ function measureAnchor(node: View | null): Promise<ShareAnchor | undefined> {
 export function useShareImage(input: ShareImageInput | null): ShareImage {
   const captureViewRef = useRef<View | null>(null);
   const buttonRef = useRef<View | null>(null);
-  const [status, setStatus] = useState<ShareStatus>('idle');
+  // The result of a run belongs to the subject it was made for (a badge, a milestone): `status` below is idle for any other subject, so a message never
+  // follows the member to the next badge, a reopened sheet or a sheet that closed while the run was going.
+  const subjectKey = shareSubjectKey(input);
+  const [entry, setEntry] = useState<{ key: string | null; status: ShareStatus } | null>(null);
+  const status = visibleShareStatus(entry, subjectKey);
   // Decided once per view: an unavailable answer shows its message now and hides the button the next time the screen is shown.
   const [canShare] = useState(() => !isShareKnownUnavailable());
-  const runningRef = useRef(false);
+  const runningKeyRef = useRef<string | null>(null);
 
   const composition = useMemo(() => (input ? buildShareComposition(input) : null), [input]);
   const logoNode = composition?.nodes.find((node) => node.kind === 'logo');
   const logoKey = logoNode && logoNode.kind === 'logo' ? logoNode.uri : null;
 
-  const logoSettledRef = useRef(false);
-  const waitersRef = useRef<(() => void)[]>([]);
+  const [logoGate] = useState(() => createLogoGate(LOGO_WAIT_MS));
   useEffect(() => {
-    // A composition with no logo has already settled (its own mount effect says so before this runs): only a logo has to be waited for.
-    logoSettledRef.current = logoKey === null;
-  }, [logoKey]);
-  const onLogoSettled = useCallback(() => {
-    logoSettledRef.current = true;
-    const waiting = waitersRef.current;
-    waitersRef.current = [];
-    for (const resolve of waiting) resolve();
-  }, []);
+    // No logo: settled. A logo: re-armed until it loads or fails (or the wait gives up).
+    logoGate.reset(logoKey);
+  }, [logoGate, logoKey]);
+  const onLogoSettled = useCallback(() => logoGate.settle(), [logoGate]);
 
   const inputRef = useRef(input);
   useEffect(() => {
@@ -85,24 +85,16 @@ export function useShareImage(input: ShareImageInput | null): ShareImage {
   }, [input]);
 
   const share = useCallback(async () => {
-    if (runningRef.current || !inputRef.current) return;
-    runningRef.current = true;
-    setStatus('sharing');
+    const startKey = shareSubjectKey(inputRef.current);
+    if (!inputRef.current || startKey === null || runningKeyRef.current === startKey) return;
+    runningKeyRef.current = startKey;
+    setEntry({ key: startKey, status: 'sharing' });
     try {
       const dialogTitle = inputRef.current.t('engage.share.dialogTitle');
       const anchor = await measureAnchor(buttonRef.current);
       const deps: ShareFlowDeps = {
         isAvailable: () => Sharing.isAvailableAsync(),
-        logoReady: () =>
-          logoSettledRef.current
-            ? Promise.resolve()
-            : new Promise<void>((resolve) => {
-                const timer = setTimeout(resolve, LOGO_WAIT_MS);
-                waitersRef.current.push(() => {
-                  clearTimeout(timer);
-                  resolve();
-                });
-              }),
+        logoReady: () => logoGate.ready(),
         capture: async () => {
           await nextFrames();
           const node = captureViewRef.current;
@@ -128,13 +120,13 @@ export function useShareImage(input: ShareImageInput | null): ShareImage {
       };
       const outcome = await runShareFlow(deps);
       if (outcome.kind === 'unavailable') markShareUnavailable();
-      setStatus(shareStatusAfter(outcome));
+      setEntry({ key: startKey, status: shareStatusAfter(outcome) });
     } catch {
-      setStatus('error');
+      setEntry({ key: startKey, status: 'error' });
     } finally {
-      runningRef.current = false;
+      runningKeyRef.current = null;
     }
-  }, []);
+  }, [logoGate, setEntry]);
 
   return { composition, captureViewRef, onLogoSettled, buttonRef, status, canShare, share };
 }

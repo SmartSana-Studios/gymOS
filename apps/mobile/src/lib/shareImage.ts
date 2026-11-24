@@ -55,6 +55,13 @@ export function shareImageInputFrom(source: ShareImageInput): ShareImageInput {
   };
 }
 
+/** The subject the image is about, as a key: `milestone:30`, `badge:visits_30`, or null with no input. A change of key is a different thing to share, so a
+ * result (an error message, an unavailable answer) belongs to one key only. */
+export function shareSubjectKey(input: Pick<ShareImageInput, 'subject'> | null): string | null {
+  if (!input) return null;
+  return input.subject.kind === 'milestone' ? `milestone:${input.subject.milestone}` : `badge:${input.subject.code}`;
+}
+
 export type ShareTextRole = 'gymName' | 'numeral' | 'unit' | 'headline' | 'badgeName' | 'date' | 'caption';
 
 export type ShareNode =
@@ -73,7 +80,9 @@ export interface ShareComposition {
 
 /** The composition for a milestone (7, 30 or 100) or an earned badge. Order, top to bottom: logo, gym name, the milestone numeral and headline or the
  * badge glyph, name and date, the mini month where it fits, the caption. */
-export function buildShareComposition(input: ShareImageInput): ShareComposition {
+export function buildShareComposition(raw: ShareImageInput): ShareComposition {
+  // The allow-list copy runs on every build, so whatever a caller hands over beyond the declared fields (a name, a phone, a price, a reward) never reaches a node.
+  const input = shareImageInputFrom(raw);
   const { subject, t } = input;
   const gym = input.gymName ?? '';
   const nodes: ShareNode[] = [];

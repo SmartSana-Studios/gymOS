@@ -91,6 +91,37 @@ context:
 - Given a function other than `award_milestones` or the back-fill writes a badge, or the three check-in paths change, or a new function is anon-executable, then pgTAP fails.
 - Given the share flow with network, permission and capture fakes, then no network or permission call is made and every result state matches.
 
+### Review Findings
+
+Code review of `714d571..1ced182` (2026-11-24, pass 2, full mode; layers Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor).
+
+- [x] [Review][Patch] The share status (`error`, `unavailable`) is set only inside `share()` and never reset, so it shows again when another badge or the same sheet is opened, and a capture that fails after the sheet closed lands on an unrelated sheet [apps/mobile/src/hooks/use-share-image.ts:60-139, apps/mobile/src/app/badges.tsx:68] — medium (BH, EH)
+- [x] [Review][Patch] `shareImageInputFrom` (the allow-list copy) is called only from its own test; production passes the screen's input straight to `buildShareComposition`, so the FR-231 privacy guard rests on the type alone, and the privacy test proves a function production never runs [apps/mobile/src/lib/shareImage.ts:44,76; hooks/use-share-image.ts] — medium (VG, EH)
+- [x] [Review][Patch] `useShareContext` keeps `branding` and `calendar` after the sheet closes or the gym changes, so a failed re-read shows the previous gym's name and logo or last month's days; the branding read has no catch [apps/mobile/src/hooks/use-share-context.ts:20-55] — low-medium (BH, EH)
+- [x] [Review][Patch] `ShareImageComposition` text uses `ThemedText` with the device font scale, so at 1.3x and above the capture can overflow the fixed 360 by 640 box, against its own claim that the image does not change with the phone [apps/mobile/src/components/ShareImageComposition.tsx] — low (BH). Fix: `allowFontScaling={false}` on every text node of the composition
+- [x] [Review][Patch] Nothing pins that the [See your badges] link calls `close('badges')`, nor that `finishCelebration` runs before `router.replace('/badges')`; a link wired to `close('continue')` passes every test [apps/mobile/src/app/celebration/[milestoneId].tsx:161-173,306] — low-medium (VG)
+- [x] [Review][Patch] Member and gym scoping of the cached badge rows (`memberKeyRef` reset, `entry.key === memberKey` checks) is covered only by source-text checks; deleting them would show the previous member's "n of 5" on a shared phone with no failing test [apps/mobile/src/hooks/use-badges.ts] — low-medium (VG). Fix: extract pure `rowsForMember` and `shouldResetShelf` into `lib/badgesView.ts` and table-test them
+- [x] [Review][Patch] The logo gate (`logoSettledRef`, waiters, 3 s timeout, the no-logo fast path) has no test, a failed logo is never retried when the logo URL changes, and timed-out waiters are never removed [apps/mobile/src/hooks/use-share-image.ts:69-100, components/ShareImageComposition.tsx] — low-medium (VG, EH). Fix: extract a pure `createLogoGate(timeoutMs)`, test with fake timers, reset `dropped` on a new URL
+- [x] [Review][Defer] iOS may present the OS share sheet behind or fail to present it from inside the React Native `Modal` of the badge sheet [apps/mobile/src/components/BadgeDetailSheet.tsx] — deferred: maybe-false, would be medium if true; only an iOS device shows it. Added to the owner's device check
+- [x] [Review][Defer] Share tapped before `useShareContext` reads resolve (or offline from a cold start) produces an image with no gym name, logo, caption or calendar while the button looks normal [apps/mobile/src/hooks/use-share-image.ts, use-share-context.ts] — deferred: extends the existing cold-start entry; the choice (disable Share until ready, bounded wait like the logo, or cache branding on disk) is a design decision for the owner
+- [x] [Review][Defer] `cleanLeftovers` removes every `gymos-share-*.png` before each share, including a file a previous target may still be reading; an age-based sweep would also serve the Android risk [apps/mobile/src/lib/shareFlow.ts] — deferred: same unverified Android timing as the existing entry; settled by the device check
+- [x] [Review][Defer] At densities such as 2.625 the capture size rounds to whole logical points, so the PNG is about 1079 by 1919, not exactly 1080 by 1920 [apps/mobile/src/lib/shareImage.ts:22-25] — deferred: known and recorded; only the owner's device check shows the real output
+
+#### Rejected
+
+- Hard-coded "4 weeks" while `shield_every_weeks` is configurable (BH): low; the UX catalog pins the text, the exemption is logged in `deferred-work.md`, and the interval is operator config with no screen to change it.
+- `get_my_badges` and `/badges` do not enforce the dark gate (BH): low; the rows are the member's own, the route is reachable only from the gated Profile row and the celebration, and the app has no deep link to it.
+- `silent` and `fromCache` are carried but unused, wrong comment on `BadgeRow.silent` (BH): low; the column is the epic's contract, a comment fix is not worth a pass.
+- Two reads of the same RPC per navigation (BH): low; each is one cheap read, and both now share `resolveShelfLoad` and the cache key.
+- Cache clearing wired at three sign-out handlers (BH): low; same three sites as the existing `clearShown` pattern, the cache is per user and gym.
+- Lockfile still adds `@expo/config-plugins` 57.0.13, `glob@14`, `minimatch@11`, `@expo/plist` (BH): false for the supabase and react-query part (no such line changed); the config-plugins family comes from `expo-sharing@57.0.27` itself, recorded in `docs/decisions.md`.
+- Back-fill count not logged, `>= 21` assertion, race phase E uses sleeps (BH): low; the verify block now proves the call ran, the other phases use the same sleeps.
+- Back-fill `silent = true` regardless of the epoch (EH): low; the epic AC mandates silent for the release back-fill, and it runs once in the migration while the epoch is NULL in production.
+- Unavailable answer while rows are cached keeps showing them, `openCode` outlives a tile reset, `silent`/`earned` mismatch (EH): low; a deactivated member is signed out of the app, and the other two need a member change on a mounted screen.
+- Light mode would make the capture dark-on-dark (BH): false; `use-theme.ts` returns the dark palette only, "the app's only shipped theme".
+- Existing pgTAP pins edited beyond the spec list, `backfill_badges()` stays installed, no injected network seam, a rejected `shareAsync` maps to `error`, earned tile without a date reads as name only, stale comment in `ShareImageHost` (AA): low; all disclosed in `docs/decisions.md`, and the AC says a refused hand-off is `engage.share.error`.
+- Full `ci-local` not green, spec `done` while sprint-status says `review` (AA): process state, not a code defect. The unit stage timeouts are the load flake recorded in memory and reported to the owner.
+
 ## Implementation Notes
 
 Dev Notes (2026-11-24, implementation pass; nothing committed, nothing pushed, no build, no deploy).

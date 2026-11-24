@@ -19,14 +19,19 @@ export function useShareContext(enabled: boolean, gymId: string | null, wantCale
   const [branding, setBranding] = useState<GymBranding | null>(null);
   const [calendar, setCalendar] = useState<ShareContext['calendar']>(null);
 
+  // Everything held belongs to one open sheet of one gym: it is cleared (in the cleanup) when the sheet closes or the gym changes, before any new read, so a later sheet
+  // never shows (or shares) the previous one's gym or month. A rejected read is the same as no read.
   useEffect(() => {
     if (!enabled || !gymId) return;
     let cancelled = false;
-    void getGymBranding(gymId).then((read) => {
-      if (!cancelled) setBranding(read);
-    });
+    void getGymBranding(gymId)
+      .then((read) => {
+        if (!cancelled) setBranding(read);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
+      setBranding(null);
     };
   }, [enabled, gymId]);
 
@@ -39,11 +44,12 @@ export function useShareContext(enabled: boolean, gymId: string | null, wantCale
       if (!month) return;
       const days = await getMyVisitDays(month);
       if (!cancelled && days.status === 'success') setCalendar({ month, litDays: days.days.map((d) => d.visitDay) });
-    })();
+    })().catch(() => {});
     return () => {
       cancelled = true;
+      setCalendar(null);
     };
-  }, [enabled, wantCalendar]);
+  }, [enabled, gymId, wantCalendar]);
 
   return { branding, calendar: wantCalendar ? calendar : null };
 }

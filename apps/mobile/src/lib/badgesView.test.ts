@@ -37,6 +37,8 @@ import {
   readBadgesCache,
   resolveBadgeRows,
   resolveShelfLoad,
+  rowsForMember,
+  shouldResetShelf,
   writeBadgesCache,
   type ShelfLoad,
   type ShelfResult,
@@ -270,6 +272,34 @@ describe('resolveBadgeRows: the Profile row', () => {
   );
 });
 
+describe('member and gym scoping of the rows', () => {
+  const entry = { key: 'u1.g1', rows: SHELF };
+
+  it.each([
+    ['the same member and gym', 'u1.g1', SHELF],
+    ['another member, same gym', 'u2.g1', null],
+    ['the same member, another gym', 'u1.g2', null],
+    ['no member (signed out, no gym)', null, null],
+  ] as const)('rowsForMember: %s', (_name, key, expected) => {
+    expect(rowsForMember(entry, key)).toBe(expected);
+  });
+
+  it('rowsForMember: nothing held returns nothing', () => {
+    expect(rowsForMember(null, 'u1.g1')).toBeNull();
+  });
+
+  it.each([
+    ['u1.g1', 'u1.g1', false],
+    ['u1.g1', 'u2.g1', true],
+    ['u1.g1', 'u1.g2', true],
+    [null, 'u1.g1', true],
+    ['u1.g1', null, true],
+    [null, null, false],
+  ] as const)('shouldResetShelf(%s, %s) is %s', (previous, key, expected) => {
+    expect(shouldResetShelf(previous, key)).toBe(expected);
+  });
+});
+
 describe('the Profile row value', () => {
   it('"2 of 5" / "2 sur 5", and nothing while nothing is known', () => {
     expect(profileBadgesValue(SHELF, makeT('en'))).toBe('2 of 5');
@@ -356,6 +386,8 @@ describe('the screen files', () => {
     const hook = read('hooks/use-badges.ts');
     expect(hook).toContain('resolveShelfLoad({');
     expect(hook).toContain('resolveBadgeRows({');
+    expect(hook).toContain('shouldResetShelf(memberKeyRef.current, memberKey)');
+    expect(hook.match(/rowsForMember\(/g)?.length).toBeGreaterThanOrEqual(3);
   });
 
   it('the hook reads on focus with a sequence ref, caches per member and gym, and the shelf screen pulls to refresh', () => {

@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { buildShelfView, readBadgesCache, resolveBadgeRows, resolveShelfLoad, writeBadgesCache, type ShelfLoad, type ShelfView } from '@/lib/badgesView';
+import { buildShelfView, readBadgesCache, resolveBadgeRows, resolveShelfLoad, rowsForMember, shouldResetShelf, writeBadgesCache, type ShelfLoad, type ShelfView } from '@/lib/badgesView';
 import { getMyBadges, type BadgeRow } from '@/services/badges';
 
 export interface Badges {
@@ -43,7 +43,7 @@ export function useBadges(isConnected: boolean, userId: string | null, gymId: st
     try {
       // Rows on screen belong to the member and gym they were read for: another member or gym starts from the loading face, never from these.
       const memberKey = userId && gymId ? `${userId}.${gymId}` : null;
-      if (memberKeyRef.current !== memberKey) {
+      if (shouldResetShelf(memberKeyRef.current, memberKey)) {
         memberKeyRef.current = memberKey;
         commit({ kind: 'loading' });
       }
@@ -106,7 +106,7 @@ export function useBadgeRows(enabled: boolean, isConnected: boolean, userId: str
         try {
           const cached = await readBadgesCache(userId, gymId);
           if (mine !== seq.current) return;
-          const own = entryRef.current && entryRef.current.key === memberKey ? entryRef.current.rows : null;
+          const own = rowsForMember(entryRef.current, memberKey);
           const first = resolveBadgeRows({ cached, connected: false, result: null, current: own });
           if (first) {
             entryRef.current = { key: memberKey, rows: first };
@@ -115,7 +115,7 @@ export function useBadgeRows(enabled: boolean, isConnected: boolean, userId: str
           if (!connectedRef.current) return;
           const result = await getMyBadges();
           if (mine !== seq.current) return;
-          const next = resolveBadgeRows({ cached, connected: true, result, current: entryRef.current && entryRef.current.key === memberKey ? entryRef.current.rows : null });
+          const next = resolveBadgeRows({ cached, connected: true, result, current: rowsForMember(entryRef.current, memberKey) });
           if (next) {
             entryRef.current = { key: memberKey, rows: next };
             setEntry(entryRef.current);
@@ -127,5 +127,5 @@ export function useBadgeRows(enabled: boolean, isConnected: boolean, userId: str
       })();
     }, [enabled, userId, gymId, memberKey]),
   );
-  return enabled && entry && entry.key === memberKey ? entry.rows : null;
+  return enabled ? rowsForMember(entry, memberKey) : null;
 }

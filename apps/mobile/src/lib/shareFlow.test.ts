@@ -12,8 +12,14 @@ import {
   shareMessageKey,
   shareRetryKey,
   shareStatusAfter,
+  visibleShareStatus,
   type ShareFlowDeps,
 } from './shareFlow';
+
+const read = (path: string) =>
+  readFileSync(fileURLToPath(new URL(`../${path}`, import.meta.url)), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
 
 // The libraries sit behind injected functions: every step below can be made to fail, and the log says exactly what was called, in order.
 function fakes(over: Partial<ShareFlowDeps> = {}) {
@@ -200,11 +206,6 @@ describe('offline, network and permissions', () => {
     expect([...touched].some((name) => /permission|request|mediaLibrary|storage/i.test(name))).toBe(false);
   });
 
-  const read = (path: string) =>
-    readFileSync(fileURLToPath(new URL(`../${path}`, import.meta.url)), 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '');
-
   it('no source file of the share path asks for a photo-library or storage permission, saves to the gallery, or calls a server', () => {
     for (const path of ['lib/shareFlow.ts', 'lib/shareImage.ts', 'hooks/use-share-image.ts', 'components/ShareImageComposition.tsx', 'components/ShareImageHost.tsx']) {
       expect(read(path), path).not.toMatch(
@@ -227,6 +228,12 @@ describe('offline, network and permissions', () => {
     expect(hook).toContain('new File(Paths.cache, shareFileName(Date.now()))');
     expect(hook).toContain('Sharing.shareAsync(uri, buildShareOptions(dialogTitle, anchor))');
     expect(hook).toContain('Sharing.isAvailableAsync()');
+    // The logo wait is the tested gate (lib/logoGate.ts), re-armed whenever the logo URL changes, and a failed logo is dropped for that URL only.
+    expect(hook).toContain('createLogoGate(LOGO_WAIT_MS)');
+    expect(hook).toContain('logoGate.reset(logoKey);');
+    expect(hook).toContain('logoReady: () => logoGate.ready()');
+    const composition = read('components/ShareImageComposition.tsx');
+    expect(composition).toContain('const dropped = currentLogo !== null && failedUri === currentLogo;');
     // An unavailable answer is remembered for the next view, and a view reads it once, when it mounts (so the message stays while it is on screen).
     expect(hook).toContain("if (outcome.kind === 'unavailable') markShareUnavailable();");
     expect(hook).toContain('useState(() => !isShareKnownUnavailable())');
@@ -244,6 +251,42 @@ describe('what the screens show', () => {
     expect(shareMessageKey(shareStatusAfter({ kind: 'unavailable' }))).toBe('engage.share.unavailable');
     expect(shareRetryKey(shareStatusAfter({ kind: 'unavailable' }))).toBeNull();
     expect(shareMessageKey('sharing')).toBeNull();
+  });
+
+  it.each([
+    ['the same subject', { key: 'badge:visits_30', status: 'error' }, 'badge:visits_30', 'error'],
+    ['the same subject, unavailable', { key: 'badge:visits_30', status: 'unavailable' }, 'badge:visits_30', 'unavailable'],
+    ['the next badge', { key: 'badge:visits_30', status: 'error' }, 'badge:visits_100', 'idle'],
+    ['a milestone after a badge', { key: 'badge:visits_30', status: 'error' }, 'milestone:30', 'idle'],
+    ['the sheet closed (no subject)', { key: 'badge:visits_30', status: 'error' }, null, 'idle'],
+    ['nothing recorded yet', null, 'badge:visits_30', 'idle'],
+    ['a run for no subject', { key: null, status: 'error' }, null, 'idle'],
+  ] as const)('a result belongs to its subject: %s', (_name, entry, current, expected) => {
+    expect(visibleShareStatus(entry as { key: string | null; status: 'error' | 'unavailable' } | null, current)).toBe(expected);
+  });
+
+  it('the hook keeps a result with the subject it was made for and shows it only there; the screens hand it the subject through the input', () => {
+    const hook = read('hooks/use-share-image.ts');
+    expect(hook).toContain('const status = visibleShareStatus(entry, subjectKey);');
+    expect(hook).toContain("setEntry({ key: startKey, status: shareStatusAfter(outcome) });");
+    expect(hook).toContain("setEntry({ key: startKey, status: 'error' });");
+    expect(hook).not.toMatch(/\bsetStatus\b/);
+  });
+
+  it('the composition builder applies the allow-list copy itself, and the share context clears and catches', () => {
+    expect(read('lib/shareImage.ts')).toContain('const input = shareImageInputFrom(raw);');
+    const context = read('hooks/use-share-context.ts');
+    expect(context).toContain('setBranding(null);');
+    expect(context).toContain('setCalendar(null);');
+    expect(context.match(/\.catch\(\(\) => \{\}\)/g)).toHaveLength(2);
+    expect(context).toContain('[enabled, gymId, wantCalendar]');
+  });
+
+  it('every text of the share composition ignores the device font scale (a 360 by 640 pt capture must not overflow at large text sizes)', () => {
+    const composition = read('components/ShareImageComposition.tsx');
+    const texts = composition.match(/<ThemedText\b/g) ?? [];
+    expect(texts.length).toBeGreaterThan(0);
+    expect(composition.match(/allowFontScaling=\{false\}/g)).toHaveLength(texts.length);
   });
 
   it('an unavailable answer hides the button on the NEXT view, not the current one', async () => {

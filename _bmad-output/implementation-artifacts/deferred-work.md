@@ -2446,3 +2446,10 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
   summary: A badge share image opened offline right after a cold start has no gym name, logo or calendar, because `use-share-context` reads them over the network each time and nothing is cached on disk.
   evidence: The image is still built and shared (the acceptance criterion holds), and within a session `getGymBranding`'s last-good name covers it. Caching branding and the month's lit days with the badge copy would close it (review pass 1, BH).
+
+## Deferred from: code review of spec-31-3-badge-shelf-and-share-image (2026-11-24)
+
+- iOS may present the OS share sheet behind, or fail to present it from, the React Native `Modal` that holds the badge detail sheet [apps/mobile/src/components/BadgeDetailSheet.tsx]. Maybe-false, would be medium if true; settled only by the owner's iOS device check (added to its steps). Fix if it fails: close the sheet before `shareAsync`.
+- Share tapped before `useShareContext` reads resolve, or offline from a cold start, produces an image with no gym name, logo, caption or calendar while the button looks normal [apps/mobile/src/hooks/use-share-image.ts, use-share-context.ts]. Extends the earlier cold-start entry. Options for the owner: disable Share until the context is ready, a bounded wait like the logo's, or cache branding and lit days on disk.
+- `cleanLeftovers` removes every `gymos-share-*.png` before each share, including one a previous target may still be reading [apps/mobile/src/lib/shareFlow.ts]. Same unverified Android timing as the existing delete-after-share entry; an age-based sweep would serve both. Settled by the device check.
+- At pixel ratios such as 2.625 the capture size rounds to whole logical points, so the PNG can be about 1079 by 1919 rather than exactly 1080 by 1920 [apps/mobile/src/lib/shareImage.ts:22-25]. Known; only the device check shows the real output.

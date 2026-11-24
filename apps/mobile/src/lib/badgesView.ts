@@ -119,6 +119,16 @@ export function resolveBadgeRows(input: { cached: BadgeRow[] | null; connected: 
   return current ?? cached;
 }
 
+/** Rows are kept with the member and gym they were read for (`"<userId>.<gymId>"`). Another member or gym, or no member, never gets them. */
+export function rowsForMember(entry: { key: string; rows: BadgeRow[] } | null, memberKey: string | null): BadgeRow[] | null {
+  return entry && memberKey !== null && entry.key === memberKey ? entry.rows : null;
+}
+
+/** The shelf starts again from the loading face whenever the member or gym it shows changes (the rows on screen are the previous member's). */
+export function shouldResetShelf(previousKey: string | null, key: string | null): boolean {
+  return previousKey !== key;
+}
+
 export type ShelfFace = 'loading' | 'tiles' | 'error';
 
 export interface ShelfView {

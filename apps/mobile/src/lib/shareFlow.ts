@@ -122,3 +122,10 @@ export function shareMessageKey(status: ShareStatus): string | null {
 export function shareRetryKey(status: ShareStatus): string | null {
   return status === 'error' ? 'engage.share.retry' : null;
 }
+
+/** The status a screen shows: a result belongs to the subject it was made for (`shareSubjectKey`), so an error or an unavailable message from one badge
+ * never shows on the next badge, a reopened sheet or an unrelated one. (An unavailable answer still hides the button on the next view: that is the
+ * separate `isShareKnownUnavailable` flag.) */
+export function visibleShareStatus(entry: { key: string | null; status: ShareStatus } | null, currentKey: string | null): ShareStatus {
+  return entry && currentKey !== null && entry.key === currentKey ? entry.status : 'idle';
+}

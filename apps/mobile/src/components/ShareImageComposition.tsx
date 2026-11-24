@@ -16,6 +16,7 @@ export interface ShareImageCompositionProps {
 }
 
 function renderNode(node: ShareNode, index: number, onLogo: { loaded: () => void; failed: () => void; dropped: boolean }) {
+  // Every text of the image ignores the device's font scale: the picture is a fixed 360 by 640 pt composition, and a large text size must not make it overflow.
   switch (node.kind) {
     case 'logo':
       return onLogo.dropped ? null : (
@@ -29,32 +30,32 @@ function renderNode(node: ShareNode, index: number, onLogo: { loaded: () => void
       switch (node.role) {
         case 'gymName':
           return (
-            <ThemedText key={index} type="smallBold" numberOfLines={1} style={styles.centered}>
+            <ThemedText key={index} allowFontScaling={false} type="smallBold" numberOfLines={1} style={styles.centered}>
               {node.text}
             </ThemedText>
           );
         case 'numeral':
           return (
-            <ThemedText key={index} style={styles.numeral}>
+            <ThemedText key={index} allowFontScaling={false} style={styles.numeral}>
               {node.text}
             </ThemedText>
           );
         case 'unit':
           return (
-            <ThemedText key={index} type="smallBold" themeColor="textSecondary">
+            <ThemedText key={index} allowFontScaling={false} type="smallBold" themeColor="textSecondary">
               {node.text}
             </ThemedText>
           );
         case 'headline':
         case 'badgeName':
           return (
-            <ThemedText key={index} type="subtitle" style={styles.centered}>
+            <ThemedText key={index} allowFontScaling={false} type="subtitle" style={styles.centered}>
               {node.text}
             </ThemedText>
           );
         default:
           return (
-            <ThemedText key={index} type="small" themeColor="textSecondary" style={styles.centered}>
+            <ThemedText key={index} allowFontScaling={false} type="small" themeColor="textSecondary" style={styles.centered}>
               {node.text}
             </ThemedText>
           );
@@ -67,7 +68,11 @@ function renderNode(node: ShareNode, index: number, onLogo: { loaded: () => void
  * layout choice depends on the screen it sits in, so the image does not change with the phone. Layout only. */
 export const ShareImageComposition = forwardRef<View, ShareImageCompositionProps>(function ShareImageComposition({ composition, onLogoSettled }, ref) {
   const hasLogo = composition.nodes.some((node) => node.kind === 'logo');
-  const [dropped, setDropped] = useState(false);
+  // A logo that failed is dropped for THAT URL only: another logo URL is tried again.
+  const logoUri = composition.nodes.find((node) => node.kind === 'logo');
+  const currentLogo = logoUri && logoUri.kind === 'logo' ? logoUri.uri : null;
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const dropped = currentLogo !== null && failedUri === currentLogo;
   const settle = useCallback(() => onLogoSettled(), [onLogoSettled]);
   // With no logo there is nothing to wait for.
   useEffect(() => {
@@ -77,7 +82,7 @@ export const ShareImageComposition = forwardRef<View, ShareImageCompositionProps
     dropped,
     loaded: settle,
     failed: () => {
-      setDropped(true);
+      setFailedUri(currentLogo);
       settle();
     },
   };

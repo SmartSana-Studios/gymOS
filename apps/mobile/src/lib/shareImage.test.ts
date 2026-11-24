@@ -14,6 +14,7 @@ import {
   SHARE_PX_HEIGHT,
   SHARE_PX_WIDTH,
   shareImageInputFrom,
+  shareSubjectKey,
   type ShareComposition,
   type ShareImageInput,
 } from './shareImage';
@@ -137,16 +138,45 @@ describe('privacy (FR-231)', () => {
   };
   const FORBIDDEN = ['Aïcha', 'Test', '+237', '699', '6 99', 'aicha@', 'Gold Monthly', '15000', '15 000', 'XAF', 'protein', 'Marc', 'GymOS', 'gymos'];
 
+  // What a screen could hand over beyond the declared fields (state spread into the input, a subject that carries a name): the builder itself drops it.
   function withExtras(base: ShareImageInput): ShareImageInput {
-    // A caller that hands over more than the type allows (state spread into the input) loses it in the copy.
-    return shareImageInputFrom({ ...base, ...STATE } as unknown as ShareImageInput);
+    return { ...base, ...STATE, subject: { ...base.subject, memberName: 'Aïcha Test', phone: '+237 6 99 99 99 99' } } as unknown as ShareImageInput;
   }
 
-  it.each([['milestone', milestone()], ['badge', badge()]] as const)('a %s composition built while that state exists serialises none of it', (_name, input) => {
-    const serialised = JSON.stringify(buildShareComposition(withExtras(input)));
+  // The nodes a composition may contain, and the text roles a text node may have. A new kind or role must be added here on purpose.
+  const NODE_KINDS = ['logo', 'glyph', 'text', 'calendar'];
+  const TEXT_ROLES = ['gymName', 'numeral', 'unit', 'headline', 'badgeName', 'date', 'caption'];
+
+  it.each([['milestone', milestone()], ['badge', badge()]] as const)('a %s composition built straight from an input that carries that state serialises none of it', (_name, input) => {
+    const composition = buildShareComposition(withExtras(input));
+    const serialised = JSON.stringify(composition);
     for (const needle of FORBIDDEN) expect(serialised, needle).not.toContain(needle);
-    // The only strings in the tree are the gym's, the milestone or badge's, the date's and the caption's.
+    // Every text node is one of the allowed roles, and its text is the gym's, the milestone or badge's, the date's or the caption's: nothing from STATE.
+    for (const node of composition.nodes) {
+      expect(NODE_KINDS).toContain(node.kind);
+      if (node.kind === 'text') expect(TEXT_ROLES).toContain(node.role);
+    }
     expect(Object.keys(JSON.parse(serialised)).sort()).toEqual(['background', 'height', 'nodes', 'variant', 'width']);
+    // The composition is the same as one built from a clean input: the extras changed nothing.
+    expect(composition).toEqual(buildShareComposition(input));
+  });
+
+  it('the node kinds and text roles of every composition are within the allow-list (a new role fails here)', () => {
+    for (const lang of ['en', 'fr'] as const) {
+      for (const input of [milestone({}, lang), badge({}, lang), milestone({ calendar: null, logoUrl: null }, lang)]) {
+        for (const node of buildShareComposition(input).nodes) {
+          expect(NODE_KINDS).toContain(node.kind);
+          if (node.kind === 'text') expect(TEXT_ROLES).toContain(node.role);
+        }
+      }
+    }
+  });
+
+  it('the subject key tells one thing to share from another', () => {
+    expect(shareSubjectKey(null)).toBeNull();
+    expect(shareSubjectKey(milestone())).toBe('milestone:30');
+    expect(shareSubjectKey(badge())).toBe('badge:visits_30');
+    expect(shareSubjectKey(badge({ subject: { kind: 'badge', code: 'first_visit', name: 'First visit', glyph: 'flag', earnedOnText: null } }))).toBe('badge:first_visit');
   });
 
   it('the copy keeps exactly the allowed fields and nothing else', () => {
