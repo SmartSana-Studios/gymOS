@@ -525,7 +525,7 @@ development_status:
   epic-30-retrospective: optional
 
   epic-31: in-progress
-  31-1-streak-shields-and-comeback: review
+  31-1-streak-shields-and-comeback: done
   31-2-streak-reminder-n-08: backlog
   31-3-badge-shelf-and-share-image: backlog
   epic-31-retrospective: optional
@@ -2265,3 +2265,4 @@ last_updated: 11-15-2026 12:00
 # last_updated: 2026-11-23 (process decision, owner: Epic 31 is built before any manual testing; Epics 30 and 31 are browser-tested TOGETHER once, after 31-3; epic/31 is cut locally from epic/30 (31 depends on 30, nothing of 30 is pushed); no push and no master PR for Epic 30 on its own; one push and PR at the end carries both epics (epic/30 then epic/31, or epic/31 alone since it contains 30); epic-30-retrospective deferred to the combined close; all other rules unchanged: ci-local before every local merge, stories merge locally into the epic branch, sprint-status recorded every pass)
 # last_updated: 2026-11-23 (31-1 spec approved and implementation started on story/31-1-streak-shields-and-comeback, baseline b613c12 on epic/31; epic-31 backlog -> in-progress, 31-1 backlog -> in-progress; spec spec-31-1-streak-shields-and-comeback.md and epic-31-context.md created; one migration 0190 provisional, mobile Home and calendar work in the same story)
 # last_updated: 2026-11-23 (dev 31-1 implemented on story/31-1-streak-shields-and-comeback, uncommitted: migration 0190_streak_shields_comeback.sql provisional + scripts/rollback-0190 (apply, rollback, apply, rollback, apply rehearsed; pre-31.1 engagement tests pass on the rolled-back schema), new pgTAP engagement_shields.test.sql (147), engagement-race.sh phase C double settle, existing pins edited and disclosed in docs/decisions.md 2026-11-23 Story 31.1, packages/types database.ts, mobile Shield chip/explainer/notices/comeback card/calendar saved-week glyph with EN/FR, deferred-work Epic 31 line closed; 31-1 in-progress -> review; scripts/ci-local.sh NOT yet run on a committed head)
+# last_updated: 2026-11-24 (31-1 code review pass 1 (Blind Hunter 14, Edge Case Hunter 13, Verification Gap 5 plus 2 other): 7 patches applied, 5 deferred to deferred-work.md, 12 rejected, 0 intent_gap, 0 bad_spec; 31-1 review -> done; 31-1 merged to epic/31 (fast-forward, local, no push) at 97a9454; scripts/ci-local.sh GREEN on 97a9454 in one full run (static 129s, deno 4s, pgtap 839s, unit 24s, layout 309s, e2e 905s, E2E_LANDING_PORT=3220), stamp written; migration 0190 is provisional; story branch story/31-1-streak-shields-and-comeback kept; Epics 30 and 31 are browser-tested together after 31-3, no push before then)
