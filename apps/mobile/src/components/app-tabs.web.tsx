@@ -7,6 +7,7 @@ import {
   TabListProps,
 } from 'expo-router/ui';
 import { Pressable, View, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -15,8 +16,12 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { getContrastTextColor } from '@/lib/color-contrast';
+import { useEngagementGate } from '@/lib/engagementGate';
 
 export default function AppTabs() {
+  const { t } = useTranslation();
+  // Story 31.4: the Streak tab shows only while the engagement gate is on; there is no Progress tab (see app-tabs.tsx).
+  const streakOn = useEngagementGate() === 'on';
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
@@ -31,9 +36,11 @@ export default function AppTabs() {
           <TabTrigger name="classes" href="/classes" asChild>
             <TabButton>Classes</TabButton>
           </TabTrigger>
-          <TabTrigger name="progress" href="/progress" asChild>
-            <TabButton>Progress</TabButton>
-          </TabTrigger>
+          {streakOn && (
+            <TabTrigger name="streak" href="/streak" asChild>
+              <TabButton>{t('engage.streak.tab')}</TabButton>
+            </TabTrigger>
+          )}
           <TabTrigger name="profile" href="/profile" asChild>
             <TabButton>Profile</TabButton>
           </TabTrigger>

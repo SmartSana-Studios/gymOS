@@ -1,7 +1,9 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/hooks/use-theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
+import { useEngagementGate } from '@/lib/engagementGate';
 
 // Story 8.5: recolored to the dark+gym-accent palette only -- NativeTabs is
 // the real OS-native tab bar (iOS UITabBar/Android equivalent), which can't
@@ -11,6 +13,10 @@ import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 export default function AppTabs() {
   const theme = useTheme();
   const accent = useGymAccentColor();
+  const { t } = useTranslation();
+  // Story 31.4: there is no Progress tab in any state (Progress is a Profile row and a stack route). With the engagement area on the Streak tab sits in
+  // the fourth place; off or unknown the bar has four tabs and the Streak trigger is hidden (it is never navigated to in that state).
+  const streakOn = useEngagementGate() === 'on';
 
   return (
     <NativeTabs
@@ -35,9 +41,9 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf="calendar" md="event" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="progress">
-        <NativeTabs.Trigger.Label>Progress</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" md="show_chart" />
+      <NativeTabs.Trigger name="streak" hidden={!streakOn}>
+        <NativeTabs.Trigger.Label>{t('engage.streak.tab')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="flame" md="local_fire_department" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="profile">

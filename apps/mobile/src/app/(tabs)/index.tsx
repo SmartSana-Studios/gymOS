@@ -9,9 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { IconChip, type IconChipTint } from '@/components/ui/IconChip';
 import { ListItem } from '@/components/ui/ListItem';
-import { LeaderboardHomeCard } from '@/components/LeaderboardHomeCard';
+import { HomeStreakLine } from '@/components/HomeStreakLine';
 import { RewardsCard } from '@/components/RewardsCard';
-import { WeeklyRingSection } from '@/components/WeeklyRingCard';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
@@ -20,9 +19,10 @@ import { INFO_STATUS } from '@/constants/info-status';
 import { useFocusToast } from '@/hooks/use-focus-toast';
 import { useHomeCelebration } from '@/hooks/use-home-celebration';
 import { useHomeEngagement } from '@/hooks/use-home-engagement';
-import { useHomeLeaderboard } from '@/hooks/use-home-leaderboard';
 import { useTheme } from '@/hooks/use-theme';
 import { homeReadyForCelebration } from '@/lib/celebrationView';
+import { useEngagementGate } from '@/lib/engagementGate';
+import { buildHomeStreakLine } from '@/lib/homeStreakLine';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import {
   collapseDenials,
@@ -125,10 +125,12 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { isConnected, pendingCheckInCount, sessionDenials, dismissSessionDenials } = useOfflineSync();
   const theme = useTheme();
-  // Story 30.4: the "This week" section (ring, streak, at-risk hint) and the toast a goal saved from here leaves behind.
-  const { view: engagementView, loadForHome: loadEngagementForHome, dismissGoalHint, dismissShieldNotice } = useHomeEngagement(isConnected, pendingCheckInCount);
-  // Story 30.6: the Leaderboard card (the member's own standing only), read once per Home load and only while the engagement area is on.
-  const { view: leaderboardView, loadForHome: loadLeaderboardForHome, retry: retryLeaderboard } = useHomeLeaderboard();
+  // Story 30.4: the engagement read (the celebration, the settle and the engagement gate all need this one read) and the toast a goal saved from here
+  // leaves behind. Story 31.4: the This week section and the Leaderboard card moved to the Streak tab; Home keeps one streak line that opens it, shown only
+  // while the gate says the engagement area is on and the view is a card (never when dark, loading or in error).
+  const { view: engagementView, engagement: engagementRow, loadForHome: loadEngagementForHome } = useHomeEngagement(isConnected, pendingCheckInCount);
+  const engagementGate = useEngagementGate();
+  const streakLine = engagementGate === 'on' ? buildHomeStreakLine(engagementView, engagementRow, t) : null;
   const toast = useFocusToast();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -216,7 +218,6 @@ export default function HomeScreen() {
     // Story 30.4: the engagement read (and its one settle) is detached from the rest of Home like Rewards, never trips loadError, and never throws;
     // loadHome still waits for it at the very end so a pull to refresh spins until the card is current.
     let engagementDone: Promise<unknown> = Promise.resolve();
-    let leaderboardDone: Promise<void> = Promise.resolve();
     let celebrationDone: Promise<void> = Promise.resolve();
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -269,8 +270,6 @@ export default function HomeScreen() {
       markLoadedOnce();
       const engagementRead = loadEngagementForHome(userId, memberResult.data.gym_id, isCurrent);
       engagementDone = engagementRead;
-      // The Leaderboard card reuses that one read (it never reads the engagement row a second time).
-      leaderboardDone = loadLeaderboardForHome(userId, memberResult.data.gym_id, isCurrent, engagementRead);
       celebrationDone = loadCelebrationForHome(userId, memberResult.data.gym_id, isCurrent, engagementRead);
 
       // Story 4.15: shared with the Renew screen (services/subscriptions.ts)
@@ -439,8 +438,8 @@ export default function HomeScreen() {
     } finally {
       if (isCurrent()) setLoading(false);
     }
-    await Promise.all([engagementDone, leaderboardDone, celebrationDone]);
-  }, [loadEngagementForHome, loadLeaderboardForHome, loadCelebrationForHome]);
+    await Promise.all([engagementDone, celebrationDone]);
+  }, [loadEngagementForHome, loadCelebrationForHome]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -717,15 +716,7 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              <WeeklyRingSection
-                view={engagementView}
-                onGoalPress={() => router.push('/goal')}
-                onGoalHintPress={dismissGoalHint}
-                onDismissNotice={dismissShieldNotice}
-                onPressCard={() => router.push('/calendar')}
-              />
-
-              <LeaderboardHomeCard view={leaderboardView} onPress={() => router.push('/leaderboard')} onRetry={retryLeaderboard} />
+              {streakLine && <HomeStreakLine line={streakLine} onPress={() => router.push('/streak')} />}
 
               <RewardsCard data={rewardsData} planType={chargingCtx?.planType ?? null} />
 

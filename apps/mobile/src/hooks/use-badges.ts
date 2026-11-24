@@ -86,7 +86,7 @@ export function useBadges(isConnected: boolean, userId: string | null, gymId: st
 
 /** The Profile "Badges" row's rows ("2 of 5"): the device copy first, then one read per focus while connected. Silent: a failure leaves what is on
  * screen, and `enabled` false (the engagement area is dark) reads nothing. */
-export function useBadgeRows(enabled: boolean, isConnected: boolean, userId: string | null, gymId: string | null): BadgeRow[] | null {
+export function useBadgeRows(enabled: boolean, isConnected: boolean, userId: string | null, gymId: string | null, reloadToken = 0): BadgeRow[] | null {
   // The rows are kept with the member and gym they were read for, so another member never sees them: a change of either starts from null, then from
   // that member's device copy, then from the live read.
   const memberKey = userId && gymId ? `${userId}.${gymId}` : null;
@@ -100,6 +100,8 @@ export function useBadgeRows(enabled: boolean, isConnected: boolean, userId: str
 
   useFocusEffect(
     useCallback(() => {
+      // `reloadToken` (Story 31.4, the Streak tab's pull to refresh) changes this callback's identity, so the focus effect reads again.
+      void reloadToken;
       if (!enabled || !userId || !gymId || !memberKey) return;
       const mine = ++seq.current;
       void (async () => {
@@ -125,7 +127,7 @@ export function useBadgeRows(enabled: boolean, isConnected: boolean, userId: str
           // Best effort: the row keeps its last value.
         }
       })();
-    }, [enabled, userId, gymId, memberKey]),
+    }, [enabled, userId, gymId, memberKey, reloadToken]),
   );
   return enabled ? rowsForMember(entry, memberKey) : null;
 }

@@ -2453,3 +2453,19 @@ Lab, local results only (one machine runs the server, the database, the load and
 - Share tapped before `useShareContext` reads resolve, or offline from a cold start, produces an image with no gym name, logo, caption or calendar while the button looks normal [apps/mobile/src/hooks/use-share-image.ts, use-share-context.ts]. Extends the earlier cold-start entry. Options for the owner: disable Share until the context is ready, a bounded wait like the logo's, or cache branding and lit days on disk.
 - `cleanLeftovers` removes every `gymos-share-*.png` before each share, including one a previous target may still be reading [apps/mobile/src/lib/shareFlow.ts]. Same unverified Android timing as the existing delete-after-share entry; an age-based sweep would serve both. Settled by the device check.
 - At pixel ratios such as 2.625 the capture size rounds to whole logical points, so the PNG can be about 1079 by 1919 rather than exactly 1080 by 1920 [apps/mobile/src/lib/shareImage.ts:22-25]. Known; only the device check shows the real output.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
+  summary: Only the Streak tab label is localised; Home, Check In, Classes and Profile stay hard-coded English, so the French tab bar is mixed.
+  evidence: apps/mobile/src/components/app-tabs.tsx labels are literals (pre-existing); the new Streak label uses `engage.streak.tab`. Localising the whole bar is its own change (needs keys and parity).
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
+  summary: Home and the Streak screen each run `useHomeEngagement`, so a session makes two engagement reads and settles; a hidden Streak screen on a dark gym may mount eagerly and read too.
+  evidence: settle is idempotent so it is accepted in the spec's Design Notes; whether native tabs mount a hidden screen eagerly can only be seen on a device (check Metro/Kong logs on a dark gym with `epoch.mjs off`).
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
+  summary: The gate wiring (use-home-engagement outcome call, tab layout bind and reset) and the Streak hub conditionals are pinned by source text only; no hook or component render harness exists.
+  evidence: no testing-library in apps/mobile; the reducer and store are behaviour-tested in engagementGate.test.ts. Medium if the wiring broke (no Streak tab for a cold-start member with no device copy); close it when a render harness is added.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
+  summary: `useBadgeRows` re-reads on the hub's pull to refresh through a `void reloadToken` identity trick; pull to refresh does not await the badge count and bumps it even offline.
+  evidence: apps/mobile/src/hooks/use-badges.ts and streak/index.tsx handleRefresh; a `refresh()` that returns a promise (like useCalendar) is the clean fix, best done with a hook test.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
+  summary: The Home streak line row has an accessibility label equal to its text and no hint that it opens the Streak tab.
+  evidence: apps/mobile/src/components/HomeStreakLine.tsx; a hint needs a new locale key with EN/FR parity, left for an accessibility pass.

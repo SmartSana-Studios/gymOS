@@ -537,7 +537,9 @@
       "daily_one": "{{count}} jour d'affilée",
       "daily_other": "{{count}} jours d'affilée",
       "best_one": "Meilleure série : {{count}} semaine",
-      "best_other": "Meilleure série : {{count}} semaines"
+      "best_other": "Meilleure série : {{count}} semaines",
+      "tab": "Série",
+      "title": "Série"
     },
     "goal": {
       "title": "Objectif hebdomadaire",
@@ -641,6 +643,9 @@
       "badges": {
         "row": "Badges",
         "value": "{{n}} sur {{total}}"
+      },
+      "progress": {
+        "row": "Progression"
       }
     },
     "atRisk": {
@@ -653,6 +658,11 @@
     "home": {
       "error": "Impossible de charger votre semaine. Tirez pour actualiser.",
       "settleError": "Impossible de mettre à jour votre série pour l'instant. Nous réessaierons.",
+      "line": {
+        "streak_one": "Série de {{count}} semaine",
+        "streak_other": "Série de {{count}} semaines",
+        "week": "{{done}} sur {{goal}} cette semaine"
+      },
       "rank": "Rang {{n}} sur {{total}} ce mois-ci"
     },
     "calendar": {

@@ -792,6 +792,22 @@ export default function ProfileScreen() {
               )}
               {/* Story 30.6 (MA-12, FR-227): the Anonymous toggle (on = hidden), its helper line and the link to the board. */}
               {engagementEnabled && renderAnonymousRow()}
+              {/* Story 31.4: Progress (body measurements and photos, screens unchanged) left the tab bar for good and is reached from here, in every
+                  gate state: this row sits outside the engagementEnabled blocks, so the Training card renders for a dark gym with the Weekly goal row and
+                  this one. It pushes the root stack route /progress (a Back header, no tab bar). */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('engage.profile.progress.row')}
+                onPress={() => router.push('/progress')}
+                style={[styles.goalRow, styles.rowDivider, { borderTopColor: theme.border }]}>
+                <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  <IconChip icon="show-chart" tint="primary" />
+                </View>
+                <View style={styles.goalRowText}>
+                  <ThemedText type="smallBold">{t('engage.profile.progress.row')}</ThemedText>
+                </View>
+                <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
+              </Pressable>
             </Card>
 
             {/* Story 10.1 AC #2's "or visit Progress at any later time" --

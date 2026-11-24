@@ -6,7 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import { supabase } from '@/lib/supabase';
@@ -201,7 +201,7 @@ export default function ProgressEntriesScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadEntries(true)} />}
             contentContainerStyle={[
               styles.listContent,
-              { paddingBottom: insets.bottom + BottomTabInset + Spacing.three },
+              { paddingBottom: insets.bottom + Spacing.three },
             ]}
             ListEmptyComponent={
               <View style={styles.emptyState}>

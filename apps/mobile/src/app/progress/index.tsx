@@ -9,7 +9,7 @@ import { LogEntrySheet } from '@/components/LogEntrySheet';
 import { Button } from '@/components/ui/Button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { STATUS_COLORS } from '@/constants/subscription-status';
 import { useTheme } from '@/hooks/use-theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
@@ -297,9 +297,18 @@ export default function ProgressScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: insets.bottom + BottomTabInset + Spacing.three },
+            { paddingBottom: insets.bottom + Spacing.three },
           ]}>
-          <ThemedText type="subtitle">{t('progress.screen.title')}</ThemedText>
+          {/* Story 31.4: Progress is a pushed stack screen (no tab), reached from the Profile row, so it has the Back header the other pushed screens
+              have (entries.tsx's header, calendar.tsx). */}
+          <View style={styles.screenHeader}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile'))} style={styles.backButton}>
+              <ThemedText type="default">←</ThemedText>
+            </Pressable>
+            <ThemedText type="subtitle" accessibilityRole="header" style={styles.screenHeaderTitle}>
+              {t('progress.screen.title')}
+            </ThemedText>
+          </View>
 
           {pendingProgressEntryCount > 0 && (
             <View style={styles.offlineBanner}>
@@ -499,6 +508,20 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,
+  },
+  screenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    minHeight: 44,
+  },
+  backButton: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  screenHeaderTitle: {
+    flex: 1,
   },
   loadingIndicator: {
     marginTop: Spacing.four,

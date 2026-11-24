@@ -153,6 +153,12 @@ function RootNavigator() {
         <Stack.Screen name="leaderboard" />
         {/* Story 31.3 (MA-21): the Badge Shelf, a pushed full-screen route with no tab bar. Same reason as calendar: it reads useOfflineSync(). */}
         <Stack.Screen name="badges" />
+        {/* Story 31.4: Progress (body measurements and photos) left the tab bar for a Profile row, so its three screens are pushed stack routes (the
+            same URLs as before, no tab bar, a Back header). A hidden native tab cannot be navigated to, which is why they are not tab screens. They read
+            useOfflineSync(), so they sit inside the group like calendar. */}
+        <Stack.Screen name="progress/index" />
+        <Stack.Screen name="progress/entries" />
+        <Stack.Screen name="progress/photo/[id]" />
         {/* Story 30.7 (MA-20): the milestone celebration, pushed once over Home. A fade, and no swipe-down: [Keep going] or Android back closes it. */}
         <Stack.Screen name="celebration/[milestoneId]" options={{ animation: 'fade', gestureEnabled: false }} />
       </Stack.Protected>

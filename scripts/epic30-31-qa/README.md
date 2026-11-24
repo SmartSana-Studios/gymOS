@@ -2,6 +2,7 @@
 
 Epic 30: weekly goal, ring, streak, at-risk hint, attendance calendar, gym leaderboard, milestone celebration.
 Epic 31: Streak Shields, comeback, N-08 streak reminder, Badge Shelf, share image.
+Story 31.4 moved the whole engagement area off Home: with the area on, the tab bar reads **Home, Check In, Classes, Streak, Profile**. There is **no Progress tab in any state**: Progress (body measurements and photos) is a row at the end of Profile -> Training, always shown, and opens as a full-screen page with a Back arrow. Wherever a part below says "Streak tab", it means that fourth tab; Home only keeps one small line ("3-week streak" or "1 of 3 this week") that opens it. With the area off the bar has four tabs (Home, Check In, Classes, Profile) and no Streak tab.
 Everything is on the **member app** (phone). There is no dashboard or Super Admin screen in these epics. Local Supabase only, never prod.
 
 ## Setup (once per devcontainer boot)
@@ -39,19 +40,19 @@ Sign in as **A**. State: `state.mjs streak3 A`, then `epoch.mjs off`.
 
 | Do | Expect |
 |---|---|
-| Home, pull to refresh | No "This week" card. Home is as it was before the epics. |
-| Profile | No Weekly goal, My visits, Badges rows, no Streak reminder toggle, no leaderboard toggle. |
-| `epoch.mjs on`, refresh Home | The "This week" card appears (a streak of 3). |
+| Home, pull to refresh | No streak line, no "This week" card. The tab bar shows **four tabs** (no Streak tab, and no Progress tab either). Home is as it was before the epics. |
+| Profile | No My visits or Badges rows, no Streak reminder toggle, no leaderboard toggle (the Weekly goal row is always there). The Training card ends with the **Progress** row, shown in every state: tap it, the Progress page opens with a Back arrow, "Log entry" and the entries and photo screens work, Back returns to Profile. |
+| `epoch.mjs on`, pull to refresh Home | The **Streak** tab appears as the fourth tab (the bar goes from four tabs to five), and Home shows the line "3-week streak". Open the Streak tab: the "This week" card (a streak of 3), the Leaderboard card, the month calendar and a Badges row. Profile -> Training ends with the same **Progress** row as in the dark state (Back returns to Profile). |
 
 ## 1. Weekly goal and ring (Epic 30.1, 30.4)
 Sign in as **A**. State: `state.mjs new A` (goal 3 = default, nothing visited).
 
 | Do | Expect |
 |---|---|
-| Home "This week" | Empty ring "days", caption "A fresh week. 3 visits close your ring.", the hint "We started you at 3 days a week. Change it any time; a new goal starts next Monday." No bare "0" streak anywhere. |
-| Tap the card | Opens My visits (calendar). Back. |
+| Streak tab "This week" | Empty ring "days", caption "A fresh week. 3 visits close your ring.", the hint "We started you at 3 days a week. Change it any time; a new goal starts next Monday." No bare "0" streak anywhere. |
+| Tap the card | Opens My visits (calendar). Back. The goal button above the card is a separate target (the Weekly goal sheet); after saving, Back lands on the Streak tab with the toast. |
 | Profile -> Training -> Weekly goal ("3 days") | Sheet with 1 to 7, current marked. Pick 5: "Starts Monday <date>. This week stays at 3." |
-| Save goal | "Goal saved. Starts <date>." Home now shows "Changes to 5 days on <date>"; the Profile row reads "3 days, then 5 from <date>". Pick 3 again: "This is your current goal." |
+| Save goal | "Goal saved. Starts <date>." The Streak tab now shows "Changes to 5 days on <date>"; the Profile row reads "3 days, then 5 from <date>". Pick 3 again: "This is your current goal." |
 | Airplane mode, try to save | "You're offline. Connect to change your goal." |
 | `state.mjs halfway A`, refresh | Goal 4, 1 visit: "3 more visits close your ring." |
 | `state.mjs ringfull A`, refresh | Full ring: "Goal met. Your streak becomes 1 week when the week ends." |
@@ -61,7 +62,7 @@ Sign in as **A**. State: `state.mjs atrisk A` (no visit today, the week can only
 
 | Do | Expect |
 |---|---|
-| Home | Hint "Visit today to close your ring." and "<n> hours left" (or "<m> min left" in the last hour). Calm: no red, no "last chance", no exclamation mark. |
+| Streak tab | Hint "Visit today to close your ring." and "<n> hours left" (or "<m> min left" in the last hour). Calm: no red, no "last chance", no exclamation mark. |
 | My visits | Today's cell shows the at-risk state with the hours left. |
 | `state.mjs shieldrisk A`, refresh | Same hint plus a second line "A Shield is ready if you can't make it." and a "1 Shield" chip. |
 | `checkin.mjs A`, reopen the app | The hint is gone, today is lit on the calendar, the ring has moved. |
@@ -83,7 +84,7 @@ Sign in as **A**. State: `board.mjs full`, `state.mjs halfway A` (A has 1 visit 
 
 | Do | Expect |
 |---|---|
-| Profile -> "See the leaderboard" (or the Home card link) | Notice "You're on your gym's leaderboard" with your label, "Until you choose, other members see you as Anonymous.", [Show my name] and [Appear as Anonymous]. |
+| Profile -> "See the leaderboard" (or the Leaderboard card on the Streak tab) | Notice "You're on your gym's leaderboard" with your label, "Until you choose, other members see you as Anonymous.", [Show my name] and [Appear as Anonymous]. |
 | Close it without choosing, look at the board | Your row is "Anonymous" with "You". |
 | Choose [Show my name] | Your row reads "AMINA N.". The board: top 10, then a gap line "Rows between are not shown", then your row with one neighbour either side and "<n> visits behind the member above". Ties show "Tied" (two members have 15). Two other rows read "Anonymous" (hidden members, still ranked) and one more (has not seen the notice). No photos or phones. |
 | This month / Last month tabs | Both load; last month is empty or small. Footnote "Each day you visit counts once. The board resets on the 1st. Just for fun: rank earns no prizes." |
@@ -107,7 +108,7 @@ Sign in as **A**. State per row below. The celebration shows once, on the first 
 | Reduced motion on (phone accessibility setting) | The celebration still shows, without the animation. |
 
 ## 6. Streak Shields (Epic 31.1)
-Sign in as **A**. State per row below. Chip, explainer and notices are all Home "This week".
+Sign in as **A**. State per row below. Chip, explainer and notices are all in the Streak tab's "This week" section.
 
 | State | Expect |
 |---|---|
@@ -157,7 +158,7 @@ Sign in as **A**. Share steps need a build with the native libraries (see the Ex
 | Check the shared image | PNG, exactly 1080 x 1920, dark #0A0F17 background, gym name and logo, the "7" and headline, a month calendar with only your lit days, caption "7 visits at ... One day at a time." **No** member name, phone, payment figure, GymOS watermark. Repeat from a badge sheet. |
 | Cancel the sheet | Nothing is shown. After a share, a second share still works; on Android the temp file `gymos-share-*.png` is gone from app storage. |
 | Airplane mode, Share | Still works (a logo that cannot load is simply left out). |
-| Tap "See your badges" on the celebration, then Back | Back goes to Home and the celebration never shows again. |
+| Tap "See your badges" on the celebration, then Back | Back goes to Home (the celebration is still pushed over Home) and it never shows again. |
 | Android: the target app (WhatsApp) | Received the file before the app deleted it (the open risk in deferred-work). iOS: the share sheet is not hidden behind the badge sheet. |
 
 ## 10. French, large text, tone
@@ -166,11 +167,11 @@ Sign in as **A**. Switch the app language to French (Profile) and repeat quickly
 | Do | Expect |
 |---|---|
 | Every engagement screen in FR | No English left; Shields read "bouclier"; the reminder helper says "18 h". |
-| Phone font size at the largest, `state.mjs streak4 A` | Home card, calendar, badge tiles and the celebration stay usable (no cut-off, no overlap); the mini calendar on the share image is dropped when there is no room. |
+| Phone font size at the largest, `state.mjs streak4 A` | Streak tab, Home streak line, calendar, badge tiles and the celebration stay usable (no cut-off, no overlap); the mini calendar on the share image is dropped when there is no room. |
 | Across every screen | No exclamation marks, no "last chance", no "streak lost", no guilt wording; shape or glyph accompanies every colour. |
 
 ## 11. Load feel (NFR-029, rough)
-The tunnels add latency, so this is only a sanity check: Home, My visits and the board each fill within about 2 seconds with `board.mjs full` and `state.mjs veteran A`. The server-side baseline at a full gym is `scripts/engagement-load.sh`; the 4G figure on a mid-range Android is the one real device number the owner takes.
+The tunnels add latency, so this is only a sanity check: the Streak tab (ring, board card and calendar), My visits and the board each fill within about 2 seconds with `board.mjs full` and `state.mjs veteran A`. The server-side baseline at a full gym is `scripts/engagement-load.sh`; the 4G figure on a mid-range Android is the one real device number the owner takes.
 
 ## When you are done
 ```

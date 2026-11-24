@@ -81,6 +81,13 @@ const SCREEN_FILES = [
   'lib/shareFlow.ts',
   'lib/logoGate.ts',
   'services/badges.ts',
+  // Story 31.4: the Streak tab, the calendar body shared with /calendar, the Home streak line and its view model, the engagement gate. Same rules: no
+  // sentence in a screen file, no date construction.
+  'app/(tabs)/streak/index.tsx',
+  'components/CalendarPanel.tsx',
+  'components/HomeStreakLine.tsx',
+  'lib/homeStreakLine.ts',
+  'lib/engagementGate.ts',
 ];
 
 describe('no literal sentence (FR-232)', () => {
@@ -230,7 +237,8 @@ describe('the calendar reads only what the spec allows', () => {
   });
 
   it('swipes with PanResponder and no gesture library', () => {
-    const screen = stripComments(source('app/calendar.tsx'));
+    // Story 31.4: the swipe lives in the shared panel (the full screen and the Streak tab both render it).
+    const screen = stripComments(source('components/CalendarPanel.tsx'));
     expect(screen).toContain('PanResponder');
     expect(screen).not.toMatch(/react-native-gesture-handler|reanimated/);
     expect(screen).toMatch(/isScreenReaderEnabled/);
@@ -244,8 +252,8 @@ describe('the calendar reads only what the spec allows', () => {
 });
 
 describe('Home card and Profile row open /calendar (closes the 30.4 card-tap deferral)', () => {
-  it('Home passes the push to the card, and the card is one button that uses it', () => {
-    const home = stripComments(source('app/(tabs)/index.tsx'));
+  it('the Streak tab (Story 31.4: it left Home) passes the push to the card, and the card is one button that uses it', () => {
+    const home = stripComments(source('app/(tabs)/streak/index.tsx'));
     expect(home).toMatch(/onPressCard=\{\(\) => router\.push\('\/calendar'\)\}/);
     const card = stripComments(source('components/WeeklyRingCard.tsx'));
     expect(card).toMatch(/onPress=\{onPressCard\}/);
@@ -278,7 +286,7 @@ describe('the at-risk hint is shared, not copied (Story 30.5)', () => {
     const card = stripComments(source('components/WeeklyRingCard.tsx'));
     expect(card).toContain("from '@/components/AtRiskHint'");
     expect(card).not.toMatch(/function AtRiskHint|Animated\.|reduceMotion|isReduceMotionEnabled/);
-    expect(stripComments(source('app/calendar.tsx'))).toContain("from '@/components/AtRiskHint'");
+    expect(stripComments(source('components/CalendarPanel.tsx'))).toContain("from '@/components/AtRiskHint'");
     for (const path of ['components/AtRiskHint.tsx', 'components/CalendarDayCell.tsx']) expect(stripComments(source(path))).toContain('useAtRiskPulse');
     const hook = stripComments(source('hooks/use-at-risk-pulse.ts'));
     expect(hook).toMatch(/iterations: PULSE_CYCLES/);
@@ -425,8 +433,10 @@ describe('the leaderboard is dark while the engagement area is', () => {
     expect(gateAt).toBeLessThan(planReturnAt);
     expect(planReturnAt).toBeLessThan(callAt);
     expect(hook.match(/getGymLeaderboard\(/g)).toHaveLength(1);
-    const screen = stripped('app/(tabs)/index.tsx');
-    expect(screen.match(/loadLeaderboardForHome\(/g)).toHaveLength(1);
+    // Story 31.4: the card and its one load call moved from Home to the Streak tab; Home reads no board at all.
+    const screen = stripped('app/(tabs)/streak/index.tsx');
+    expect(screen.match(/loadLeaderboard\(/g)).toHaveLength(1);
+    expect(stripped('app/(tabs)/index.tsx')).not.toMatch(/useHomeLeaderboard|loadLeaderboardForHome|LeaderboardHomeCard|getGymLeaderboard/);
     expect(screen).not.toMatch(/getGymLeaderboard|services\/leaderboard|weekStart|weekEnd|dayStartsAt|dayEndsAt|serverNow|gymToday/);
   });
 
@@ -495,15 +505,22 @@ describe('placement and registration', () => {
     expect(group).toContain('<Stack.Screen name="leaderboard" />');
   });
 
-  it('the Home card sits between the ring section and the Rewards card, and opens /leaderboard', () => {
-    const home = stripped('app/(tabs)/index.tsx');
-    const ring = home.indexOf('<WeeklyRingSection');
-    const card = home.indexOf('<LeaderboardHomeCard');
-    const rewards = home.indexOf('<RewardsCard');
+  it('the Streak tab (Story 31.4) orders ring section, Leaderboard card, calendar panel, Badges row, and the card opens /leaderboard', () => {
+    const hub = stripped('app/(tabs)/streak/index.tsx');
+    const ring = hub.indexOf('<WeeklyRingSection');
+    const card = hub.indexOf('<LeaderboardHomeCard');
+    const panel = hub.indexOf('<CalendarPanel');
+    const badges = hub.indexOf("router.push('/badges')");
     expect(ring).toBeGreaterThan(-1);
     expect(card).toBeGreaterThan(ring);
-    expect(rewards).toBeGreaterThan(card);
-    expect(home).toMatch(/onPress=\{\(\) => router\.push\('\/leaderboard'\)\}/);
+    expect(panel).toBeGreaterThan(card);
+    expect(badges).toBeGreaterThan(panel);
+    expect(hub).toMatch(/onPress=\{\(\) => router\.push\('\/leaderboard'\)\}/);
+    // Home keeps neither section: one streak line between the quick actions and the Rewards card.
+    const home = stripped('app/(tabs)/index.tsx');
+    expect(home).not.toMatch(/<WeeklyRingSection|<LeaderboardHomeCard/);
+    expect(home.indexOf('<HomeStreakLine')).toBeGreaterThan(-1);
+    expect(home.indexOf('<HomeStreakLine')).toBeLessThan(home.indexOf('<RewardsCard'));
   });
 
   it('the Profile row sits in the Training card after My visits, under the same enabled gate, and links to the board', () => {
@@ -696,7 +713,7 @@ describe('the celebration screen (MA-20)', () => {
     expect(cell).toMatch(/\{cell\.milestone !== null && \(\s*<View style={styles\.star}/);
     expect(cell).toMatch(/STAR_SIZE = 14/);
     expect(cell).toMatch(/star: \{\s*position: 'absolute',\s*top: 1,\s*left: 1/);
-    expect(stripped('app/calendar.tsx')).toMatch(/'star'/);
+    expect(stripped('components/CalendarPanel.tsx')).toMatch(/'star'/);
   });
 });
 
@@ -789,7 +806,7 @@ describe('the Shield pieces on Home (Story 31.1)', () => {
   });
 
   it('Home hands the dismissal to the hook, which records it per user and gym and reads the store at every load', () => {
-    expect(stripped('app/(tabs)/index.tsx')).toMatch(/onDismissNotice=\{dismissShieldNotice\}/);
+    expect(stripped('app/(tabs)/streak/index.tsx')).toMatch(/onDismissNotice=\{dismissShieldNotice\}/);
     const hook = stripped('hooks/use-home-engagement.ts');
     expect(hook).toMatch(/readDismissed\(userId, gymId\)/);
     expect(hook).toMatch(/recordDismissed\(userId, gymId, id\)/);
@@ -835,7 +852,7 @@ describe('the calendar saved-week glyph (Story 31.1, MA-18)', () => {
   it('the legend appends the Shield entry fourth and the screen draws it with the shield glyph', () => {
     const view = stripped('lib/calendarView.ts');
     expect(view.indexOf("kind: 'milestone', label")).toBeLessThan(view.indexOf("kind: 'shield', label"));
-    expect(stripped('app/calendar.tsx')).toMatch(/name="shield"/);
+    expect(stripped('components/CalendarPanel.tsx')).toMatch(/name="shield"/);
   });
 
   it('the saved weeks come from my_saved_weeks through the visit-days service, never from the engagement row', () => {

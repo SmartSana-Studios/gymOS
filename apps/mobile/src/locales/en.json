@@ -537,7 +537,9 @@
       "daily_one": "{{count}} day in a row",
       "daily_other": "{{count}} days in a row",
       "best_one": "Best: {{count}} week",
-      "best_other": "Best: {{count}} weeks"
+      "best_other": "Best: {{count}} weeks",
+      "tab": "Streak",
+      "title": "Streak"
     },
     "goal": {
       "title": "Weekly goal",
@@ -641,6 +643,9 @@
       "badges": {
         "row": "Badges",
         "value": "{{n}} of {{total}}"
+      },
+      "progress": {
+        "row": "Progress"
       }
     },
     "atRisk": {
@@ -653,6 +658,11 @@
     "home": {
       "error": "Couldn't load your week. Pull down to refresh.",
       "settleError": "Couldn't update your streak just now. We'll try again.",
+      "line": {
+        "streak_one": "{{count}}-week streak",
+        "streak_other": "{{count}}-week streak",
+        "week": "{{done}} of {{goal}} this week"
+      },
       "rank": "Rank {{n}} of {{total}} this month"
     },
     "calendar": {

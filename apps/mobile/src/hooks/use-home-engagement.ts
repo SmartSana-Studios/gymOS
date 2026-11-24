@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform } from 'react-native';
 
+import { setEngagementGateFromOutcome } from '@/lib/engagementGate';
 import { getOfflineCheckIns } from '@/lib/sqlite';
 import {
   buildHomeEngagementView,
@@ -15,7 +16,7 @@ import {
   type EngagementSnapshot,
   type HomeEngagementView,
 } from '@/lib/weeklyRing';
-import { getMyEngagement, openEngagement } from '@/services/engagement';
+import { getMyEngagement, openEngagement, type Engagement } from '@/services/engagement';
 import { readDismissed, recordDismissed } from '@/services/shieldNotices';
 import { markGoalHintSeen, readGoalHintSeen } from '@/services/weeklyGoal';
 
@@ -23,6 +24,8 @@ const NO_SCANS: string[] = [];
 
 export interface HomeEngagement {
   view: HomeEngagementView;
+  /** Story 31.4: the row behind `view` (live or the device copy), for the Home streak line's numbers; null when there is none. */
+  engagement: Engagement | null;
   /** Reads the row (and settles once when it says so) for this member; call it once per Home focus and per pull to refresh. Never throws. Resolves to the
    * outcome of that read (or null when this call was superseded), which the Home leaderboard card reuses instead of reading the row a second time. */
   loadForHome: (userId: string, gymId: string, isCurrent: () => boolean) => Promise<EngagementLoadOutcome | null>;
@@ -109,6 +112,8 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
       // instead of lagging up to a minute behind after a pull to refresh.
       setDeviceNowMs(receivedAt);
 
+      // Story 31.4: the answer also moves the engagement gate (tab bar, Home streak line, Profile row); a failed read leaves it as it was.
+      setEngagementGateFromOutcome(userId, gymId, outcome.kind);
       if (outcome.kind === 'row') {
         setDark(false);
         setLoadFailed(false);
@@ -212,5 +217,5 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
     });
   }, [restoredId]);
 
-  return { view, loadForHome, dismissGoalHint, dismissShieldNotice };
+  return { view, engagement: snapshot ? snapshot.engagement : null, loadForHome, dismissGoalHint, dismissShieldNotice };
 }

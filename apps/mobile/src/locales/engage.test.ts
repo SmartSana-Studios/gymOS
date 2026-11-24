@@ -63,6 +63,12 @@ const REQUIRED: readonly (readonly [string, boolean])[] = [
   ["engage.streak.shieldMax", false],
   ["engage.streak.daily", true],
   ["engage.streak.best", true],
+  // Story 31.4: the Streak tab and its heading, the Home streak line and the Profile Progress row.
+  ["engage.streak.tab", false],
+  ["engage.streak.title", false],
+  ["engage.home.line.streak", true],
+  ["engage.home.line.week", false],
+  ["engage.profile.progress.row", false],
   ["engage.goal.title", false],
   ["engage.goal.prompt", false],
   ["engage.goal.option.a11y", true],

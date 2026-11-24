@@ -32,7 +32,7 @@ function formatCompletedDate(iso: string, locale: string): string {
  * mirroring `plan.tsx`/`renew.tsx`'s placement convention -- reached via
  * `router.push('/workout-plan')` from a new Home entry point (Subtask
  * 4.6). No mockup exists for this screen (see the story's own Dev Notes);
- * the on-mount fetch/cache/error shape mirrors `(tabs)/progress/index.tsx`'s
+ * the on-mount fetch/cache/error shape mirrors `progress/index.tsx`'s
  * own code-review-hardened `requestIdRef`/cache-first pattern, built in
  * from the start here rather than repeating the bugs that pattern exists
  * to prevent. */
@@ -63,7 +63,7 @@ function WorkoutPlanScreenContent() {
   const [gymSuspended, setGymSuspended] = useState(false);
 
   const memberIdRef = useRef<string | null>(null);
-  // Mirrors (tabs)/progress/index.tsx's own requestIdRef/isCurrent()
+  // Mirrors progress/index.tsx's own requestIdRef/isCurrent()
   // convention -- guards against a stale in-flight response overwriting
   // fresher state (e.g. isConnected flipping mid-fetch, or unmounting).
   const requestIdRef = useRef(0);
@@ -159,7 +159,7 @@ function WorkoutPlanScreenContent() {
 
   // useFocusEffect (not a plain mount-only useEffect) so completion history
   // stays fresh across re-entries into this already-mounted screen -- mirrors
-  // (tabs)/progress/index.tsx's own identical precedent.
+  // progress/index.tsx's own identical precedent.
   useFocusEffect(
     useCallback(() => {
       void loadScreen();
