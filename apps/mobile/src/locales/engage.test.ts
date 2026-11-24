@@ -148,6 +148,36 @@ const REQUIRED: readonly (readonly [string, boolean])[] = [
   ["engage.profile.anonymous.helperOff", false],
   ["engage.profile.anonymous.helperUnseen", false],
   ["engage.profile.anonymous.link", false],
+  // Story 31.3: the badge shelf, the share image and the Profile Badges row (catalog lines 713-749 and 780-781, plus engage.share.dialogTitle, the sheet close key and the
+  // two tile accessible labels the catalog lacks).
+  ["engage.share.caption.7", false],
+  ["engage.share.caption.30", false],
+  ["engage.share.caption.100", false],
+  ["engage.share.caption.badge", false],
+  ["engage.share.preparing", false],
+  ["engage.share.error", false],
+  ["engage.share.retry", false],
+  ["engage.share.unavailable", false],
+  ["engage.share.dialogTitle", false],
+  ["engage.badges.title", false],
+  ["engage.badges.summary", false],
+  ["engage.badges.first", false],
+  ["engage.badges.visits7", false],
+  ["engage.badges.visits30", false],
+  ["engage.badges.visits100", false],
+  ["engage.badges.weeks4", false],
+  ["engage.badges.earnedOn", false],
+  ["engage.badges.locked.first", false],
+  ["engage.badges.locked.visits", true],
+  ["engage.badges.locked.weeks", false],
+  ["engage.badges.locked.weeksProgress", false],
+  ["engage.badges.grantsNothing", false],
+  ["engage.badges.error", false],
+  ["engage.badges.sheet.close", false],
+  ["engage.badges.a11y.earned", false],
+  ["engage.badges.a11y.locked", false],
+  ["engage.profile.badges.row", false],
+  ["engage.profile.badges.value", false],
   ["n08.weekly.title", false],
   ["n08.weekly.body", true],
   ["n08.daily.title", false],
@@ -284,11 +314,15 @@ describe('engagement catalog: operator-tunable values', () => {
   // edit never leaves the copy wrong. A literal count of days or weeks in a catalog value is a copy of a config value (the milestone numbers of the
   // celebration, 7, 30 and 100 visits, are product constants and name visits, not days or weeks).
   const LITERAL_CONFIG = /(^|[^\d{])\d+\s*(days?|weeks?|jours?|semaines?)\b/i;
+  // Story 31.3 (disclosed exception): the UX catalog names the fifth badge "4 weeks in a row" and its progress lines "{n} of 4 weeks" and "Keep a streak going for 4 weeks",
+  // byte for byte. The badge is the code `four_weeks` (the first Shield), a product constant like the 7, 30 and 100 of the milestones, so these three keys keep the
+  // literal 4; the server's weeks_progress counts toward the Shield interval (4 today) and the number shown is the server's.
+  const BADGE_NAMED_FOR_FOUR_WEEKS = new Set(['engage.badges.weeks4', 'engage.badges.locked.weeks', 'engage.badges.locked.weeksProgress']);
   // Story 31.1 turned the Shield explainer's "Every 4 weeks" into a {{count}} placeholder (the server's shield_every_weeks), so no key is excepted.
 
   it.each(['en', 'fr'] as const)('no engage.* value in %s carries a literal day or week count', (lang) => {
     const flat = lang === 'en' ? EN : FR;
-    const offenders = engageKeys(flat).filter((k) => LITERAL_CONFIG.test(flat[k]));
+    const offenders = engageKeys(flat).filter((k) => !BADGE_NAMED_FOR_FOUR_WEEKS.has(k) && LITERAL_CONFIG.test(flat[k]));
     expect(offenders).toEqual([]);
   });
 

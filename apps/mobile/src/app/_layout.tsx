@@ -151,6 +151,8 @@ function RootNavigator() {
         <Stack.Screen name="calendar" />
         {/* Story 30.6 (MA-19): the gym leaderboard, a pushed full-screen route with no tab bar. Same reason as calendar: it reads useOfflineSync(). */}
         <Stack.Screen name="leaderboard" />
+        {/* Story 31.3 (MA-21): the Badge Shelf, a pushed full-screen route with no tab bar. Same reason as calendar: it reads useOfflineSync(). */}
+        <Stack.Screen name="badges" />
         {/* Story 30.7 (MA-20): the milestone celebration, pushed once over Home. A fade, and no swipe-down: [Keep going] or Android back closes it. */}
         <Stack.Screen name="celebration/[milestoneId]" options={{ animation: 'fade', gestureEnabled: false }} />
       </Stack.Protected>

@@ -154,7 +154,7 @@ select pg_temp.settle(1, date '2026-05-25');
 select is(pg_temp.vw(1, date '2026-05-25', array['streak_weeks', 'shields_held', 'weeks_to_next_shield', 'shield_earned_week']), '12|2|null|2026-04-20',
           'earn: run of 12 still holds 2 (a Shield earned at the cap is not stored) and the last stored one is week 8');
 select is(pg_temp.out(1), 'mmmmmmmmmmmm', 'earn: twelve met weeks');
-select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(1) and kind not in ('week', 'milestone')), 0, 'earn: no Shield row or counter is written anywhere (only week and milestone facts)');
+select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(1) and kind not in ('week', 'milestone', 'badge')), 0, 'earn: no Shield row or counter is written anywhere (only week, milestone and badge facts; 31.3 adds the badge)');
 select pg_temp.pat(2, 'MMMMM');
 select pg_temp.settle(2, date '2026-04-06');
 select is(pg_temp.vw(2, date '2026-04-06', array['streak_weeks', 'shields_held', 'weeks_to_next_shield']), '5|1|3', 'earn: run of 5 holds 1, 3 weeks to the next');

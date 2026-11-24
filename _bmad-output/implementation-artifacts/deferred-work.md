@@ -2424,3 +2424,25 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-31-2-streak-reminder-n-08.md`
   summary: `scripts/ci-local.sh` does not clean the pending `@fixture.gymos.test` rows the landing e2e leaves in `email_outbox`, so after a few e2e runs `support_payment_connection.test.sql` test 105 fails (`claim_email_outbox(50)` never reaches its row).
   evidence: 2026-11-24, 31-2 ci-local run 2: 103 pending fixture rows (69 takedown, 34 lifted) in the local DB; deleting them made the full run GREEN. The same script already cleans orphaned `gym_page_*` audit rows (`clean_orphaned_page_audit_rows`); a matching `delete from email_outbox where recipient_email like '%@fixture.gymos.test'` before the pgtap stage would close it. Also: static fails after an e2e run until the gitignored `apps/dashboard/playwright-report` is removed (already a known trap).
+
+## Deferred from: implementation of spec-31-3-badge-shelf-and-share-image (2026-11-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: The three catalog keys that name "4 weeks" literally (`engage.badges.weeks4`, `engage.badges.locked.weeks`, `engage.badges.locked.weeksProgress`) copy the Shield interval, which is the operator-tunable `platform_engagement_config.shield_every_weeks` (4 today).
+  evidence: The UX catalog pins them byte for byte, so `engage.test.ts` exempts exactly these three keys from its no-literal-config-count check. The server clamps `weeks_progress` to `shield_every_weeks - 1`. If an operator ever changes the interval, the badge name and these two lines are wrong until the keys become `{{count}}` placeholders (`get_my_badges` would also need to return the interval).
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: The share file is deleted when `Sharing.shareAsync` resolves; on Android a target app may read the file after that.
+  evidence: Not checkable without a device (the story's manual check, step 9). If a target shows an empty or missing image, drop the immediate delete on Android and rely on the sweep that already runs before the next share (`runShareFlow` calls `cleanLeftovers` first), keeping the "no image persists" rule only up to the next share.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: `private.backfill_badges()` stays installed after the release back-fill ran, EXECUTE revoked from every client role.
+  evidence: Kept so pgTAP can prove a second run inserts nothing; it is idempotent and harmless. A clean-up migration may drop it after one release.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: On Android the share temp file is deleted as soon as `Sharing.shareAsync` resolves, which may be before the target app has read it.
+  evidence: Maybe-false, unverified (review pass 1, EH and BH). It depends on when expo-sharing resolves on Android and only a device build shows it; the owner's device check (steps 5, 6, 9 in the spec's Implementation Notes) is the settling test. If a target shows an empty image, leave deletion to the next share's leftover sweep on Android.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: The share flow's real adapters (cache sweep predicate, delete guard, view-shot capture size) are covered only by source-text assertions and fakes.
+  evidence: The repo has no render harness (spec decision). Nothing automated shows that the PNG is exactly 1080 by 1920 or that only `gymos-share-*.png` files are swept; the device check is the planned proof (review pass 1, VG and BH).
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: A badge share image opened offline right after a cold start has no gym name, logo or calendar, because `use-share-context` reads them over the network each time and nothing is cached on disk.
+  evidence: The image is still built and shared (the acceptance criterion holds), and within a session `getGymBranding`'s last-good name covers it. Caching branding and the month's lit days with the badge copy would close it (review pass 1, BH).

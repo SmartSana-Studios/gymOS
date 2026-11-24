@@ -65,6 +65,21 @@ const SCREEN_FILES = [
   'services/shieldNotices.ts',
   // Story 31.2: the Streak reminder row's view model (the hour formatter and the row), same rules: no sentence, no date construction.
   'lib/streakReminder.ts',
+  // Story 31.3: the Badge Shelf, its tile and detail sheet, the share image and its host, the hooks, the view models and the services. Same rules: no sentence
+  // in a screen file, no date construction (the one date format, "14 Oct", goes through formatDayMonth in lib/weeklyGoalSheet.ts, which is not scanned here).
+  'app/badges.tsx',
+  'components/BadgeTile.tsx',
+  'components/BadgeDetailSheet.tsx',
+  'components/ShareImageComposition.tsx',
+  'components/ShareImageHost.tsx',
+  'hooks/use-badges.ts',
+  'hooks/use-share-image.ts',
+  'hooks/use-share-context.ts',
+  'lib/badgesView.ts',
+  'lib/badgeCodes.ts',
+  'lib/shareImage.ts',
+  'lib/shareFlow.ts',
+  'services/badges.ts',
 ];
 
 describe('no literal sentence (FR-232)', () => {
@@ -552,12 +567,22 @@ describe('the celebration screen (MA-20)', () => {
     expect(/Animated\.loop|expo-av/.test("import { Audio } from 'expo-av'")).toBe(true);
   });
 
-  it('has no Share button and no badges link (Epic 31)', () => {
-    for (const path of CELEBRATION_FILES) {
-      expect(stripped(path), path).not.toMatch(/cta\.share|cta\.badges|engage\.share|engage\.badges|expo-sharing|Share\./);
-    }
-    expect(stripped(ROUTE).match(/<Button\b/g)).toHaveLength(1);
-    expect(stripped(ROUTE)).toContain('view.continueLabel');
+  it('Story 31.3: has Share (primary, with a spinner), Keep going and the See your badges link, all from the view model, and no sharing library of its own', () => {
+    const route = stripped(ROUTE);
+    // Three Buttons: Share, Keep going and the inline [Try again]; the badges link is a Pressable text link.
+    expect(route.match(/<Button\b/g)).toHaveLength(3);
+    expect(route).toContain('view.shareLabel');
+    expect(route).toContain('view.continueLabel');
+    expect(route).toContain('view.badgesLabel');
+    expect(route).toContain('loading={share.status === \'sharing\'}');
+    expect(route).toContain('variant={buttons.continueVariant}');
+    expect(route).toContain('celebrationButtons(share.canShare)');
+    // Share comes first, then Keep going, then the link.
+    expect(route.indexOf('view.shareLabel')).toBeLessThan(route.indexOf('view.continueLabel'));
+    expect(route.indexOf('view.continueLabel')).toBeLessThan(route.indexOf('view.badgesLabel'));
+    // The route reaches the sharing libraries only through the hook.
+    expect(route).not.toMatch(/expo-sharing|react-native-view-shot|expo-file-system/);
+    expect(route).toContain('useShareImage(');
   });
 
   it('takes no more from the at-risk pulse file than the reduce-motion check', () => {
@@ -593,8 +618,10 @@ describe('the celebration screen (MA-20)', () => {
     expect(route).toContain('celebrationVisible({ dataReady, motionKnown, openHome, hasView: view !== null })');
     expect(route).toContain('closeRecord({ visible, milestone, userId, gymId })');
     expect(route).toContain('if (record) void finishCelebration(CLOSE_DEPS, record.userId, record.gymId, record.milestone)');
-    // The only router.replace is the cold-open branch of goHome; the openHome effect goes through goHome.
-    expect(route.match(/router\.replace\(/g)).toHaveLength(1);
+    // Two router.replace calls: the cold-open branch of goHome (the openHome effect goes through goHome), and Story 31.3's [See your badges], which
+    // replaces this route with the shelf so Back from the shelf returns to Home.
+    expect(route.match(/router\.replace\(/g)).toHaveLength(2);
+    expect(route).toContain("if (closeDestination(action) === 'badges') router.replace('/badges');");
     expect(route).toMatch(/if \(openHome && !closedRef\.current\) \{\s*closedRef\.current = true;\s*goHome\(\);/);
   });
 
@@ -638,9 +665,9 @@ describe('the celebration screen (MA-20)', () => {
     expect(hook).toContain('celebrationDue({ milestone, today, ready, focused })');
   });
 
-  it('the shown-store and the Shield-notice store are cleared beside clearCachedProgressPayload at the three sign-out sites', () => {
+  it('the shown-store, the badge copy and the Shield-notice store are cleared beside clearCachedProgressPayload at the three sign-out sites', () => {
     for (const path of ['app/(tabs)/profile.tsx', 'app/suspended.tsx', 'app/awaiting-registration.tsx']) {
-      expect(stripped(path), path).toMatch(/clearCachedProgressPayload\(\);\s*void clearShown\(\);\s*void clearShieldNotices\(\);/);
+      expect(stripped(path), path).toMatch(/clearCachedProgressPayload\(\);\s*void clearShown\(\);\s*void clearBadgesCache\(\);\s*void clearShieldNotices\(\);/);
     }
   });
 

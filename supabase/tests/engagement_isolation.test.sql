@@ -138,7 +138,7 @@ select is(private.settle_engagement(pg_temp.m(5), pg_temp.id(1, 1), date '2026-0
 select is(pg_temp.digest(2), (select b_after_b from digests), 'gym A''s settles left every gym B row exactly as it was (digest of facts and state)');
 select is((select count(*)::int from engagement_facts where member_id in (pg_temp.m(3), pg_temp.m(5)) and gym_id <> pg_temp.id(1, 1)), 0, 'every fact of a gym A member carries gym A');
 select is((select count(*)::int from engagement_state where member_id in (pg_temp.m(3), pg_temp.m(5)) and gym_id <> pg_temp.id(1, 1)), 0, 'and so does every state row');
-select is((select count(*)::int from engagement_facts where gym_id = pg_temp.id(1, 2)), 3, 'gym B holds exactly its own member''s facts (two weeks and the comeback the missed week started)');
+select is((select count(*)::int from engagement_facts where gym_id = pg_temp.id(1, 2)), 4, 'gym B holds exactly its own member''s facts (two weeks, the comeback the missed week started and the first_visit badge of 31.3)');
 
 create temp table digests2 as select pg_temp.digest(1) as a, pg_temp.digest(2) as b;
 select throws_ok(format($$select private.settle_engagement(%L, %L, date '2026-03-23')$$, pg_temp.m(4), pg_temp.id(1, 1)), 'P0001', null, 'a gym B member settled as gym A raises');

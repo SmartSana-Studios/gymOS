@@ -26,6 +26,7 @@ import {
   ackSettled,
   buildCelebrationView,
   buildMiniMonth,
+  celebrationButtons,
   celebrationDue,
   celebrationKeys,
   celebrationMonth,
@@ -33,6 +34,7 @@ import {
   chooseMilestone,
   clearShown,
   celebrationVisible,
+  closeDestination,
   closeRecord,
   finishCelebration,
   homeCelebrationPlan,
@@ -301,6 +303,8 @@ describe('the words', () => {
       [['engage', 'celebration', '30', 'headline'], (v) => v.headline],
       [['engage', 'celebration', '30', 'sub'], (v) => v.sub],
       [['engage', 'celebration', 'cta', 'continue'], (v) => v.continueLabel],
+      [['engage', 'celebration', 'cta', 'share'], (v) => v.shareLabel],
+      [['engage', 'celebration', 'cta', 'badges'], (v) => v.badgesLabel],
       [['engage', 'celebration', 'a11y'], (v) => v.a11y],
       [['engage', 'celebration', 'mascot', '30'], (v) => v.mascot],
     ];
@@ -320,14 +324,31 @@ describe('the words', () => {
       mascot: 'engage.celebration.mascot.100',
       unit: 'engage.celebration.unit',
       continueLabel: 'engage.celebration.cta.continue',
+      shareLabel: 'engage.celebration.cta.share',
+      badgesLabel: 'engage.celebration.cta.badges',
       a11y: 'engage.celebration.a11y',
     });
   });
 
-  it('there is no Share or badges wording in the view (Epic 31)', () => {
-    const view = buildCelebrationView({ milestone: 30, gymName: 'G', t: makeT('en') });
-    expect(Object.keys(view).join(' ')).not.toMatch(/share|badge/i);
-    expect(JSON.stringify(celebrationKeys(30))).not.toMatch(/cta\.share|cta\.badges/);
+  it.each(['en', 'fr'] as const)('Story 31.3: the Share button and the badges link read the catalog in %s', (lang) => {
+    const view = buildCelebrationView({ milestone: 30, gymName: 'G', t: makeT(lang) });
+    expect(view.shareLabel).toBe(lang === 'en' ? 'Share' : 'Partager');
+    expect(view.badgesLabel).toBe(lang === 'en' ? 'See your badges' : 'Voir vos badges');
+  });
+});
+
+describe('Story 31.3: the buttons (Share primary, Keep going secondary, See your badges a link)', () => {
+  it('Share is the primary button and Keep going the secondary while sharing is possible', () => {
+    expect(celebrationButtons(true)).toEqual({ showShare: true, continueVariant: 'secondary' });
+  });
+
+  it('with Share absent (hidden after an unavailable answer) Keep going is primary again, as in Epic 30', () => {
+    expect(celebrationButtons(false)).toEqual({ showShare: false, continueVariant: 'primary' });
+  });
+
+  it('[Keep going] and back go Home; [See your badges] replaces the route with the shelf', () => {
+    expect(closeDestination('continue')).toBe('home');
+    expect(closeDestination('badges')).toBe('badges');
   });
 });
 

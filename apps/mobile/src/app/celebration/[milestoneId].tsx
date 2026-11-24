@@ -2,23 +2,27 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Animated, BackHandler, findNodeHandle, Image, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Animated, BackHandler, findNodeHandle, Image, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CelebrationMiniMonth } from '@/components/CelebrationMiniMonth';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ShareImageHost } from '@/components/ShareImageHost';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Spacing } from '@/constants/theme';
 import { GymAccentColorProvider } from '@/hooks/use-gym-accent-color';
 import { useReduceMotion } from '@/hooks/use-at-risk-pulse';
 import { useSession } from '@/hooks/use-session';
+import { useShareImage } from '@/hooks/use-share-image';
 import {
   buildCelebrationView,
   buildMiniMonth,
+  celebrationButtons,
   celebrationMonth,
   celebrationVisible,
+  closeDestination,
   closeRecord,
   finishCelebration,
   markShownAcked,
@@ -32,6 +36,8 @@ import {
   writeShown,
   type ShownRead,
 } from '@/lib/celebrationView';
+import { shareMessageKey, shareRetryKey } from '@/lib/shareFlow';
+import type { ShareImageInput } from '@/lib/shareImage';
 import { getGymBranding, acknowledgeMilestone, type GymBranding } from '@/services/milestones';
 import { getMyVisitDays } from '@/services/visitDays';
 
@@ -42,7 +48,7 @@ const CARD_RADIUS = 24;
 
 /** Story 30.7 (MA-20, FR-229): the milestone celebration, pushed once over Home (hooks/use-home-celebration.ts) with the milestone number as the route
  * parameter `milestoneId` and the gym-local day the server returned as `today`. Layout only: lib/celebrationView.ts decides what is shown, the motion
- * and every word. Dark background, no tab bar, no back arrow, no Share button and no badges (Epic 31). [Keep going] and Android back close it;
+ * and every word. Dark background, no tab bar, no back arrow. Story 31.3 adds [Share] (primary), [Keep going] (secondary) and the [See your badges] link. [Keep going] and Android back close it;
  * swipe down does nothing (`gestureEnabled: false` in the root layout). A number the device has already shown, or one that is not a milestone, opens Home. */
 export default function CelebrationScreen() {
   return (
@@ -152,13 +158,19 @@ function CelebrationContent() {
 
   // [Keep going] and Android back: the record first, then the server call, in the background; the screen closes at once. Before the card is on screen
   // the member has seen nothing, so back only goes Home: nothing is recorded and nothing is acknowledged.
-  const close = useCallback(() => {
-    if (closedRef.current) return;
-    closedRef.current = true;
-    const record = closeRecord({ visible, milestone, userId, gymId });
-    if (record) void finishCelebration(CLOSE_DEPS, record.userId, record.gymId, record.milestone);
-    goHome();
-  }, [visible, milestone, userId, gymId, goHome]);
+  // [See your badges] records and acknowledges exactly like [Keep going] (in the background, retried silently when offline) and then REPLACES this
+  // route with the shelf, so Back from the shelf returns to Home.
+  const close = useCallback(
+    (action: 'continue' | 'badges' = 'continue') => {
+      if (closedRef.current) return;
+      closedRef.current = true;
+      const record = closeRecord({ visible, milestone, userId, gymId });
+      if (record) void finishCelebration(CLOSE_DEPS, record.userId, record.gymId, record.milestone);
+      if (closeDestination(action) === 'badges') router.replace('/badges');
+      else goHome();
+    },
+    [visible, milestone, userId, gymId, goHome, router],
+  );
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -221,6 +233,26 @@ function CelebrationContent() {
 
   const mini = visible && miniWanted && month && litDays ? buildMiniMonth(month, litDays) : null;
 
+  // Story 31.3 (FR-231): the share image is composed from this card's own data (the gym's name and logo, the milestone, this month's lit days where the
+  // card has room) and nothing else: no member name, phone, payment figure or watermark (lib/shareImage.ts).
+  const shareInput = useMemo<ShareImageInput | null>(
+    () =>
+      milestone !== null
+        ? {
+            subject: { kind: 'milestone', milestone },
+            gymName: branding?.name ?? null,
+            logoUrl: branding?.logoUrl ?? null,
+            calendar: miniWanted && month && litDays ? { month, litDays } : null,
+            t,
+          }
+        : null,
+    [milestone, branding, miniWanted, month, litDays, t],
+  );
+  const { buttonRef: shareButtonRef, captureViewRef: shareCaptureRef, ...share } = useShareImage(shareInput);
+  const buttons = celebrationButtons(share.canShare);
+  const messageKey = shareMessageKey(share.status);
+  const retryKey = shareRetryKey(share.status);
+
   if (!visible || !view) return <ThemedView style={styles.container} />;
 
   return (
@@ -256,12 +288,29 @@ function CelebrationContent() {
                 {mini && <CelebrationMiniMonth rows={mini} />}
               </Card>
             </Animated.View>
+            {messageKey && (
+              <View style={styles.buttonWrap}>
+                <ThemedText type="small" themeColor="textSecondary" accessibilityRole="alert" style={styles.centered}>
+                  {t(messageKey)}
+                </ThemedText>
+                {retryKey && <Button label={t(retryKey)} variant="secondary" onPress={() => void share.share()} disabled={share.status === 'sharing'} />}
+              </View>
+            )}
             <View style={styles.buttonWrap}>
-              <Button label={view.continueLabel} onPress={close} />
+              {buttons.showShare && (
+                <View ref={shareButtonRef} collapsable={false}>
+                  <Button label={view.shareLabel} onPress={() => void share.share()} loading={share.status === 'sharing'} />
+                </View>
+              )}
+              <Button label={view.continueLabel} variant={buttons.continueVariant} onPress={() => close('continue')} />
+              <Pressable accessibilityRole="link" accessibilityLabel={view.badgesLabel} onPress={() => close('badges')} style={styles.badgesLink}>
+                <ThemedText type="link">{view.badgesLabel}</ThemedText>
+              </Pressable>
             </View>
           </View>
         </ScrollView>
       </SafeAreaView>
+      <ShareImageHost composition={share.composition} captureRef={shareCaptureRef} onLogoSettled={share.onLogoSettled} />
     </ThemedView>
   );
 }
@@ -316,5 +365,11 @@ const styles = StyleSheet.create({
   buttonWrap: {
     width: '100%',
     maxWidth: CARD_MAX_WIDTH,
+    gap: Spacing.two,
+  },
+  badgesLink: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

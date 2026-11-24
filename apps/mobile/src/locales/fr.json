@@ -637,6 +637,10 @@
         "helperOff": "Les autres membres vous voient sous le nom {{label}}.",
         "helperUnseen": "Vous apparaissez comme Anonyme jusqu'à ce que vous ouvriez le classement et fassiez votre choix.",
         "link": "Voir le classement"
+      },
+      "badges": {
+        "row": "Badges",
+        "value": "{{n}} sur {{total}}"
       }
     },
     "atRisk": {
@@ -756,6 +760,45 @@
       "error": {
         "short": "Chargement impossible. Touchez pour réessayer.",
         "full": "Impossible de charger le classement. Tirez pour actualiser."
+      }
+    },
+    "share": {
+      "caption": {
+        "7": "7 visites chez {{gym}}. Un jour après l'autre.",
+        "30": "30 visites chez {{gym}}. Un jour après l'autre.",
+        "100": "100 visites chez {{gym}}. Un jour après l'autre.",
+        "badge": "{{badge}} chez {{gym}}."
+      },
+      "preparing": "Préparation de votre image…",
+      "error": "Impossible de créer votre image.",
+      "retry": "Réessayer",
+      "unavailable": "Le partage n'est pas disponible sur ce téléphone.",
+      "dialogTitle": "Partager votre progression"
+    },
+    "badges": {
+      "title": "Badges",
+      "summary": "{{n}} sur {{total}} obtenus",
+      "first": "Première visite",
+      "visits7": "7 visites",
+      "visits30": "30 visites",
+      "visits100": "100 visites",
+      "weeks4": "4 semaines d'affilée",
+      "earnedOn": "Obtenu le {{date}}",
+      "locked": {
+        "first": "Venez une fois pour l'obtenir",
+        "visits_one": "Encore {{count}} visite",
+        "visits_other": "Encore {{count}} visites",
+        "weeks": "Gardez une série pendant 4 semaines",
+        "weeksProgress": "{{n}} semaines sur 4"
+      },
+      "grantsNothing": "Les badges sont pour vous. Ils ne débloquent rien.",
+      "error": "Impossible de charger vos badges. Tirez pour actualiser.",
+      "sheet": {
+        "close": "Fermer"
+      },
+      "a11y": {
+        "earned": "{{name}}, obtenu le {{date}}",
+        "locked": "{{name}}, pas encore obtenu. {{progress}}"
       }
     }
   },

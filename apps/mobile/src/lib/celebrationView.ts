@@ -222,6 +222,28 @@ export function closeRecord(input: {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------
+// The buttons (Story 31.3): Share primary, Keep going secondary, [See your badges] a text link
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+
+export type CloseDestination = 'home' | 'badges';
+
+/** Where the screen goes once the milestone is recorded and acknowledged: [Keep going] and Android back return to Home; [See your badges] replaces
+ * this route with the shelf, so Back from the shelf returns to Home. */
+export function closeDestination(action: 'continue' | 'badges'): CloseDestination {
+  return action === 'badges' ? 'badges' : 'home';
+}
+
+export interface CelebrationButtons {
+  /** [Share] is the primary button while sharing is possible; otherwise [Keep going] is primary (the Epic 30 screen). */
+  showShare: boolean;
+  continueVariant: 'primary' | 'secondary';
+}
+
+export function celebrationButtons(shareAvailable: boolean): CelebrationButtons {
+  return { showShare: shareAvailable, continueVariant: shareAvailable ? 'secondary' : 'primary' };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
 // Motion
 // ---------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -264,6 +286,9 @@ export interface CelebrationKeys {
   mascot: string;
   unit: string;
   continueLabel: string;
+  /** Story 31.3: [Share] (primary) and the [See your badges] text link. */
+  shareLabel: string;
+  badgesLabel: string;
   a11y: string;
 }
 
@@ -274,6 +299,8 @@ export function celebrationKeys(milestone: number): CelebrationKeys {
     mascot: `engage.celebration.mascot.${milestone}`,
     unit: 'engage.celebration.unit',
     continueLabel: 'engage.celebration.cta.continue',
+    shareLabel: 'engage.celebration.cta.share',
+    badgesLabel: 'engage.celebration.cta.badges',
     a11y: 'engage.celebration.a11y',
   };
 }
@@ -290,6 +317,9 @@ export interface CelebrationView {
   /** The gym's name, or an empty line when it could not be read. */
   gymName: string;
   continueLabel: string;
+  /** Story 31.3: the Share button's label (shown only while sharing is possible) and the [See your badges] link's. */
+  shareLabel: string;
+  badgesLabel: string;
   /** The one announcement: `engage.celebration.a11y`. */
   a11y: string;
 }
@@ -307,6 +337,8 @@ export function buildCelebrationView(input: { milestone: number; gymName: string
     mascot: t(keys.mascot),
     gymName: gym,
     continueLabel: t(keys.continueLabel),
+    shareLabel: t(keys.shareLabel),
+    badgesLabel: t(keys.badgesLabel),
     a11y: t(keys.a11y, { n: milestone, gym }),
   };
 }

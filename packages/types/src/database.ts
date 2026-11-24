@@ -3306,6 +3306,17 @@ export type Database = {
       }
       get_gym_page_name: { Args: { p_gym_id: string }; Returns: Json }
       get_gym_page_status: { Args: { p_gym_id: string }; Returns: Json }
+      get_my_badges: {
+        Args: never
+        Returns: {
+          code: string
+          earned: boolean
+          earned_on: string | null
+          silent: boolean | null
+          visits_remaining: number | null
+          weeks_progress: number | null
+        }[]
+      }
       get_session_validity_settings: {
         Args: never
         Returns: {

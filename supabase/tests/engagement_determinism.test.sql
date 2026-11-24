@@ -10,7 +10,7 @@
 -- Fixture ids: 00000000-0000-0000-0034-00000000nnnn.
 
 begin;
-select plan(74);
+select plan(99);
 
 create function pg_temp.id(p_kind int, p_n int) returns uuid language sql immutable as $f$ select ('00000000-0000-0000-0034-' || lpad((p_kind * 1000 + p_n)::text, 12, '0'))::uuid $f$;
 create function pg_temp.m(p_n int) returns uuid language sql immutable as $f$ select pg_temp.id(3, p_n) $f$;
@@ -42,7 +42,7 @@ create function pg_temp.facts(p_n int) returns text language sql stable as $f$
   select coalesce(string_agg(e.subject_key || ':' || e.revision || ':' || e.outcome || ':' || e.goal || ':' || e.visits, ' ' order by e.subject_key), '-')
   from private.effective_engagement_facts(pg_temp.m(p_n)) e where e.kind = 'week'
 $f$;
-create function pg_temp.nrows(p_n int) returns int language sql stable as $f$ select count(*)::int from engagement_facts where member_id = pg_temp.m(p_n) $f$;
+create function pg_temp.nrows(p_n int) returns int language sql stable as $f$ select count(*)::int from engagement_facts where member_id = pg_temp.m(p_n) and kind <> 'badge' $f$;  -- 31.3: badge facts are counted by the badge tests
 create function pg_temp.derived(p_n int) returns jsonb language sql stable as $f$ select to_jsonb(d) from private.engagement_derived_state(pg_temp.m(p_n)) d $f$;
 create function pg_temp.rebuilt(p_n int, p_up_to date) returns jsonb language sql stable as $f$ select to_jsonb(r) from private.rebuild_engagement(pg_temp.m(p_n), p_up_to) r $f$;
 create function pg_temp.mark_dirty(p_n int, p_week date) returns void language sql as $f$
@@ -258,6 +258,80 @@ select is(pg_temp.rebuilt(12, date '2026-03-16'), (select rebuilt from tz_ms), '
 select is(pg_temp.settle(12, date '2026-03-16'), 0, 'milestones timezone: a settle after the change writes nothing');
 select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(12) and kind = 'milestone'), 1, 'milestones timezone: and the milestone is one row');
 update gyms set timezone = 'Africa/Douala' where id = pg_temp.id(1, 1);
+
+-- ============================================================================
+-- 31.3: the badge set. derived (the stored badge facts) equals rebuild (the badges the visit days and decided weeks imply, then any stored
+-- badge winning code by code) in the silent release back-fill, a late offline visit that earns a badge, and a void that does not remove one.
+-- ============================================================================
+create function pg_temp.dbadges(p_n int) returns jsonb language sql stable as $f$ select pg_temp.derived(p_n) -> 'badges' $f$;
+create function pg_temp.badge(p_n int, p_code text) returns jsonb language sql stable as $f$ select b from jsonb_array_elements(pg_temp.dbadges(p_n)) b where b ->> 'code' = p_code $f$;
+create function pg_temp.rbadges(p_n int, p_up_to date) returns jsonb language sql stable as $f$ select pg_temp.rebuilt(p_n, p_up_to) -> 'badges' $f$;
+
+-- (a) The silent release back-fill: seven visit days in February, before the epoch. Before the back-fill nothing is stored; the rebuild already
+-- implies the same two badges (silent, with the real dates), so the rebuild alone reproduces what the back-fill writes.
+select pg_temp.visit(13, d::date) from generate_series(date '2026-02-16', date '2026-02-22', interval '1 day') d;
+select is(pg_temp.dbadges(13), '[]'::jsonb, 'badges back-fill: nothing is stored before the back-fill');
+create temp table bf_rebuilt as select pg_temp.rbadges(13, date '2026-03-12') as b;
+select is((select b from bf_rebuilt),
+          '[{"code": "first_visit", "silent": true, "earned_on": "2026-02-16"}, {"code": "visits_7", "silent": true, "earned_on": "2026-02-22"}]'::jsonb,
+          'badges back-fill: the rebuild implies first_visit and visits_7, silent, on the stored dates of the 1st and 7th visit day');
+select cmp_ok(private.backfill_badges(), '>=', 2, 'badges back-fill: the back-fill writes the two badges (and any others still missing)');
+select is(pg_temp.dbadges(13), (select b from bf_rebuilt), 'badges back-fill: the stored badges equal what the rebuild implied');
+select is(pg_temp.dbadges(13), pg_temp.rbadges(13, date '2026-03-12'), 'badges back-fill: the stored badge set equals the rebuilt one (the weeks of the open range are not settled yet, so only the badge set is compared here)');
+select is(private.backfill_badges(), 0, 'badges back-fill: a second run inserts nothing');
+select pg_temp.settle(13, date '2026-03-12');
+select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(13) and kind = 'badge'), 2, 'badges back-fill: the award after release adds no second copy');
+select is(pg_temp.derived(13), pg_temp.rebuilt(13, date '2026-03-12'), 'badges back-fill: derived equals rebuild after the first settle');
+
+-- (b) A late offline visit that earns a badge: six visit days settled, then a visit for the Friday of the settled week arrives and makes seven.
+select pg_temp.visit(14, date '2026-03-02'); select pg_temp.visit(14, date '2026-03-03'); select pg_temp.visit(14, date '2026-03-04');
+select pg_temp.visit(14, date '2026-03-05'); select pg_temp.visit(14, date '2026-03-09'); select pg_temp.visit(14, date '2026-03-10');
+select pg_temp.settle(14, date '2026-03-12');
+select is(pg_temp.dbadges(14), '[{"code": "first_visit", "silent": false, "earned_on": "2026-03-02"}]'::jsonb, 'badges late visit: six days hold first_visit only');
+select is(pg_temp.derived(14), pg_temp.rebuilt(14, date '2026-03-12'), 'badges late visit: derived equals rebuild at six days');
+select pg_temp.visit(14, date '2026-03-06');
+select ok(pg_temp.rbadges(14, date '2026-03-12') @> '[{"code": "visits_7", "earned_on": "2026-03-10"}]'::jsonb and not (pg_temp.dbadges(14) @> '[{"code": "visits_7"}]'::jsonb),
+          'badges late visit: before the next settle the rebuild already implies visits_7 on its true date, 2026-03-10, and nothing stored has it (a read never awards)');
+select pg_temp.mark_dirty(14, date '2026-03-02');
+select pg_temp.settle(14, date '2026-03-12');
+select is(pg_temp.badge(14, 'visits_7'), '{"code": "visits_7", "silent": false, "earned_on": "2026-03-10"}'::jsonb, 'badges late visit: the next settle awards visits_7 with earned_on the 7th visit day''s true date');
+select is(pg_temp.derived(14), pg_temp.rebuilt(14, date '2026-03-12'), 'badges late visit: derived equals rebuild after the late visit');
+
+-- (c) A void that does not remove a badge, and a stored earned_on that wins over the recomputed one.
+select pg_temp.visit(15, date '2026-03-02'); select pg_temp.visit(15, date '2026-03-03'); select pg_temp.visit(15, date '2026-03-04');
+select pg_temp.visit(15, date '2026-03-05'); select pg_temp.visit(15, date '2026-03-06'); select pg_temp.visit(15, date '2026-03-09'); select pg_temp.visit(15, date '2026-03-10');
+select pg_temp.settle(15, date '2026-03-12');
+select is(pg_temp.badge(15, 'visits_7') ->> 'earned_on', '2026-03-10', 'badges void: visits_7 is earned on 2026-03-10');
+create temp table void_badges as select pg_temp.dbadges(15) as b;
+select pg_temp.void(15, date '2026-03-10');
+select pg_temp.mark_dirty(15, date '2026-03-09');
+select pg_temp.settle(15, date '2026-03-12');
+select is(pg_temp.dbadges(15), (select b from void_badges), 'badges void: the void removes no badge and changes no earned_on');
+select is(pg_temp.dbadges(15), pg_temp.rbadges(15, date '2026-03-12'), 'badges void: the rebuilt badge set equals the stored one with only six visit days left (a rebuild never un-earns a badge; the milestone array keeps its own, older rule)');
+select pg_temp.visit(15, date '2026-03-11');
+select pg_temp.mark_dirty(15, date '2026-03-09');
+select pg_temp.settle(15, date '2026-03-12');
+select is((select d.visit_day::text from member_visit_days d where d.member_id = pg_temp.m(15) order by d.visit_day offset 6 limit 1), '2026-03-11',
+          'badges void: the recomputed 7th visit day is now 2026-03-11');
+select is(pg_temp.badge(15, 'visits_7') ->> 'earned_on', '2026-03-10', 'badges void: a stored earned_on wins over the recomputed one: visits_7 stays on 2026-03-10');
+select is(pg_temp.dbadges(15), pg_temp.rbadges(15, date '2026-03-12'), 'badges void: and the rebuild agrees on the badge set (stored wins)');
+select is((select count(*)::int from engagement_facts where member_id = pg_temp.m(15) and kind = 'badge' and revision <> 1), 0, 'badges void: every badge row is revision 1');
+
+-- (d) four_weeks: the fourth met week, earned on that week's Sunday; a later void of a day in it does not remove it.
+select pg_temp.visit(16, d::date) from generate_series(date '2026-03-02', date '2026-03-04', interval '1 day') d;
+select pg_temp.visit(16, d::date) from generate_series(date '2026-03-09', date '2026-03-11', interval '1 day') d;
+select pg_temp.visit(16, d::date) from generate_series(date '2026-03-16', date '2026-03-18', interval '1 day') d;
+select pg_temp.visit(16, d::date) from generate_series(date '2026-03-23', date '2026-03-25', interval '1 day') d;
+select pg_temp.settle(16, date '2026-03-23');
+select is(pg_temp.dbadges(16) @> '[{"code": "four_weeks"}]'::jsonb, false, 'badges four weeks: three closed met weeks earn nothing yet');
+select pg_temp.settle(16, date '2026-03-30');
+select is(pg_temp.badge(16, 'four_weeks'), '{"code": "four_weeks", "silent": false, "earned_on": "2026-03-29"}'::jsonb, 'badges four weeks: the fourth met week earns four_weeks on that week''s Sunday');
+select is(pg_temp.derived(16), pg_temp.rebuilt(16, date '2026-03-30'), 'badges four weeks: derived equals rebuild');
+select pg_temp.void(16, date '2026-03-24');
+select pg_temp.mark_dirty(16, date '2026-03-23');
+select pg_temp.settle(16, date '2026-03-30');
+select is(pg_temp.badge(16, 'four_weeks') ->> 'code', 'four_weeks', 'badges four weeks: a void that breaks the fourth week leaves the badge');
+select is(pg_temp.dbadges(16), pg_temp.rbadges(16, date '2026-03-30'), 'badges four weeks: the rebuilt badge set still equals the stored one, the stored badge winning over a walk that no longer earns a Shield');
 
 select * from finish();
 rollback;

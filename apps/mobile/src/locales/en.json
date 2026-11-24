@@ -637,6 +637,10 @@
         "helperOff": "Other members see you as {{label}}.",
         "helperUnseen": "You appear as Anonymous until you open the leaderboard and choose.",
         "link": "See the leaderboard"
+      },
+      "badges": {
+        "row": "Badges",
+        "value": "{{n}} of {{total}}"
       }
     },
     "atRisk": {
@@ -756,6 +760,45 @@
       "error": {
         "short": "Couldn't load. Tap to retry.",
         "full": "Couldn't load the leaderboard. Pull down to refresh."
+      }
+    },
+    "share": {
+      "caption": {
+        "7": "7 visits at {{gym}}. One day at a time.",
+        "30": "30 visits at {{gym}}. One day at a time.",
+        "100": "100 visits at {{gym}}. One day at a time.",
+        "badge": "{{badge}} at {{gym}}."
+      },
+      "preparing": "Making your image…",
+      "error": "Couldn't make your image.",
+      "retry": "Try again",
+      "unavailable": "Sharing isn't available on this phone.",
+      "dialogTitle": "Share your progress"
+    },
+    "badges": {
+      "title": "Badges",
+      "summary": "{{n}} of {{total}} earned",
+      "first": "First visit",
+      "visits7": "7 visits",
+      "visits30": "30 visits",
+      "visits100": "100 visits",
+      "weeks4": "4 weeks in a row",
+      "earnedOn": "Earned {{date}}",
+      "locked": {
+        "first": "Check in once to earn it",
+        "visits_one": "{{count}} more visit to go",
+        "visits_other": "{{count}} more visits to go",
+        "weeks": "Keep a streak going for 4 weeks",
+        "weeksProgress": "{{n}} of 4 weeks"
+      },
+      "grantsNothing": "Badges are just for you. They don't unlock anything.",
+      "error": "Couldn't load your badges. Pull down to refresh.",
+      "sheet": {
+        "close": "Close"
+      },
+      "a11y": {
+        "earned": "{{name}}, earned {{date}}",
+        "locked": "{{name}}, not earned yet. {{progress}}"
       }
     }
   },

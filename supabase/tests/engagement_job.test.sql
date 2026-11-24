@@ -64,7 +64,7 @@ create function pg_temp.settle_one(p_n int) returns text language sql as $f$
   select private.engagement_settle_member(pg_temp.m(p_n), (select gym_id from members where id = pg_temp.m(p_n)), pg_temp.today())
 $f$;
 create function pg_temp.nfacts(p_lo int, p_hi int) returns int language sql stable as $f$
-  select count(*)::int from engagement_facts where member_id between pg_temp.m(p_lo) and pg_temp.m(p_hi) $f$;
+  select count(*)::int from engagement_facts where member_id between pg_temp.m(p_lo) and pg_temp.m(p_hi) and kind <> 'badge' $f$;  -- 31.3: a first visit writes a badge fact, counted by the badge tests
 
 -- ============================================================================
 -- Schedule and shape

@@ -33,6 +33,12 @@
 # so the member is at risk whatever day and hour this runs; both are put back on exit. The members carry no device token, so no push request is queued.
 # Like phases A to C it commits to the local database: the job looks at EVERY active gym, so run it on a pristine local database (ci-local's precondition).
 #
+# Phase E (Story 31.3) races the badge award: the cron settle (private.settle_engagement) and the first-open settle (private.open_engagement_at, what
+# public.open_engagement() calls) for ONE member with seven visit days, behind a third session that holds the member lock. Whichever runs first awards;
+# the other finds the rows. Exactly one row per badge (first_visit and visits_7), one milestone row, revision 1 only, no deadlock, both sessions finish.
+# The member lock serialises the two awards, so the unique key (`on conflict do nothing`) is the second line of defence; engagement_badges.test.sql
+# proves the idempotency of the award and of the back-fill in one session.
+#
 # Mutation checks (run once, Story 30.2 and 30.3): move the settle lock after the member_visit_days read -> phase A fails; remove the dirty mark
 # from record_check_in -> phase A fails; drop `skip locked` from private.engagement_settle_member -> phase B fails; restore all.
 # Story 31.2: drop `unique (member_id, gym_local_date)` from the dispatch table (and the claim's `on conflict`) -> phase D fails (the held claim no longer blocks,
@@ -425,5 +431,62 @@ phase_d() {
   done
 }
 phase_d
+
+# ============================================================================================================================
+# Phase E (Story 31.3): the badge award raced by the cron settle and the first-open settle. See the header.
+# ============================================================================================================================
+e_member() { # e_member <nn>: seven consecutive counted visit days, 2026-03-02 to 03-08 (the 7th day earns visits_7 and the 7 milestone)
+  local nn=$1
+  psql_ <<SQL >/dev/null
+insert into auth.users (id) values ('${U}${nn}');
+insert into members (id, gym_id, user_id, role, name, join_date) values ('${M}${nn}', '$G', '${U}${nn}', 'member', 'Eng Badge Race ${nn}', date '2026-01-05');
+insert into attendance_events (gym_id, member_id, checked_in_at, checked_out_at, checkout_type, visit_day)
+select '$G', '${M}${nn}', (d + time '10:00') at time zone 'Africa/Douala', (d + time '11:00') at time zone 'Africa/Douala', 'manual', d::date
+from (select date '2026-03-02' + i as d from generate_series(0, 6) i) x;
+SQL
+}
+cron_sql() { echo "begin; select 'SETTLED ' || private.settle_engagement('${M}$1', '$G', date '2026-03-16'); commit;"; }
+open_sql() { echo "begin; select 'OPENED ' || (select count(*) from private.open_engagement_at('${M}$1', now())); commit;"; }
+waiting_badge() { # sessions currently waiting on a lock inside the settle or the first-open path
+  psql_ -c "select count(*) from pg_stat_activity where wait_event_type = 'Lock' and (query like '%settle_engagement%' or query like '%open_engagement_at%') and query not like '%pg_stat_activity%'"
+}
+phase_e() {
+  wipe_members
+  psql_ -c "update platform_engagement_config set release_week_start = date '$WEEK'" >/dev/null
+  local i nn
+  for i in 1 2 3 4; do
+    nn=$(printf '%02x' $((0x60 + i)))
+    e_member "$nn"
+    hold_lock "$nn" & local holder=$!
+    sleep 0.6
+    if [ $((i % 2)) = 1 ]; then first=cron; second=open; else first=open; second=cron; fi
+    if [ "$first" = cron ]; then psql_ -c "$(cron_sql "$nn")" > /tmp/ci-eng-a.$$ 2>&1 & else psql_ -c "$(open_sql "$nn")" > /tmp/ci-eng-a.$$ 2>&1 & fi
+    local a=$!
+    sleep 0.6
+    if [ "$second" = cron ]; then psql_ -c "$(cron_sql "$nn")" > /tmp/ci-eng-b.$$ 2>&1 & else psql_ -c "$(open_sql "$nn")" > /tmp/ci-eng-b.$$ 2>&1 & fi
+    local b=$!
+    sleep 0.4
+    local w; w=$(waiting_badge)
+    wait "$a"; wait "$b"; wait "$holder"
+    local out finished deadlock badges miles badge_set bad_rev
+    out=$(cat /tmp/ci-eng-a.$$ /tmp/ci-eng-b.$$)
+    deadlock=$(echo "$out" | grep -ci "deadlock")
+    finished=$(echo "$out" | grep -c "^SETTLED \|^OPENED ")
+    badges=$(psql_ -c "select count(*) from engagement_facts where member_id = '${M}$nn' and kind = 'badge'")
+    miles=$(psql_ -c "select count(*) from engagement_facts where member_id = '${M}$nn' and kind = 'milestone'")
+    badge_set=$(psql_ -c "select string_agg(subject_key || '@' || (detail ->> 'earned_on'), ' ' order by subject_key) from engagement_facts where member_id = '${M}$nn' and kind = 'badge'")
+    bad_rev=$(psql_ -c "select count(*) from engagement_facts where member_id = '${M}$nn' and kind = 'badge' and revision <> 1")
+    if [ "$deadlock" = 0 ] && [ "$finished" = 2 ] && [ "$badges" = 2 ] && [ "$miles" = 1 ] && [ "$bad_rev" = 0 ] \
+       && [ "$badge_set" = "first_visit@2026-03-02 visits_7@2026-03-08" ] && [ "${w:-0}" -ge 2 ]; then
+      echo "ok   phase E iteration $i ($first queued first): both sessions waited behind the holder (waiting=$w), one row per badge ($badge_set), one milestone, revision 1 only"
+    else
+      echo "FAIL phase E iteration $i ($first queued first): deadlocks=$deadlock finished=$finished (want 2) badge rows=$badges (want 2) milestone rows=$miles (want 1) revision<>1 rows=$bad_rev set='$badge_set' waiting=$w (want >= 2)"
+      echo "$out" | sed 's/^/     | /'
+      fail=1
+    fi
+    rm -f /tmp/ci-eng-a.$$ /tmp/ci-eng-b.$$
+  done
+}
+phase_e
 
 [ "$fail" = 0 ] && echo "race: all passed" || { echo "race: FAILED"; exit 1; }

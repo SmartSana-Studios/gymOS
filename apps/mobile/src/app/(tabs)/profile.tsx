@@ -19,6 +19,7 @@ import { useSession } from '@/hooks/use-session';
 import { useTheme } from '@/hooks/use-theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { TOAST_MS, useFocusToast } from '@/hooks/use-focus-toast';
+import { useBadgeRows } from '@/hooks/use-badges';
 import { useLeaderboardNotice } from '@/hooks/use-leaderboard-notice';
 import { getContrastTextColor } from '@/lib/color-contrast';
 import type { MobileLocale } from '@/lib/i18n';
@@ -31,6 +32,7 @@ import { profileGoalValue } from '@/lib/weeklyGoalSheet';
 import { readEngagementCache } from '@/lib/weeklyRing';
 import { buildStreakReminderRow, streakReminderAfterToggle } from '@/lib/streakReminder';
 import { getMemberPreferences, getStreakReminderHour, updateMemberPreferences } from '@/services/notificationPreferences';
+import { clearBadgesCache, profileBadgesValue } from '@/lib/badgesView';
 import { clearShown } from '@/lib/celebrationView';
 import { clearCachedProgressPayload } from '@/services/progress';
 import { clearShieldNotices } from '@/services/shieldNotices';
@@ -547,6 +549,7 @@ export default function ProfileScreen() {
           // prior member's cached weight/measurements/photos.
           clearCachedProgressPayload();
           void clearShown();
+          void clearBadgesCache();
           void clearShieldNotices();
           clearCachedWorkoutPlan();
           void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
@@ -565,6 +568,10 @@ export default function ProfileScreen() {
   });
   const goalRowValue = weeklyGoal ? profileGoalValue(weeklyGoal, t, i18n.language === 'fr' ? 'fr' : 'en') : null;
   const goalRowLabel = goalRowValue ? `${t('engage.profile.goal.row')}, ${goalRowValue}` : null;
+  // Story 31.3 (MA-12): the Badges row's "2 of 5", from the device copy and one read per focus; hidden with the rest of the area while it is dark.
+  const badgeRows = useBadgeRows(engagementEnabled, isConnected, session?.user.id ?? null, gymId);
+  const badgesRowValue = profileBadgesValue(badgeRows, t);
+  const badgesRowLabel = badgesRowValue ? `${t('engage.profile.badges.row')}, ${badgesRowValue}` : t('engage.profile.badges.row');
 
   const displayPhotoUri = editing ? (editPhotoUri ?? photoUrl) : photoUrl;
   const isDirty = editName.trim() !== (displayName ?? '') || editPhotoUri !== null;
@@ -758,6 +765,27 @@ export default function ProfileScreen() {
                   </View>
                   <View style={styles.goalRowText}>
                     <ThemedText type="smallBold">{t('engage.calendar.title')}</ThemedText>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
+                </Pressable>
+              )}
+              {/* Story 31.3 (MA-12, FR-230): the Badges row, "2 of 5", opens the shelf. */}
+              {engagementEnabled && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={badgesRowLabel}
+                  onPress={() => router.push('/badges')}
+                  style={[styles.goalRow, styles.rowDivider, { borderTopColor: theme.border }]}>
+                  <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                    <IconChip icon="military-tech" tint="primary" />
+                  </View>
+                  <View style={styles.goalRowText}>
+                    <ThemedText type="smallBold">{t('engage.profile.badges.row')}</ThemedText>
+                    {badgesRowValue && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {badgesRowValue}
+                      </ThemedText>
+                    )}
                   </View>
                   <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
                 </Pressable>
