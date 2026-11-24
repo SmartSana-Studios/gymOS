@@ -6,6 +6,7 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["node_modules/**", "src/**/*.layout.test.ts"],
-    testTimeout: 20_000,
+    // The registered-template conformance tests are CPU-bound jsdom work (about 25 s on a busy 4-core machine); 20 s flaked in ci-local whenever the turbo cache missed under load. Failure is still a violation list, never a timeout.
+    testTimeout: 90_000,
   },
 });
