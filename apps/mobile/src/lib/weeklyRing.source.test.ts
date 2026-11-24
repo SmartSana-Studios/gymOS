@@ -63,6 +63,8 @@ const SCREEN_FILES = [
   'components/StampSegments.tsx',
   'lib/shieldView.ts',
   'services/shieldNotices.ts',
+  // Story 31.2: the Streak reminder row's view model (the hour formatter and the row), same rules: no sentence, no date construction.
+  'lib/streakReminder.ts',
 ];
 
 describe('no literal sentence (FR-232)', () => {

@@ -27,8 +27,17 @@
 #
 # Phase C (Story 31.1) settles one member twice at once behind the member lock: one `saved` fact, one Shield spent, derived = rebuild.
 #
+# Phase D (Story 31.2) runs the streak reminder job, private.run_engagement_reminder_job(), in TWO sessions at once for one at-risk member: a third session
+# holds an uncommitted claim row on the member's (member, gym-local date) key so both runs queue at the claim, then lets go. Exactly one dispatch and one
+# N-08 history row result, both runs are `success`, nobody deadlocks. The window is the whole day and the goal default is the days left in the gym's week,
+# so the member is at risk whatever day and hour this runs; both are put back on exit. The members carry no device token, so no push request is queued.
+# Like phases A to C it commits to the local database: the job looks at EVERY active gym, so run it on a pristine local database (ci-local's precondition).
+#
 # Mutation checks (run once, Story 30.2 and 30.3): move the settle lock after the member_visit_days read -> phase A fails; remove the dirty mark
 # from record_check_in -> phase A fails; drop `skip locked` from private.engagement_settle_member -> phase B fails; restore all.
+# Story 31.2: drop `unique (member_id, gym_local_date)` from the dispatch table (and the claim's `on conflict`) -> phase D fails (the held claim no longer blocks,
+# waiting=0); restore. (A plain insert without `on conflict` alone still passes: the second run's unique violation is caught by that member's savepoint, so the
+# outcome is the same and only a warning differs.)
 set -uo pipefail
 DB=${DB_CONTAINER:-supabase_db_gym_os}
 N=${1:-8}
@@ -58,6 +67,7 @@ UP_TO=2026-03-09  # the week has just closed
 LATE_AT='2026-03-08 20:00:00+01'   # Sunday evening, Africa/Douala: gym-local visit day 2026-03-08
 STARTED=$(psql_ -c "select clock_timestamp()")
 OLD_EPOCH=$(psql_ -c "select coalesce(release_week_start::text, '') from platform_engagement_config")
+OLD_REMINDER=$(psql_ -c "select goal_default || ',' || reminder_window_start_hour || ',' || reminder_window_end_hour from platform_engagement_config")
 
 cleanup() {
   psql_ <<SQL >/dev/null
@@ -65,7 +75,7 @@ drop trigger if exists zz_eng_job_refuse on public.engagement_facts;
 drop trigger if exists zz_eng_job_boom on public.job_runs;
 drop function if exists public.zz_eng_job_refuse();
 drop function if exists public.zz_eng_job_boom();
-delete from job_runs where job_name = 'engagement_settle' and started_at >= '$STARTED';
+delete from job_runs where job_name in ('engagement_settle', 'engagement_reminder') and started_at >= '$STARTED';
 delete from audit_log where gym_id = '$G';
 delete from attendance_events where gym_id = '$G';
 delete from front_desk_alerts where gym_id = '$G';
@@ -77,6 +87,10 @@ delete from auth.users where id::text like '00000000-0000-0000-0000-00000030f2%'
 delete from gyms where id = '$G';
 delete from tiers where id = '$T';
 SQL
+  # Story 31.2: the goal default and the reminder window go back to what they were.
+  if [ -n "${OLD_REMINDER:-}" ]; then
+    psql_ -c "update platform_engagement_config set goal_default = ${OLD_REMINDER%%,*}, reminder_window_start_hour = $(echo "$OLD_REMINDER" | cut -d, -f2), reminder_window_end_hour = $(echo "$OLD_REMINDER" | cut -d, -f3)" >/dev/null 2>&1 || echo "warning: could not restore the goal default and the reminder window"
+  fi
   # The facts went with their members, so the epoch guard allows the epoch back to what it was.
   if [ -n "${OLD_EPOCH+x}" ]; then
     if [ -z "$OLD_EPOCH" ]; then
@@ -358,5 +372,58 @@ phase_c() {
   done
 }
 phase_c
+
+# ============================================================================================================================
+# Phase D (Story 31.2): two overlapping runs of the streak reminder job for one at-risk member. See the header.
+# ============================================================================================================================
+d_member() { # d_member <nn>: an active member with an active subscription and no visit this week (at risk once goal_default = the days left)
+  local nn=$1
+  psql_ <<SQL >/dev/null
+insert into auth.users (id) values ('${U}${nn}');
+insert into members (id, gym_id, user_id, role, name, join_date) values ('${M}${nn}', '$G', '${U}${nn}', 'member', 'Eng Reminder ${nn}', date '2026-01-05');
+insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expiry_date) values ('$G', '${M}${nn}', '$PLAN', 'active', date '2026-01-05', date '2030-01-01');
+SQL
+}
+hold_claim() { # hold_claim <nn>: an uncommitted claim row on the member's key for HOLD_S seconds, then rolled back
+  psql_ -c "begin; insert into private.engagement_reminder_dispatches (member_id, gym_id, gym_local_date) values ('${M}$1', '$G', private.gym_today('$G')); select pg_sleep($HOLD_S); rollback;" >/dev/null
+}
+waiting_jobs() { # sessions currently waiting on a lock inside the reminder job
+  psql_ -c "select count(*) from pg_stat_activity where wait_event_type = 'Lock' and query like '%run_engagement_reminder_job%' and query not like '%pg_stat_activity%'"
+}
+phase_d() {
+  wipe_members
+  psql_ -c "update platform_engagement_config set release_week_start = date '$WEEK', goal_default = private.week_start_of(private.gym_today('$G')) + 6 - private.gym_today('$G') + 1, reminder_window_start_hour = 0, reminder_window_end_hour = 24" >/dev/null
+  local i nn
+  for i in 1 2 3; do
+    nn=$(printf '%02x' $((0x50 + i)))
+    d_member "$nn"
+    hold_claim "$nn" & local holder=$!
+    sleep 0.6
+    psql_ -c "select private.run_engagement_reminder_job(); select 'RAN';" > /tmp/ci-eng-a.$$ 2>&1 & local a=$!
+    sleep 0.6
+    psql_ -c "select private.run_engagement_reminder_job(); select 'RAN';" > /tmp/ci-eng-b.$$ 2>&1 & local b=$!
+    sleep 0.6
+    local w; w=$(waiting_jobs)
+    wait "$a"; wait "$b"; wait "$holder"
+    local out disp hist status failures successes deadlock
+    out=$(cat /tmp/ci-eng-a.$$ /tmp/ci-eng-b.$$)
+    deadlock=$(echo "$out" | grep -ci "deadlock")
+    ran=$(echo "$out" | grep -c "^RAN")
+    disp=$(psql_ -c "select count(*) from private.engagement_reminder_dispatches where member_id = '${M}$nn'")
+    hist=$(psql_ -c "select count(*) from public.notifications where member_id = '${M}$nn' and type = 'N-08'")
+    status=$(psql_ -c "select coalesce(string_agg(status, ','), 'none') from private.engagement_reminder_dispatches where member_id = '${M}$nn'")
+    failures=$(psql_ -c "select count(*) from job_runs where job_name = 'engagement_reminder' and status::text = 'failure' and started_at >= '$STARTED'")
+    successes=$(psql_ -c "select count(*) from job_runs where job_name = 'engagement_reminder' and status::text = 'success' and started_at >= '$STARTED'")
+    if [ "$deadlock" = 0 ] && [ "$ran" = 2 ] && [ "$disp" = 1 ] && [ "$hist" = 1 ] && [ "$status" = no_tokens ] && [ "$failures" = 0 ] && [ "${successes:-0}" -ge 2 ] && [ "${w:-0}" -ge 2 ]; then
+      echo "ok   phase D iteration $i: both runs queued at the claim (waiting=$w) and both succeeded, one dispatch ($status), one N-08 history row, no failure row"
+    else
+      echo "FAIL phase D iteration $i: deadlocks=$deadlock runs finished=$ran (want 2) dispatches=$disp (want 1) history rows=$hist (want 1) status=$status (want no_tokens) failure rows=$failures (want 0) success rows=$successes (want >= 2) waiting=$w (want >= 2)"
+      echo "$out" | sed 's/^/     | /'
+      fail=1
+    fi
+    rm -f /tmp/ci-eng-a.$$ /tmp/ci-eng-b.$$
+  done
+}
+phase_d
 
 [ "$fail" = 0 ] && echo "race: all passed" || { echo "race: FAILED"; exit 1; }

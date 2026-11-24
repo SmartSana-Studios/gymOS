@@ -29,7 +29,8 @@ import { getCurrentMember } from '@/services/progress';
 // primary) icon+tint pairs exactly; N-01/N-02/N-03 mirror Home's own
 // STATUS_ICON_CHIP expiring/expired warning->danger progression; N-06 uses
 // "fitness-center" (not "notifications" again) to avoid a bell-on-bell
-// redundancy with the screen's own entry-point icon.
+// redundancy with the screen's own entry-point icon. Story 31.2: N-08 (the streak reminder) is the bell the Profile row shows, in the active
+// form, primary tint (EXPERIENCE.md, MA-12 / notification history).
 const NOTIFICATION_ICON_CHIP: Record<NotificationType, { icon: MaterialIconsIconName; tint: IconChipTint }> = {
   'N-01': { icon: 'schedule', tint: 'warning' },
   'N-02': { icon: 'schedule', tint: 'warning' },
@@ -38,6 +39,7 @@ const NOTIFICATION_ICON_CHIP: Record<NotificationType, { icon: MaterialIconsIcon
   'N-05': { icon: 'payments', tint: 'danger' },
   'N-06': { icon: 'fitness-center', tint: 'primary' },
   'N-07': { icon: 'event', tint: 'primary' },
+  'N-08': { icon: 'notifications-active', tint: 'primary' },
 };
 
 function formatNotificationTimestamp(value: string, locale: string): string {

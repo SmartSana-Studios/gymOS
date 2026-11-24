@@ -2406,3 +2406,18 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-31-1-streak-shields-and-comeback.md`
   summary: Dismissal and one-time restored recording in `use-home-engagement.ts` are verified by source-text assertions only; extract the reducer and the record-once decision into `shieldView.ts` or `shieldNotices.ts` and unit test them.
   evidence: The repo has no hook test harness (no `renderHook`); a mutant that deletes the `setShieldSeen` update still passes `weeklyRing.source.test.ts`.
+
+## Deferred from: implementation of spec-31-2-streak-reminder-n-08 (2026-11-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-2-streak-reminder-n-08.md`
+  summary: A run of `run_engagement_reminder_job` in which members failed is a `success` row whose `error` column holds 'n of m member(s) failed; first: <error>', but `job-runs-alert.sql` watches `status` only, so a run in which every member fails still reads green; the whole-run failure row is the only alert path.
+  evidence: The count is now in the row (reviewed 2026-11-24); alerting on a non-null `error` of a success row, or a failed-count column, would close it if a systematic sender failure ever matters.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-2-streak-reminder-n-08.md`
+  summary: The job's own epoch and gym-local-date guard is not observable behind the state view (the view is already off while the epoch is NULL or after the member's week), so no pgTAP case fails if it is removed; its only effect is skipping a per-member view read in a dark area.
+  evidence: Mutant run 2026-11-24: removing `private.gym_today(g.id) >= c.release_week_start` leaves `engagement_reminder.test.sql` green. Cost, not correctness; `explain` of the selection on a large dark deployment would settle whether it matters.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-2-streak-reminder-n-08.md`
+  summary: The Profile Streak reminder row's wiring (handler arguments, retry-path assignments, failed-save toast) has no behavioural test.
+  evidence: Review pass 1, Verification Gap layer. The repo has no component or hook render harness (same gap as the 31-1 hook entry); the decidable logic is in `lib/streakReminder.ts` and tested. Closes when a harness exists or the handler's decisions are extracted further.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-2-streak-reminder-n-08.md`
+  summary: Per-tick cost of `run_engagement_reminder_job` at large member counts is unmeasured (UNVERIFIED medium): every non-at-risk member of every window gym reads `engagement_state_view` on each of the 12 ticks, in one transaction, with no batch cap.
+  evidence: Review pass 1, Blind Hunter. Spec Design Notes decided "no bound"; read-only savepoints take no xid, so the subtransaction-cache concern does not apply. What would settle it: time one tick on a seeded gym of about 10,000 members (explain of the selection plus the view read per member); if it nears 15 minutes, add a per-gym transaction or a cheap at-risk prefilter.

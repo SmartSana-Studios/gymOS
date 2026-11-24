@@ -1294,6 +1294,7 @@ export type Database = {
           leaderboard_notice_seen_at: string | null
           member_id: string
           quiet_gym_alerts_opted_out: boolean
+          streak_reminder_opted_out: boolean
           updated_at: string
         }
         Insert: {
@@ -1305,6 +1306,7 @@ export type Database = {
           leaderboard_notice_seen_at?: string | null
           member_id: string
           quiet_gym_alerts_opted_out?: boolean
+          streak_reminder_opted_out?: boolean
           updated_at?: string
         }
         Update: {
@@ -1316,6 +1318,7 @@ export type Database = {
           leaderboard_notice_seen_at?: string | null
           member_id?: string
           quiet_gym_alerts_opted_out?: boolean
+          streak_reminder_opted_out?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -1884,6 +1887,8 @@ export type Database = {
           goal_min: number
           id: string
           release_week_start: string | null
+          reminder_window_end_hour: number
+          reminder_window_start_hour: number
           shield_cap: number
           shield_every_weeks: number
         }
@@ -1896,6 +1901,8 @@ export type Database = {
           goal_min: number
           id?: string
           release_week_start?: string | null
+          reminder_window_end_hour?: number
+          reminder_window_start_hour?: number
           shield_cap: number
           shield_every_weeks: number
         }
@@ -1908,6 +1915,8 @@ export type Database = {
           goal_min?: number
           id?: string
           release_week_start?: string | null
+          reminder_window_end_hour?: number
+          reminder_window_start_hour?: number
           shield_cap?: number
           shield_every_weeks?: number
         }
@@ -3992,6 +4001,10 @@ export type Database = {
         Returns: {
           week_start: string
         }[]
+      }
+      my_streak_reminder_hour: {
+        Args: never
+        Returns: number
       }
       my_visit_days: {
         Args: { p_month: string }

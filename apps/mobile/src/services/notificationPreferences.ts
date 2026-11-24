@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 export interface MemberPreferences {
   quietGymAlertsOptedOut: boolean;
   classReminderOptedOut: boolean;
+  /** Story 31.2 (FR-233): the N-08 streak reminder's off-switch; false (on) by default. */
+  streakReminderOptedOut: boolean;
 }
 
 /** Story 6.4 AC #2/#3. Never-throws service-function discipline, same as
@@ -18,7 +20,7 @@ export async function getMemberPreferences(memberId: string): Promise<MemberPref
   try {
     const { data, error } = await supabase
       .from('member_preferences')
-      .select('quiet_gym_alerts_opted_out, class_reminder_opted_out')
+      .select('quiet_gym_alerts_opted_out, class_reminder_opted_out, streak_reminder_opted_out')
       .eq('member_id', memberId)
       .single();
 
@@ -30,6 +32,7 @@ export async function getMemberPreferences(memberId: string): Promise<MemberPref
     return {
       quietGymAlertsOptedOut: data.quiet_gym_alerts_opted_out,
       classReminderOptedOut: data.class_reminder_opted_out,
+      streakReminderOptedOut: data.streak_reminder_opted_out,
     };
   } catch (err) {
     console.error('[notifications] getMemberPreferences failed', err);
@@ -57,6 +60,9 @@ export async function updateMemberPreferences(
     if (parsed.data.classReminderOptedOut !== undefined) {
       update.class_reminder_opted_out = parsed.data.classReminderOptedOut;
     }
+    if (parsed.data.streakReminderOptedOut !== undefined) {
+      update.streak_reminder_opted_out = parsed.data.streakReminderOptedOut;
+    }
 
     const { data, error } = await supabase
       .from('member_preferences')
@@ -71,5 +77,18 @@ export async function updateMemberPreferences(
   } catch (err) {
     console.error('[notifications] updateMemberPreferences failed', err);
     return false;
+  }
+}
+
+/** Story 31.2 (FR-233): the hour the streak reminder window opens, read from the configuration the job uses (`my_streak_reminder_hour()`, any
+ * signed-in caller). `null` when the read fails or answers something that is not a whole hour: the Profile helper line is then left out, the
+ * app never guesses a time. Never throws. */
+export async function getStreakReminderHour(): Promise<number | null> {
+  try {
+    const { data, error } = await supabase.rpc('my_streak_reminder_hour');
+    if (error || typeof data !== 'number' || !Number.isInteger(data) || data < 0 || data > 23) return null;
+    return data;
+  } catch {
+    return null;
   }
 }

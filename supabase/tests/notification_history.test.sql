@@ -16,9 +16,9 @@ select ok(
     select 1 from pg_constraint
     where conrelid = to_regclass('public.notifications')
       and contype = 'c'
-      and pg_get_constraintdef(oid) like '%N-01%N-02%N-03%N-04%N-05%N-06%N-07%'
+      and pg_get_constraintdef(oid) like '%N-01%N-02%N-03%N-04%N-05%N-06%N-07%N-08%'
   ),
-  'notification type is restricted to N-01..N-07'
+  'notification type is restricted to N-01..N-08'
 );
 
 -- ============================================================================

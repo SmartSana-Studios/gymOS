@@ -18,7 +18,7 @@ import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useSession } from '@/hooks/use-session';
 import { useTheme } from '@/hooks/use-theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
-import { useFocusToast } from '@/hooks/use-focus-toast';
+import { TOAST_MS, useFocusToast } from '@/hooks/use-focus-toast';
 import { useLeaderboardNotice } from '@/hooks/use-leaderboard-notice';
 import { getContrastTextColor } from '@/lib/color-contrast';
 import type { MobileLocale } from '@/lib/i18n';
@@ -29,7 +29,8 @@ import { buildAnonymousRowView, buildNoticeView, decideToggle, gateFromResult, m
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import { profileGoalValue } from '@/lib/weeklyGoalSheet';
 import { readEngagementCache } from '@/lib/weeklyRing';
-import { getMemberPreferences, updateMemberPreferences } from '@/services/notificationPreferences';
+import { buildStreakReminderRow, streakReminderAfterToggle } from '@/lib/streakReminder';
+import { getMemberPreferences, getStreakReminderHour, updateMemberPreferences } from '@/services/notificationPreferences';
 import { clearShown } from '@/lib/celebrationView';
 import { clearCachedProgressPayload } from '@/services/progress';
 import { clearShieldNotices } from '@/services/shieldNotices';
@@ -64,9 +65,11 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const accent = useGymAccentColor();
   const mountedRef = useRef(true);
+  const saveErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
       mountedRef.current = false;
+      if (saveErrorTimerRef.current) clearTimeout(saveErrorTimerRef.current);
     };
   }, []);
 
@@ -94,6 +97,12 @@ export default function ProfileScreen() {
   const [classReminderOptedOut, setClassReminderOptedOut] = useState(false);
   const [quietGymAlertsPending, setQuietGymAlertsPending] = useState(false);
   const [classReminderPending, setClassReminderPending] = useState(false);
+  // Story 31.2 (FR-233): the streak reminder (N-08) off-switch, the hour the server's window opens (null = unread, the helper line is then left out)
+  // and the existing toast element carrying a failed save.
+  const [streakReminderOptedOut, setStreakReminderOptedOut] = useState(false);
+  const [streakReminderPending, setStreakReminderPending] = useState(false);
+  const [streakReminderHour, setStreakReminderHour] = useState<number | null>(null);
+  const [saveErrorToast, setSaveErrorToast] = useState<string | null>(null);
   const [notificationsLoadError, setNotificationsLoadError] = useState(false);
 
   const [logEntrySheetVisible, setLogEntrySheetVisible] = useState(false);
@@ -240,7 +249,7 @@ export default function ProfileScreen() {
       // by migration 0047's auto-create trigger), not on an active
       // subscription -- fetched alongside subscription rather than gated
       // behind noActivePlan (Story 6.4 AC #2).
-      const [subscriptionResult, preferences] = await Promise.all([
+      const [subscriptionResult, preferences, reminderHour] = await Promise.all([
         // Same PGRST116 distinction as above -- a member with no active
         // subscription is a distinct, non-retryable state from a real
         // network/connectivity failure (same distinction onboarding/plan.tsx's
@@ -254,6 +263,7 @@ export default function ProfileScreen() {
           .limit(1)
           .single(),
         getMemberPreferences(resolvedMemberId),
+        getStreakReminderHour(),
       ]);
 
       if (!mountedRef.current) return;
@@ -279,6 +289,8 @@ export default function ProfileScreen() {
         setNotificationsLoadError(false);
         setQuietGymAlertsOptedOut(preferences.quietGymAlertsOptedOut);
         setClassReminderOptedOut(preferences.classReminderOptedOut);
+        setStreakReminderOptedOut(preferences.streakReminderOptedOut);
+        setStreakReminderHour(reminderHour);
       } else {
         setNotificationsLoadError(true);
       }
@@ -433,6 +445,28 @@ export default function ProfileScreen() {
     }
   }
 
+  // Story 31.2 (FR-233): the Streak reminder toggle. Optimistic flip, saved at once, with its own pending flag; a failed save puts the previous
+  // value back (lib/streakReminder.ts decides) and shows the existing toast element with the profile's save-failed message.
+  async function handleToggleStreakReminder() {
+    if (streakReminderPending || !memberId) return;
+    const previous = streakReminderOptedOut;
+    setStreakReminderPending(true);
+    setStreakReminderOptedOut(!previous);
+    try {
+      const saved = await updateMemberPreferences(memberId, { streakReminderOptedOut: !previous });
+      const after = streakReminderAfterToggle(previous, saved);
+      if (!mountedRef.current) return;
+      setStreakReminderOptedOut(after.optedOut);
+      if (after.showError) {
+        if (saveErrorTimerRef.current) clearTimeout(saveErrorTimerRef.current);
+        setSaveErrorToast(t('profile.errorSaveFailed'));
+        saveErrorTimerRef.current = setTimeout(() => setSaveErrorToast(null), TOAST_MS);
+      }
+    } finally {
+      if (mountedRef.current) setStreakReminderPending(false);
+    }
+  }
+
   // Story 30.6 (FR-227): the Anonymous toggle shows the stored choice (on = hidden). On saves at once, optimistic, reverted on failure, with its own
   // pending flag; off while the notice is unseen saves nothing and opens the notice.
   async function handleToggleAnonymous(nextHidden: boolean) {
@@ -491,12 +525,14 @@ export default function ProfileScreen() {
 
   async function handleRetryNotifications() {
     if (!memberId) return;
-    const preferences = await getMemberPreferences(memberId);
+    const [preferences, reminderHour] = await Promise.all([getMemberPreferences(memberId), getStreakReminderHour()]);
     if (!mountedRef.current) return;
     if (preferences) {
       setNotificationsLoadError(false);
       setQuietGymAlertsOptedOut(preferences.quietGymAlertsOptedOut);
       setClassReminderOptedOut(preferences.classReminderOptedOut);
+      setStreakReminderOptedOut(preferences.streakReminderOptedOut);
+      setStreakReminderHour(reminderHour);
     }
   }
 
@@ -520,6 +556,13 @@ export default function ProfileScreen() {
     ]);
   }
 
+  const streakReminderRow = buildStreakReminderRow({
+    optedOut: streakReminderOptedOut,
+    pending: streakReminderPending,
+    hour: streakReminderHour,
+    language: i18n.language,
+    t,
+  });
   const goalRowValue = weeklyGoal ? profileGoalValue(weeklyGoal, t, i18n.language === 'fr' ? 'fr' : 'en') : null;
   const goalRowLabel = goalRowValue ? `${t('engage.profile.goal.row')}, ${goalRowValue}` : null;
 
@@ -803,6 +846,29 @@ export default function ProfileScreen() {
                     <ThemedText type="small" themeColor="textSecondary">
                       {t('profile.notifications.classReminderDescription')}
                     </ThemedText>
+
+                    <View style={[styles.rowDivider, { borderTopColor: theme.border }]}>
+                      <ListItem
+                        icon="notifications"
+                        tint="primary"
+                        title={streakReminderRow.label}
+                        trailing={
+                          <Switch
+                            accessibilityRole="switch"
+                            accessibilityLabel={streakReminderRow.accessibilityLabel}
+                            accessibilityState={{ checked: streakReminderRow.checked, disabled: streakReminderRow.disabled }}
+                            disabled={streakReminderRow.disabled}
+                            value={streakReminderRow.checked}
+                            onValueChange={() => void handleToggleStreakReminder()}
+                          />
+                        }
+                      />
+                    </View>
+                    {streakReminderRow.helper !== null && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {streakReminderRow.helper}
+                      </ThemedText>
+                    )}
                   </Card>
                 )}
               </View>
@@ -813,13 +879,13 @@ export default function ProfileScreen() {
           )}
         </ScrollView>
 
-        {toast && (
+        {(saveErrorToast ?? toast) && (
           <View
             accessibilityRole="alert"
             accessibilityLiveRegion="polite"
             style={[styles.toast, { bottom: insets.bottom + BottomTabInset + Spacing.three }]}>
             <ThemedText type="small" style={styles.toastText}>
-              {toast}
+              {saveErrorToast ?? toast}
             </ThemedText>
           </View>
         )}

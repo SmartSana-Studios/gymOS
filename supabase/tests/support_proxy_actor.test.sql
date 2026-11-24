@@ -331,6 +331,7 @@ insert into users_reader_exempt (fn, reason) values
   ('private.recovery_code_issue(uuid,text,text,text)',     'reads one user by id'),
   ('private.recovery_enrol_allowed(uuid)',                 'reads one user by id'),
   ('private.send_class_reminder(uuid,uuid)',               'recipients come through members; a proxy has no members row'),
+  ('private.send_engagement_reminder(uuid)',              'recipients come through members; a proxy has no members row'),
   ('private.send_payment_push_notification(uuid,text)',     'reads one user by id'),
   ('private.send_push_notification(uuid,text)',            'reads one user by id'),
   ('private.send_quiet_gym_alert(uuid,uuid)',              'recipients come through members; a proxy has no members row'),

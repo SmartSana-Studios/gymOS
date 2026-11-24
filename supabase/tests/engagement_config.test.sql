@@ -166,6 +166,7 @@ begin
     select to_jsonb(t) into v_old from platform_engagement_config t;
     v_cands := case c.typ
       when 'integer' then array[((v_old ->> c.col)::int + 1)::text, ((v_old ->> c.col)::int - 1)::text]
+      when 'smallint' then array[((v_old ->> c.col)::int + 1)::text, ((v_old ->> c.col)::int - 1)::text]
       when 'date' then case when v_old ->> c.col is null then array['2026-12-07'] else array[null::text] end
       when 'uuid' then array[gen_random_uuid()::text]
       else array[]::text[]

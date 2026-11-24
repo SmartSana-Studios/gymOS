@@ -168,6 +168,7 @@ values
   ('private', 'send_payment_push_notification', 'cron-owned, service_role, writes notifications'),
   ('private', 'send_quiet_gym_alert',           'cron-owned, service_role; job already filters on gyms.status = active'),
   ('private', 'send_class_reminder',            'cron-owned, service_role; job already filters on gyms.status = active'),
+  ('private', 'send_engagement_reminder',       'cron-owned (run_engagement_reminder_job selects active gyms only), no client role can execute it'),
 
   -- 0113 (Story 19.8): AFTER INSERT trigger on refunds. The insert itself is
   -- gated by tenant_active_gate for every client role; a status guard here would
