@@ -97,7 +97,9 @@ delete from public.engagement_facts where member_id = '${memberId}';
 delete from public.engagement_state where member_id = '${memberId}';
 delete from public.member_weekly_goals where member_id = '${memberId}';
 delete from public.attendance_events where member_id = '${memberId}';
+-- Reset to the defaults, never delete: every real member has this row (a trigger creates it) and Profile reports "Couldn't load your profile" when it is missing.
 delete from public.member_preferences where member_id = '${memberId}';
+insert into public.member_preferences (member_id, gym_id) values ('${memberId}', '${g}');
 delete from private.engagement_reminder_dispatches where member_id = '${memberId}';
 ${rows.length ? `insert into public.attendance_events (gym_id, member_id, checked_in_at, checked_out_at, checkout_type, visit_day) values\n${rows.join(",\n")};` : ""}
 ${goal ? `insert into public.member_weekly_goals (member_id, gym_id, effective_week, goal) values ('${memberId}', '${g}', date '${ws}', ${goal});` : ""}

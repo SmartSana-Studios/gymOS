@@ -39,7 +39,7 @@ fi
 tunnel() {
   local name=$1 target=$2 log="$LOG/tunnel-$1.log"
   : >"$log"
-  (cd /tmp && exec "$CF" tunnel --no-autoupdate --url "$target") >"$log" 2>&1 </dev/null &
+  (cd /tmp && exec "$CF" tunnel --no-autoupdate --protocol http2 --edge-ip-version 4 --url "$target") >"$log" 2>&1 </dev/null &
   PIDS+=($!)
   TUNNEL_URL=""
   for _ in $(seq 1 90); do

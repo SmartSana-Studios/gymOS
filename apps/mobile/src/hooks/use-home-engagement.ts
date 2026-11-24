@@ -38,7 +38,10 @@ export interface HomeEngagement {
 /** Story 30.4: the Home "This week" data flow. The numbers are the server's (services/engagement.ts); this hook sequences the calls, keeps the last good
  * row on the device, runs the two-second skeleton window, ticks the clock once a minute while Home is focused, and reads the scans queued on this
  * device when the phone is offline. It is best-effort and never trips Home's own load error. */
-export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: number): HomeEngagement {
+export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: number, options: { recordRestoredCard?: boolean } = {}): HomeEngagement {
+  // Story 31.4: only the screen that DRAWS the one-time "you are back" card may record it as shown. Home reads the same row but renders no card, so
+  // it passes `recordRestoredCard: false`; the Streak tab uses the default (true).
+  const recordRestoredCard = options.recordRestoredCard ?? true;
   const { t, i18n } = useTranslation();
   const language = i18n.language === 'fr' ? 'fr' : 'en';
 
@@ -209,13 +212,13 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
   useEffect(() => {
     const userId = userIdRef.current;
     const gymId = gymIdRef.current;
-    if (!restoredId || !userId || !gymId || restoredRecordedRef.current === restoredId) return;
+    if (!recordRestoredCard || !restoredId || !userId || !gymId || restoredRecordedRef.current === restoredId) return;
     restoredRecordedRef.current = restoredId;
     void recordDismissed(userId, gymId, restoredId).then((stored) => {
       // A write that did not land must be tried again, not remembered as done.
       if (!stored && restoredRecordedRef.current === restoredId) restoredRecordedRef.current = null;
     });
-  }, [restoredId]);
+  }, [restoredId, recordRestoredCard]);
 
   return { view, engagement: snapshot ? snapshot.engagement : null, loadForHome, dismissGoalHint, dismissShieldNotice };
 }

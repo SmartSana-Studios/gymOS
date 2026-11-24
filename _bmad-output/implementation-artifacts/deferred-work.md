@@ -2458,11 +2458,11 @@ Lab, local results only (one machine runs the server, the database, the load and
   summary: Only the Streak tab label is localised; Home, Check In, Classes and Profile stay hard-coded English, so the French tab bar is mixed.
   evidence: apps/mobile/src/components/app-tabs.tsx labels are literals (pre-existing); the new Streak label uses `engage.streak.tab`. Localising the whole bar is its own change (needs keys and parity).
 - source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
-  summary: Home and the Streak screen each run `useHomeEngagement`, so a session makes two engagement reads and settles; a hidden Streak screen on a dark gym may mount eagerly and read too.
-  evidence: settle is idempotent so it is accepted in the spec's Design Notes; whether native tabs mount a hidden screen eagerly can only be seen on a device (check Metro/Kong logs on a dark gym with `epoch.mjs off`).
+  summary: Home and the Streak screen each run `useHomeEngagement`, so a session makes two engagement reads and settles; the Streak screen on a dark gym also reads (its loaders run so the first read can turn the gate on).
+  evidence: settle is idempotent so it is accepted in the spec's Design Notes. The hidden-tab part of this entry is moot: the owner decided on 2026-11-24 that the Streak tab is never hidden (five tabs in every state, no navigator remount from a server flag), so no hidden screen exists. Check Metro/Kong logs on a dark gym with `epoch.mjs off` if the extra read matters.
 - source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
   summary: The gate wiring (use-home-engagement outcome call, tab layout bind and reset) and the Streak hub conditionals are pinned by source text only; no hook or component render harness exists.
-  evidence: no testing-library in apps/mobile; the reducer and store are behaviour-tested in engagementGate.test.ts. Medium if the wiring broke (no Streak tab for a cold-start member with no device copy); close it when a render harness is added.
+  evidence: no testing-library in apps/mobile; the reducer and store are behaviour-tested in engagementGate.test.ts. Medium if the wiring broke (a cold-start member whose gym is on would see the Streak screen's off line until a later read, and no Home streak line); close it when a render harness is added.
 - source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
   summary: `useBadgeRows` re-reads on the hub's pull to refresh through a `void reloadToken` identity trick; pull to refresh does not await the badge count and bumps it even offline.
   evidence: apps/mobile/src/hooks/use-badges.ts and streak/index.tsx handleRefresh; a `refresh()` that returns a promise (like useCalendar) is the clean fix, best done with a hook test.

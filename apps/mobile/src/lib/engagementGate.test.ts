@@ -19,7 +19,7 @@ import {
 } from '@/lib/engagementGate';
 import type { CachedEngagement } from '@/lib/weeklyRing';
 
-// Story 31.4: the one engagement gate (tab bar, Home streak line, Streak screen; Profile's Progress row is always shown and reads no gate). The reducer is the I/O matrix's pure rows; the store
+// Story 31.4: the one engagement gate (Home streak line and Streak screen only: the tab bar always has the Streak tab, and Profile's Progress row is always shown). The reducer is the I/O matrix's pure rows; the store
 // wraps it; the source scans pin who may read the engagement flag.
 
 const A = gateKey('user-a', 'gym-1');
@@ -33,7 +33,7 @@ describe('reduceGate (the I/O matrix)', () => {
     expect(INITIAL_GATE).toEqual({ key: null, gate: 'unknown' });
   });
 
-  it('cold start, no device copy: stays unknown (four tabs, no Streak tab) until a read answers', () => {
+  it('cold start, no device copy: stays unknown (the Streak screen shows its off line) until a read answers', () => {
     const bound = reduceGate(INITIAL_GATE, { type: 'bind', key: A });
     expect(bound).toEqual(unknown(A));
     expect(reduceGate(bound, { type: 'cache', key: A, enabled: null })).toEqual(unknown(A));
@@ -168,15 +168,15 @@ function strip(code: string): string {
 const FILES = walk(SRC).map((full) => ({ path: full.slice(SRC.length).replace(/\\/g, '/'), code: strip(readFileSync(full, 'utf8')) }));
 const code = (path: string) => FILES.find((file) => file.path === path)?.code ?? '';
 
-/** The screens and components that may read the gate: the tab bar (both files), Home and the Streak screen. (Profile does not: its Progress row is always shown.) */
-const GATE_CONSUMERS = ['app/(tabs)/index.tsx', 'app/(tabs)/streak/index.tsx', 'components/app-tabs.tsx', 'components/app-tabs.web.tsx'];
+/** The screens that may read the gate: the Home streak line and the Streak screen. (Not the tab bar: the Streak tab is always there. Not Profile: its Progress row is always shown.) */
+const GATE_CONSUMERS = ['app/(tabs)/index.tsx', 'app/(tabs)/streak/index.tsx'];
 /** Everything that reads the engagement flag any other way: the hooks and libs that own the read, and Profile's older rows (My visits, Badges, the Anonymous toggle), which
  * Story 30.5 gated on its own copy of the flag and Story 31.4 leaves exactly as they were. */
 const OTHER_FLAG_READERS = /readEngagementCache|myVisitsRowFromCache|\bengagementEnabled\b|getMyEngagement|openEngagement|\.engagement\.enabled|engagement\.enabled/;
 const FLAG_READER_ALLOWLIST = new Set(['app/(tabs)/profile.tsx']);
 
 describe('the gate consumers (Story 31.4)', () => {
-  it('only the tab bar, Home and the Streak screen read the gate', () => {
+  it('only Home and the Streak screen read the gate', () => {
     const readers = FILES.filter((file) => /useEngagementGate\(|getEngagementGate\(|subscribeEngagementGate\(/.test(file.code) && file.path !== 'lib/engagementGate.ts')
       .map((file) => file.path)
       .sort();
@@ -192,8 +192,8 @@ describe('the gate consumers (Story 31.4)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('the tab bar reads the gate and never the flag, and Profile reads no gate (its Progress row is always shown)', () => {
-    for (const path of ['components/app-tabs.tsx', 'components/app-tabs.web.tsx']) expect(code(path), path).not.toMatch(OTHER_FLAG_READERS);
+  it('the tab bar reads neither the gate nor the flag, and Profile reads no gate (its Progress row is always shown)', () => {
+    for (const path of ['components/app-tabs.tsx', 'components/app-tabs.web.tsx']) expect(code(path), path).not.toMatch(new RegExp(`${OTHER_FLAG_READERS.source}|useEngagementGate|engagementGate`));
     expect(code('app/(tabs)/profile.tsx')).not.toMatch(/useEngagementGate|engagementGate/);
   });
 
@@ -219,10 +219,10 @@ describe('the gate consumers (Story 31.4)', () => {
 });
 
 describe('the tab bar (Story 31.4)', () => {
-  it('the native bar has no Progress trigger in any state, and the Streak trigger is hidden unless the gate is on, fourth, with only its label localised', () => {
+  it('the native bar has five tabs in every state: no Progress trigger, the Streak trigger fourth and never hidden, only its label localised', () => {
     const bar = code('components/app-tabs.tsx');
-    expect(bar).toMatch(/const streakOn = useEngagementGate\(\) === 'on'/);
-    expect(bar).toMatch(/<NativeTabs\.Trigger name="streak" hidden=\{!streakOn\}>/);
+    expect(bar).toContain('<NativeTabs.Trigger name="streak">');
+    expect(bar).not.toMatch(/hidden=|streakOn/);
     expect(bar).not.toMatch(/name="progress"|>Progress</);
     expect(bar).toContain('sf="flame" md="local_fire_department"');
     expect(bar).toContain("{t('engage.streak.tab')}");
@@ -231,15 +231,15 @@ describe('the tab bar (Story 31.4)', () => {
     for (const label of ['Home', 'Check In', 'Classes', 'Profile']) expect(bar).toContain(`>${label}</NativeTabs.Trigger.Label>`);
   });
 
-  it('the web bar shows the Streak tab only while the gate is on and has no Progress tab', () => {
+  it('the web bar always has the Streak tab and no Progress tab', () => {
     const bar = code('components/app-tabs.web.tsx');
-    expect(bar).toMatch(/const streakOn = useEngagementGate\(\) === 'on'/);
-    expect(bar).toMatch(/\{streakOn && \(\s*<TabTrigger name="streak" href="\/streak" asChild>/);
+    expect(bar).toMatch(/<TabTrigger name="streak" href="\/streak" asChild>/);
+    expect(bar).not.toMatch(/streakOn|useEngagementGate/);
     expect(bar).toContain("{t('engage.streak.tab')}");
     expect(bar).not.toMatch(/name="progress"|>Progress</);
   });
 
-  it('a tab that is hidden is never the target of a navigation: the only references to /streak are Home\'s line behind the gate and the web trigger rendered only while the gate is on', () => {
+  it('nothing but the Home line (behind the gate) and the web trigger names /streak, and the Home line is gated', () => {
     const pushers = FILES.filter((file) => /['"]\/streak['"]/.test(file.code) && !/\.json$/.test(file.path)).map((file) => file.path);
     expect(pushers.sort()).toEqual(['app/(tabs)/index.tsx', 'components/app-tabs.web.tsx']);
     expect(code('app/(tabs)/index.tsx')).toMatch(/const streakLine = engagementGate === 'on'/);

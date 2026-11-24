@@ -2,7 +2,7 @@
 
 Epic 30: weekly goal, ring, streak, at-risk hint, attendance calendar, gym leaderboard, milestone celebration.
 Epic 31: Streak Shields, comeback, N-08 streak reminder, Badge Shelf, share image.
-Story 31.4 moved the whole engagement area off Home: with the area on, the tab bar reads **Home, Check In, Classes, Streak, Profile**. There is **no Progress tab in any state**: Progress (body measurements and photos) is a row at the end of Profile -> Training, always shown, and opens as a full-screen page with a Back arrow. Wherever a part below says "Streak tab", it means that fourth tab; Home only keeps one small line ("3-week streak" or "1 of 3 this week") that opens it. With the area off the bar has four tabs (Home, Check In, Classes, Profile) and no Streak tab.
+Story 31.4 moved the whole engagement area off Home: the tab bar reads **Home, Check In, Classes, Streak, Profile** in **every** state (five tabs, the Streak tab is never hidden). There is **no Progress tab in any state**: Progress (body measurements and photos) is a row at the end of Profile -> Training, always shown, and opens as a full-screen page with a Back arrow. Wherever a part below says "Streak tab", it means that fourth tab; Home only keeps one small line ("3-week streak" or "1 of 3 this week") that opens it. With the area off, the Streak tab is still there but shows only its heading and one line, "Your weekly streak is coming soon." (FR "Votre série hebdomadaire arrive bientôt."), and Home has no streak line.
 Everything is on the **member app** (phone). There is no dashboard or Super Admin screen in these epics. Local Supabase only, never prod.
 
 ## Setup (once per devcontainer boot)
@@ -40,9 +40,9 @@ Sign in as **A**. State: `state.mjs streak3 A`, then `epoch.mjs off`.
 
 | Do | Expect |
 |---|---|
-| Home, pull to refresh | No streak line, no "This week" card. The tab bar shows **four tabs** (no Streak tab, and no Progress tab either). Home is as it was before the epics. |
+| Home, pull to refresh | No streak line, no "This week" card. The tab bar still shows **five tabs** including **Streak** (no Progress tab). Home has no streak line and no "This week" card. Open the Streak tab: heading "Streak" and the one line "Your weekly streak is coming soon.", no ring, no Leaderboard card, no calendar, no Badges row, no Back arrow. |
 | Profile | No My visits or Badges rows, no Streak reminder toggle, no leaderboard toggle (the Weekly goal row is always there). The Training card ends with the **Progress** row, shown in every state: tap it, the Progress page opens with a Back arrow, "Log entry" and the entries and photo screens work, Back returns to Profile. |
-| `epoch.mjs on`, pull to refresh Home | The **Streak** tab appears as the fourth tab (the bar goes from four tabs to five), and Home shows the line "3-week streak". Open the Streak tab: the "This week" card (a streak of 3), the Leaderboard card, the month calendar and a Badges row. Profile -> Training ends with the same **Progress** row as in the dark state (Back returns to Profile). |
+| `epoch.mjs on`, pull to refresh Home | The bar does not change (the Streak tab was already there). Home now shows the line "3-week streak". Open the Streak tab: the "coming soon" line is replaced by the "This week" card (a streak of 3), the Leaderboard card, the month calendar and a Badges row. Profile -> Training ends with the same **Progress** row as in the dark state (Back returns to Profile). |
 
 ## 1. Weekly goal and ring (Epic 30.1, 30.4)
 Sign in as **A**. State: `state.mjs new A` (goal 3 = default, nothing visited).

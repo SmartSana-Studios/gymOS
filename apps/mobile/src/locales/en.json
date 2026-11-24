@@ -539,6 +539,7 @@
       "best_one": "Best: {{count}} week",
       "best_other": "Best: {{count}} weeks",
       "tab": "Streak",
+      "off": "Your weekly streak is coming soon.",
       "title": "Streak"
     },
     "goal": {

@@ -16,12 +16,10 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { getContrastTextColor } from '@/lib/color-contrast';
-import { useEngagementGate } from '@/lib/engagementGate';
 
 export default function AppTabs() {
   const { t } = useTranslation();
-  // Story 31.4: the Streak tab shows only while the engagement gate is on; there is no Progress tab (see app-tabs.tsx).
-  const streakOn = useEngagementGate() === 'on';
+  // Story 31.4: five tabs in every state, Streak always present; there is no Progress tab (see app-tabs.tsx).
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
@@ -36,11 +34,9 @@ export default function AppTabs() {
           <TabTrigger name="classes" href="/classes" asChild>
             <TabButton>Classes</TabButton>
           </TabTrigger>
-          {streakOn && (
-            <TabTrigger name="streak" href="/streak" asChild>
-              <TabButton>{t('engage.streak.tab')}</TabButton>
-            </TabTrigger>
-          )}
+          <TabTrigger name="streak" href="/streak" asChild>
+            <TabButton>{t('engage.streak.tab')}</TabButton>
+          </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
             <TabButton>Profile</TabButton>
           </TabTrigger>

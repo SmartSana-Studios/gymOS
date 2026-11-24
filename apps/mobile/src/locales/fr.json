@@ -539,6 +539,7 @@
       "best_one": "Meilleure série : {{count}} semaine",
       "best_other": "Meilleure série : {{count}} semaines",
       "tab": "Série",
+      "off": "Votre série hebdomadaire arrive bientôt.",
       "title": "Série"
     },
     "goal": {

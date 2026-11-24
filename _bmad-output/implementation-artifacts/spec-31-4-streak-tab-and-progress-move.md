@@ -22,8 +22,8 @@ context:
 ## Boundaries & Constraints
 
 **Always:**
-- Tab bar when the gate says ON: Home, Check In, Classes, Streak, Profile. Gate OFF or UNKNOWN: Home, Check In, Classes, Profile (the Streak trigger `hidden`; it is never navigated to in that state). There is no Progress tab in any state. Same on the web tab file.
-- One gate, `lib/engagementGate.ts`: a tiny subscribable store with `on | off | unknown`. It starts from the device copy (`readEngagementCache`) for the signed-in member, is set to `on` by an engagement `row` outcome and to `off` by a `dark` outcome (a failed or offline read changes nothing), and is reset to `unknown` on sign-out and on a member change. Its consumers are the tab bar, the Home streak line and the Streak screen; a test enumerates them and fails when a screen reads the engagement flag any other way. (Profile keeps its own `engagementEnabled` for its older rows; the Progress row does not use the gate.)
+- Tab bar, in every state: Home, Check In, Classes, Streak, Profile. No tab is `hidden`; there is no Progress tab in any state. Same on the web tab file.
+- One gate, `lib/engagementGate.ts`: a tiny subscribable store with `on | off | unknown`. It starts from the device copy (`readEngagementCache`) for the signed-in member, is set to `on` by an engagement `row` outcome and to `off` by a `dark` outcome (a failed or offline read changes nothing), and is reset to `unknown` on sign-out and on a member change. Its consumers are the Home streak line and the Streak screen (the tab bar no longer reads it: the Streak tab is always present); a test enumerates them and fails when a screen reads the engagement flag any other way. (Profile keeps its own `engagementEnabled` for its older rows; the Progress row does not use the gate.)
 - The Streak screen reuses, unchanged: `WeeklyRingSection` and its props (goal button to `/goal`, goal hint, notice dismissal), `useHomeEngagement`, `LeaderboardHomeCard` with `useHomeLeaderboard` (opens `/leaderboard`), `useCalendar`, and `useBadgeRows`. The calendar body (month bar, summary, grid, legend, day selection, swipe) is extracted from `app/calendar.tsx` into `components/CalendarPanel.tsx`, used by both the full screen `/calendar` (still reachable from Profile) and the hub; behaviour and wording unchanged.
 - Order on the hub, top to bottom: ring section (card taps still open `/calendar`), Leaderboard card, calendar panel, a Badges row ("n of 5", opens `/badges`). Pull to refresh reloads all four. All wording from the locale files, EN and FR parity.
 - Home keeps `useHomeEngagement` (the celebration, the settle and the gate need that one read) and `useHomeCelebration` exactly as now. The celebration is still pushed over Home. Home renders `HomeStreakLine` only for a `card` view: "3-week streak" (or "1 of 3 this week" when no streak is active), one row, 44 pt target, opens `/streak`. No line when hidden, dark, loading or error.
@@ -33,7 +33,7 @@ context:
 
 **Never:**
 - Any server, migration, RPC or fact change; any change to the Progress screens' content, data or services beyond moving them and adding the Back header; any change to the celebration, the leaderboard screen, the badge shelf, the share flow or the goal sheet.
-- A tab that is both hidden and the target of a navigation. A Progress tab in any state.
+- A hidden tab, or a tab that appears or disappears with the gate. A Progress tab in any state.
 - A second engagement read cache, a new storage key for engagement data, or a push deep link (N-08 still opens Home).
 
 ## I/O & Edge-Case Matrix
@@ -41,19 +41,19 @@ context:
 | Scenario | Input / State | Expected Output / Behavior | Error Handling |
 |----------|--------------|---------------------------|----------------|
 | Engagement on | gate `on` | Five tabs including Streak; Home shows the streak line, no ring section, no Leaderboard card; Profile shows the Progress row | N/A |
-| Dark gym | epoch NULL, gate `off` | Four tabs, no Streak tab, no streak line; Home as before this story except no Progress tab; Profile shows the Progress row and the rest as before | N/A |
-| Cold start, no device copy | gate `unknown` | Four tabs until the first read answers; if it returns `row` the Streak tab appears | a failed read leaves four tabs |
+| Dark gym | epoch NULL, gate `off` | Five tabs; the Streak hub shows the heading and one calm line ("Your weekly streak is coming soon." / FR equivalent) with the ring, board card, calendar and Badges row absent; no Home streak line; Home otherwise as before except no Progress tab; Profile shows the Progress row | N/A |
+| Cold start, no device copy | gate `unknown` | Five tabs; the hub shows the same calm line until the first read answers, then the real hub if it returns `row` | a failed read leaves the calm line |
 | Offline start, device copy on | cache says enabled | Streak tab from the device copy; hub shows the cached ring and calendar banners as today | existing offline faces |
 | Member signs out and another signs in | gate reset | `unknown` until the new member's copy or read | N/A |
 | Open Progress from Profile | tap the row, any gate state | the Progress screens open as a stack screen with a Back header; Back returns to Profile; entries and photo screens open and go back as before | N/A |
 | Deep link or old bookmark to `/progress` | any gate state | the Progress screens render | N/A |
-| `/streak` opened while the gate is `off` | deep link | the hub shows the existing dark face (nothing engagement-related) and a way back to Home | N/A |
+| `/streak` opened while the gate is `off` or `unknown` | tab or deep link | the calm line, with no Back arrow needed because the tab bar is there (keep a Back arrow only when the screen was opened by a link with no tab bar) | N/A |
 
 </frozen-after-approval>
 
 ## Code Map
 
-- `apps/mobile/src/components/app-tabs.tsx`, `app-tabs.web.tsx` -- tab triggers; remove the Progress trigger, add Streak (`sf flame`, `md local_fire_department`) with `hidden` from the gate (hidden only while the gate is not `on`). Labels are hard-coded English today; only Streak is localised.
+- `apps/mobile/src/components/app-tabs.tsx`, `app-tabs.web.tsx` -- tab triggers; remove the Progress trigger, add Streak (`sf flame`, `md local_fire_department`) always present and never `hidden`. Labels are hard-coded English today; only Streak is localised.
 - `apps/mobile/src/app/(tabs)/index.tsx` -- Home: lines ~129-131 hooks, 720-728 `WeeklyRingSection` and `LeaderboardHomeCard` to remove, replace with `HomeStreakLine`; keep celebration hook and the engagement read (270-274, 442).
 - `apps/mobile/src/hooks/use-home-engagement.ts` -- call the gate on `row` and `dark`; `use-home-leaderboard.ts` unchanged (moves with the card).
 - `apps/mobile/src/app/calendar.tsx` -- extract the panel; screen keeps header, back, refresh.
@@ -69,7 +69,7 @@ context:
 
 **Execution:**
 - [ ] `apps/mobile/src/lib/engagementGate.ts` (+ test) -- the store, device-copy bootstrap, reset on member change -- one gate for every consumer
-- [ ] `apps/mobile/src/components/app-tabs.tsx`, `app-tabs.web.tsx` -- Progress trigger removed, Streak trigger hidden unless the gate is `on` -- four or five tabs
+- [ ] `apps/mobile/src/components/app-tabs.tsx`, `app-tabs.web.tsx` -- Progress trigger removed, Streak trigger always present (no `hidden`) -- five tabs in every state; the hub gets a calm off/unknown face (one line, new EN/FR key `engage.streak.off`), with the ring, board card, calendar and Badges row absent
 - [ ] `apps/mobile/src/app/(tabs)/streak/index.tsx` -- the hub (ring section, Leaderboard card, `CalendarPanel`, Badges row, pull to refresh, dark and error faces as Home had them) -- the new destination
 - [ ] `apps/mobile/src/components/CalendarPanel.tsx`, `app/calendar.tsx` -- extract, no behaviour change -- reuse in the hub
 - [ ] `apps/mobile/src/components/HomeStreakLine.tsx`, `app/(tabs)/index.tsx` -- the line replaces the two sections -- Home stays short
@@ -80,8 +80,8 @@ context:
 - [ ] `scripts/epic30-31-qa/README.md`, `docs/decisions.md`, spine, `sprint-status.yaml`, `deferred-work.md` if anything is deferred
 
 **Acceptance Criteria:**
-- Given the gate is `on`, when the app opens, then the bar shows Home, Check In, Classes, Streak, Profile and no Progress, and Home has a streak line but no This week section and no Leaderboard card.
-- Given the gate is `off` or `unknown`, when the app opens, then the bar shows four tabs, Home renders none of the new elements, and Profile differs from before this story only by the Progress row (a source test pins the dark path).
+- Given any gate state, when the app opens, then the bar shows Home, Check In, Classes, Streak, Profile and no Progress; given the gate is `on`, and Home has a streak line but no This week section and no Leaderboard card.
+- Given the gate is `off` or `unknown`, when the app opens, then the bar still shows the same five tabs, the Streak tab shows the heading and one calm line (`engage.streak.off`) with none of the four sections, Home renders none of the new elements, and Profile differs from before this story only by the Progress row (source tests pin the off face).
 - Given the Streak tab is open, when the member pulls to refresh, then the ring, board card, calendar and badge count reload, and every Epic 30 and 31 state (Shield chip, notices, comeback phases, at-risk hint, offline banners, pending scan) shows exactly as it did on Home.
 - Given the member taps the Home streak line, then `/streak` opens; given they tap the ring card, then `/calendar` opens as before; the goal, goal hint and notice dismissal behave as before.
 - Given any gate state, when the member taps the Profile Progress row, then the Progress screens open with a Back header, entries and photo screens work, and Back returns to Profile; the Progress services have no diff and the screens differ only by their location and the header.
@@ -92,10 +92,13 @@ context:
 - Gate: `lib/engagementGate.ts` (+ `engagementGate.test.ts`: reducer rows, store, consumer scan, tab bar and route pins). Bound in `(tabs)/_layout.tsx`; set in `use-home-engagement.ts` from `outcome.kind`. Consumers: the tab bar (both files), Home and the Streak screen; Profile reads no gate.
 - `CalendarPanel` takes the hook's `view`, `refresh`, `shift`, `selectDay`; the hub passes `hideAtRiskHint` (the ring section already shows the hint). `useBadgeRows` got an optional `reloadToken` for the hub's pull to refresh.
 - `use-home-engagement.ts` also returns `engagement` (the row behind the view) for `buildHomeStreakLine` (`lib/homeStreakLine.ts`, tested in `homeStreakLine.test.ts` with the Home, Profile and hub source pins).
+- Second rework (the second Spec Change Log entry, owner after QA): both tab files have five triggers in every state; the Streak trigger has no `hidden` and neither file imports or reads the engagement gate (`streakOn` is gone). `app/(tabs)/streak/index.tsx` shows, while the gate is not `on`, the heading and one calm line (`engage.streak.off`, EN "Your weekly streak is coming soon.", FR "Votre série hebdomadaire arrive bientôt."); the ring section, Leaderboard card, calendar panel and Badges row render only when the gate is `on` (so nothing says it twice), the Back arrow of the gate-off face is removed, and the loaders (`loadRing`, the calendar hook) still run so the first read can turn the gate on. `bindEngagementGate` stays in `(tabs)/_layout.tsx`; the gate consumers are the Home streak line and the Streak screen only. The earlier line below about `hidden={!streakOn}` and the Back arrow is superseded.
 - Review loop 1 rework (Spec Change Log): the Progress trigger is gone from both tab files and the Streak trigger is `hidden={!streakOn}` (web: rendered only while on); the Profile Progress row is always shown, outside every `engagementEnabled` block, at the end of the Training card; `app/(tabs)/progress/{index,entries}.tsx` and `photo/[id].tsx` were `git mv`d to `app/progress/` and registered in `app/_layout.tsx` as `progress/index`, `progress/entries`, `progress/photo/[id]`; `progress/index.tsx` got a Back header (the only edit inside the screens); comments in `workout-plan.tsx` updated (`eslint.config.js` names no `(tabs)/progress` path, so nothing to change there). The `/streak` face with the gate off is a Back arrow to Home (`router.replace('/')`) under the heading; every section already draws nothing for a dark area.
 - Not run: ci-local, any device or browser. `shareFlow.test.ts` fails on the owner's uncommitted SDK 58 dependency change (view-shot 6.1.1 vs the pinned 5.1.0), unrelated to this story.
 
 ## Spec Change Log
+
+- 2026-11-24, second renegotiation (after loop 1), owner: "gyms must have it, it is for member engagement not for gyms". The Streak tab is always in the bar and never `hidden`; the engagement-off and unknown states show a calm one-line face in the hub instead of removing the tab. Known-bad state avoided: a bar whose length changes with a server flag (and the navigator remount that `hidden` causes). KEEP everything else from the loop 1 entry; only app-tabs (native and web), the Streak screen off face, the locale key, the gate consumer scan and the pins that name the tab bar change.
 
 - 2026-11-24, review loop 1, triggered by finding 1 (a hidden native tab cannot be navigated to). The owner renegotiated the frozen block: Progress is removed from the tab bar in every state and is a Profile row always shown; the Streak tab is hidden unless the gate is `on`; the Progress screens move to root stack routes with unchanged URLs. Known-bad state avoided: a Profile row that pushes to a hidden tab (does nothing on a device) and a dynamic tab swap that remounts the navigator. KEEP: `lib/engagementGate.ts`, the hub (`(tabs)/streak/index.tsx`), `CalendarPanel`, `HomeStreakLine` and `lib/homeStreakLine.ts`, the Home edits, the use-home-engagement gate calls, the locale keys, the re-pointed source tests and the README and decisions edits already in the working tree; only the tab bar, the Profile row, the Progress route move, the gate-consumer scan (Profile row no longer a gate consumer) and their tests change.
 
@@ -131,7 +134,7 @@ context:
 
 - Why a gate store instead of a prop: the tab bar is mounted above every screen and decides before any screen has read the engagement row; the device copy answers at once and the server answer corrects it, so a member on a dark gym never sees the swap.
 - Hub, text only: heading "Streak"; "This week" ring section as on Home today; the "Leaderboard" card; the month calendar with legend; a row "Badges, 2 of 5". Home line example: "3-week streak" / "1 of 3 this week", chevron at the right.
-- Risk to check on a device, not provable here: the Streak tab appearing after the first read for a member with no device copy (the navigator remounts once when `hidden` changes), and the Progress stack screens (Back, large text).
+- Risk to check on a device, not provable here: the Streak tab appearing after the first read for a member with no device copy (superseded: the tab is never hidden, so no remount), and the Progress stack screens (Back, large text).
 
 ## Verification
 

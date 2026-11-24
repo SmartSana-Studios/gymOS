@@ -27,8 +27,9 @@ import { useOfflineSync } from '@/lib/offline-sync-context';
 /** Story 31.4 (FR-219 to FR-224, FR-226, FR-230): the Streak tab, the hub of the engagement area. Top to bottom: the This week ring section (the card still
  * opens /calendar; goal, goal hint, Shield chip, notices and the comeback card are the section's own), the Leaderboard card (opens /leaderboard), the
  * attendance calendar panel and a Badges row (opens /badges). Layout only: every number is the server's and every word the locale's (the hooks and view
- * models are the ones Home used before this story, unchanged). One pull to refresh reloads all four. The tab exists only while the engagement gate is on
- * (lib/engagementGate.ts); a deep link while the gate is not on draws the heading and a Back button to Home, nothing else. */
+ * models are the ones Home used before this story, unchanged). One pull to refresh reloads all four. The tab is in the bar for every member in every state
+ * ("it is for member engagement, not for gyms"); while the engagement gate (lib/engagementGate.ts) is off or unknown the screen draws the heading and one
+ * calm line (`engage.streak.off`) and none of the four sections, but its loaders still run so the first read can turn the gate on. */
 export default function StreakScreen() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -91,23 +92,24 @@ export default function StreakScreen() {
             {t('engage.streak.title')}
           </ThemedText>
 
-          {/* The dark face (a deep link while the gate is not on, off or still unknown): the hub's sections draw nothing for a dark area, so the screen
-              offers a way back to Home. The tab is hidden in these states and nothing in the app navigates here. */}
+          {/* The off face (the gate is off or still unknown): one calm line, and none of the sections below, so nothing says it twice. */}
           {gate !== 'on' && (
-            <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={() => router.replace('/')} style={styles.backButton}>
-              <ThemedText type="default">←</ThemedText>
-            </Pressable>
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('engage.streak.off')}
+            </ThemedText>
           )}
 
-          <WeeklyRingSection
-            view={engagementView}
-            onGoalPress={() => router.push('/goal')}
-            onGoalHintPress={dismissGoalHint}
-            onDismissNotice={dismissShieldNotice}
-            onPressCard={() => router.push('/calendar')}
-          />
+          {gate === 'on' && (
+            <WeeklyRingSection
+              view={engagementView}
+              onGoalPress={() => router.push('/goal')}
+              onGoalHintPress={dismissGoalHint}
+              onDismissNotice={dismissShieldNotice}
+              onPressCard={() => router.push('/calendar')}
+            />
+          )}
 
-          <LeaderboardHomeCard view={leaderboardView} onPress={() => router.push('/leaderboard')} onRetry={retryLeaderboard} />
+          {gate === 'on' && <LeaderboardHomeCard view={leaderboardView} onPress={() => router.push('/leaderboard')} onRetry={retryLeaderboard} />}
 
           {gate === 'on' && <CalendarPanel view={calendar.view} refresh={calendar.refresh} shift={calendar.shift} selectDay={calendar.selectDay} hideAtRiskHint={ringShowsHint} />}
 
@@ -156,11 +158,6 @@ const styles = StyleSheet.create({
   },
   title: {
     paddingTop: Spacing.two,
-  },
-  backButton: {
-    minWidth: 44,
-    minHeight: 44,
-    justifyContent: 'center',
   },
   badgesRow: {
     flexDirection: 'row',

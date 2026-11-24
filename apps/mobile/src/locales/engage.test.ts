@@ -66,6 +66,7 @@ const REQUIRED: readonly (readonly [string, boolean])[] = [
   // Story 31.4: the Streak tab and its heading, the Home streak line and the Profile Progress row.
   ["engage.streak.tab", false],
   ["engage.streak.title", false],
+  ["engage.streak.off", false],
   ["engage.home.line.streak", true],
   ["engage.home.line.week", false],
   ["engage.profile.progress.row", false],

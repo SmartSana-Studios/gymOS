@@ -128,7 +128,7 @@ export default function HomeScreen() {
   // Story 30.4: the engagement read (the celebration, the settle and the engagement gate all need this one read) and the toast a goal saved from here
   // leaves behind. Story 31.4: the This week section and the Leaderboard card moved to the Streak tab; Home keeps one streak line that opens it, shown only
   // while the gate says the engagement area is on and the view is a card (never when dark, loading or in error).
-  const { view: engagementView, engagement: engagementRow, loadForHome: loadEngagementForHome } = useHomeEngagement(isConnected, pendingCheckInCount);
+  const { view: engagementView, engagement: engagementRow, loadForHome: loadEngagementForHome } = useHomeEngagement(isConnected, pendingCheckInCount, { recordRestoredCard: false });
   const engagementGate = useEngagementGate();
   const streakLine = engagementGate === 'on' ? buildHomeStreakLine(engagementView, engagementRow, t) : null;
   const toast = useFocusToast();

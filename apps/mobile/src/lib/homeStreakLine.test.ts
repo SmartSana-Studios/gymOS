@@ -151,9 +151,18 @@ describe('Home and the dark path (Story 31.4)', () => {
     expect(home).toMatch(/const streakLine = engagementGate === 'on' \? buildHomeStreakLine\(engagementView, engagementRow, t\) : null;/);
     expect(home).toMatch(/\{streakLine && <HomeStreakLine line=\{streakLine\} onPress=\{\(\) => router\.push\('\/streak'\)\} \/>\}/);
     // The one engagement read, the celebration and the settle stay on Home exactly as before.
-    expect(home).toContain('useHomeEngagement(isConnected, pendingCheckInCount)');
+    // Home reads the row but draws no comeback card, so it must NOT record the one-time "you are back" card as shown (QA 2026-11-24: Home consumed it).
+    expect(home).toContain('useHomeEngagement(isConnected, pendingCheckInCount, { recordRestoredCard: false })');
     expect(home).toContain('useHomeCelebration(');
     expect(home).toMatch(/loadCelebrationForHome\(userId, memberResult\.data\.gym_id, isCurrent, engagementRead\)/);
+  });
+
+  it('only the Streak screen records the restored card as shown', () => {
+    const hook = read('hooks/use-home-engagement.ts');
+    expect(hook).toMatch(/options\.recordRestoredCard \?\? true/);
+    expect(hook).toMatch(/if \(!recordRestoredCard \|\| !restoredId/);
+    const streak = read('app/(tabs)/streak/index.tsx');
+    expect(streak).toContain('useHomeEngagement(isConnected, pendingCheckInCount)'); // the default (true): this screen draws the card
   });
 
   it('the dark path renders none of the new elements on Home: the line sits behind the gate, and Home has neither section', () => {
@@ -236,9 +245,14 @@ describe('the Streak screen (Story 31.4)', () => {
     expect(read('components/CalendarPanel.tsx')).toContain('hideAtRiskHint = false');
   });
 
-  it('is registered as a tab folder, not as a root route, and shows a Back-to-Home face only while the gate is off', () => {
+  it('is registered as a tab folder, not as a root route, and while the gate is off or unknown shows one calm line and none of the four sections', () => {
     const hub = read('app/(tabs)/streak/index.tsx');
-    expect(hub).toMatch(/\{gate !== 'on' && \(\s*<Pressable accessibilityRole="button" accessibilityLabel=\{t\('common\.back'\)\} onPress=\{\(\) => router\.replace\('\/'\)\}/);
+    expect(hub).toMatch(/\{gate !== 'on' && \(\s*<ThemedText type="small" themeColor="textSecondary">\s*\{t\('engage\.streak\.off'\)\}/);
+    expect(hub).not.toMatch(/router\.replace|common\.back/);
+    expect(hub).toMatch(/\{gate === 'on' && \(\s*<WeeklyRingSection/);
+    expect(hub).toMatch(/\{gate === 'on' && <LeaderboardHomeCard/);
+    // The loaders are not behind the gate: the first read is what turns it on.
+    expect(hub).toMatch(/useFocusEffect\(\s*useCallback\(\(\) => \{\s*void loadRing\(\);/);
     expect(hub).toMatch(/\{gate === 'on' && <CalendarPanel/);
     expect(hub).toMatch(/\{gate === 'on' && \(\s*<Card variant="flat">/);
     expect(read('app/(tabs)/streak/index.tsx')).toContain('export default function StreakScreen');
