@@ -87,6 +87,37 @@ context:
 - Given any gate state, when the member taps the Profile Progress row, then the Progress screens open with a Back header, entries and photo screens work, and Back returns to Profile; the Progress services have no diff and the screens differ only by their location and the header.
 - Given `pnpm --filter mobile test`, `tsc --noEmit`, `check:i18n`, `check:client-boundary-imports` and the file scans, then all pass; `scripts/ci-local.sh` is GREEN on the committed story head.
 
+### Review Findings
+
+Code review of `epic/31...HEAD` (2 commits, 34 files) on 2026-11-24, four layers (Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor), 0 failed. 0 decision-needed, 5 patch, 2 defer, 20 rejected.
+
+- [x] [Review][Patch] Progress screens lost the gym accent colour: they moved out of `(tabs)`, whose layout wrapped them in `GymAccentColorProvider`, and the root layout has none, so `useGymAccentColor()` returns the platform gold for the "Log entry" button and the weight chart; wrap `ProgressScreen` as `calendar.tsx` does and pin it in the "Progress screens are stack routes" test (medium) [apps/mobile/src/app/progress/index.tsx:135]
+- [x] [Review][Patch] `progress/entries.tsx` and `progress/photo/[id].tsx` still call a bare `router.back()`, which does nothing after a cold deep link with no history (only `progress/index` got the `canGoBack()` fallback); use `canGoBack() ? back() : replace('/progress')` and update the test that pins the bare call (low) [apps/mobile/src/app/progress/entries.tsx:170, apps/mobile/src/app/progress/photo/[id].tsx:109]
+- [x] [Review][Patch] The one-time "you are back" card is recorded as shown by the Streak screen even while it draws nothing (gate off or unknown with a cached snapshot that carries a `restoredId`); pass `{ recordRestoredCard: gate === 'on' }` (low) [apps/mobile/src/app/(tabs)/streak/index.tsx:41]
+- [x] [Review][Patch] Stale comments and docs still describe the gated bar or the old IA: `engagementGate.ts` header ("read by exactly three places: the tab bar", "unknown behaves as off (four tabs)"), `use-home-engagement.ts:118` ("tab bar, Home streak line, Profile row"), `(tabs)/_layout.tsx` ("choose Streak or Progress"), `profile.tsx:815` and `onboarding/body-profile.tsx:31` ("Progress tab"), `calendar.tsx` docstring ("pushed from the Home 'This week' card"), the `useCalendar` docstring ("never remembered" is no longer true in the mounted hub), `weeklyRing.source.test.ts` titles that say Home, `docs/decisions.md` ("exactly as before this story" while dark, and "added to the spine's deferred bullet", the line is a standalone bullet after the AD-60 block) and the deferred-work entry that counts two engagement reads (the calendar's `loadAll` makes a third) (low) [apps/mobile/src/lib/engagementGate.ts:5-12]
+- [x] [Review][Patch] The QA click-through has no step for the Home streak line opening the Streak tab, the comeback card recorded only on the Streak tab, or a Progress Back with no history, and the dark-state row repeats "Home has no streak line" twice (low) [scripts/epic30-31-qa/README.md]
+- [x] [Review][Defer] A reminder tap (N-08) lands on Home, which now shows only "n-week streak" or "x of y this week" with no at-risk cue; the at-risk hint and Shield chip live on the Streak tab, so the member must find the fourth tab — deferred: out of scope by the spec ("a push deep link ... N-08 still opens Home"); options are an at-risk variant of the Home line or an N-08 deep link to `/streak` (medium, unverified on a device) [apps/mobile/src/components/HomeStreakLine.tsx]
+- [x] [Review][Defer] A gym whose engagement area is dark still pays, on every Streak focus, for `useCalendar` (`getMyEngagement` plus `getMyFirstVisitDay`), the leaderboard load and a second `useHomeEngagement` read and settle; only the engagement read is needed to turn the gate on — deferred: a design call (start the calendar and board loads only once the gate is `on`, which needs an `enabled` input on `useCalendar`) with two cheap RPCs per focus as the cost (low)
+
+#### Rejected
+
+- ci-local not run and one mobile test (`shareFlow.test.ts` package-version pin) failing — not a code defect: disclosed in sprint-status, caused by the uncommitted SDK 58 bump in the working tree; the gate runs at merge per the epic rule.
+- The hub keeps the month and selected day across tab switches (the tab stays mounted) — low, benign, and the fix (reset on blur or at month rollover) adds branches for a case members will rarely notice.
+- Pull to refresh does not await the badge count; gate wiring pinned by source text only — already deferred (triage items 16 and 18 and deferred-work).
+- Spec self-contradictions (the frozen Approach 4 line, Implementation Notes "tab bar (both files)", the stray Home clause in AC 1, `status: done` and unchecked Tasks) — the fix edits the spec under review; the status is set by this review's step 6.
+- Out-of-scope QA script edits (`start-mobile.sh`, `job.mjs`, `lib.mjs`) — disclosed in sprint-status as owner-QA fixes; no spec rule broken.
+- `reduceGate` adopts a late outcome while `key` is null — false: it is deliberate (Home can answer before the layout binds), a late answer after sign-out holds a real answer for that member, and `bind` resets the gate for any other member.
+- The layout resets the gate while `gymId` is briefly null (a "coming soon" flash) — maybe-false and low: it needs `gymId` to go from set to null while the session stays, which the session hook was not shown to do; the cold-start flash is already recorded in decisions.md as owner device-check risk.
+- "Coming soon" shows for `unknown` on a cold start with no device copy, or forever after a failed offline first read — already recorded in decisions.md ("Risk left to the owner's device check").
+- `lib.mjs` persona wipe inserts `member_preferences` without `on conflict` — false: the `delete` for the same member runs first in the same script, and the QA pass ran it.
+- The at-risk hint could be hidden in both the panel and the ring card — false: `ringShowsHint` is true only when the ring card's own `hint` is non-null.
+- The consumer scan covers only `app/` and `components/` — false: `walk(SRC)` reads every file under `src`, hooks and libs included. The mutation check running on the first draft only, and exact-count pins such as `streakLine` appearing 3 times — low, no named harm.
+- Tab labels half localised (only Streak is translated) — already accepted as deferral item 5.
+- Home still calls `useFocusToast()` though the goal button moved; the Streak toast copies Home's block and its two hard-coded colours — maybe-false (Home may take other toasts) and low.
+- Hand-rolled `←` Back glyph on Progress, no RTL handling; the Profile Progress row reuses `goalRow` styles, repeats its label as `accessibilityLabel` and sits under `engage.profile.*`; the off line has no live-region role — low, cosmetic, no named harm.
+- At-risk and default-goal hints behave differently from Home — accepted in triage items 4, 14 and 15 as consequences of the approach.
+- Spine bullet placement versus the decisions entry — the bullet is correctly placed; the wording mismatch is in the decisions patch above.
+
 ## Implementation Notes
 
 - Gate: `lib/engagementGate.ts` (+ `engagementGate.test.ts`: reducer rows, store, consumer scan, tab bar and route pins). Bound in `(tabs)/_layout.tsx`; set in `use-home-engagement.ts` from `outcome.kind`. Consumers: the tab bar (both files), Home and the Streak screen; Profile reads no gate.

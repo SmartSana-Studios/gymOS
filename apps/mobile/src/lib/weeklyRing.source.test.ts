@@ -251,7 +251,7 @@ describe('the calendar reads only what the spec allows', () => {
   });
 });
 
-describe('Home card and Profile row open /calendar (closes the 30.4 card-tap deferral)', () => {
+describe('Streak tab ring card and Profile row open /calendar (closes the 30.4 card-tap deferral)', () => {
   it('the Streak tab (Story 31.4: it left Home) passes the push to the card, and the card is one button that uses it', () => {
     const home = stripComments(source('app/(tabs)/streak/index.tsx'));
     expect(home).toMatch(/onPressCard=\{\(\) => router\.push\('\/calendar'\)\}/);

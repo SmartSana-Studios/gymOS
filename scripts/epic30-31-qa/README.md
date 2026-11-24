@@ -40,9 +40,12 @@ Sign in as **A**. State: `state.mjs streak3 A`, then `epoch.mjs off`.
 
 | Do | Expect |
 |---|---|
-| Home, pull to refresh | No streak line, no "This week" card. The tab bar still shows **five tabs** including **Streak** (no Progress tab). Home has no streak line and no "This week" card. Open the Streak tab: heading "Streak" and the one line "Your weekly streak is coming soon.", no ring, no Leaderboard card, no calendar, no Badges row, no Back arrow. |
+| Home, pull to refresh | The tab bar still shows **five tabs** including **Streak** (no Progress tab). Home has no streak line and no "This week" card. Open the Streak tab: heading "Streak" and the one line "Your weekly streak is coming soon.", no ring, no Leaderboard card, no calendar, no Badges row, no Back arrow. |
 | Profile | No My visits or Badges rows, no Streak reminder toggle, no leaderboard toggle (the Weekly goal row is always there). The Training card ends with the **Progress** row, shown in every state: tap it, the Progress page opens with a Back arrow, "Log entry" and the entries and photo screens work, Back returns to Profile. |
 | `epoch.mjs on`, pull to refresh Home | The bar does not change (the Streak tab was already there). Home now shows the line "3-week streak". Open the Streak tab: the "coming soon" line is replaced by the "This week" card (a streak of 3), the Leaderboard card, the month calendar and a Badges row. Profile -> Training ends with the same **Progress** row as in the dark state (Back returns to Profile). |
+| Tap the Home streak line | Opens the Streak tab (the line is one 44 pt row). The ring card on the Streak tab still opens the calendar. |
+| `comeback2`, `checkin.mjs A`, open **Home first**, then the Streak tab | Home draws no "You're back" card and does not consume it; the Streak tab shows it once (only the screen that draws the card records it). Reopen: not shown again. |
+| Progress, deep link or cold start straight onto Progress entries or a photo, then Back | Back goes to the Progress screen (not a dead button); from Profile > Progress, Back returns to Profile. |
 
 ## 1. Weekly goal and ring (Epic 30.1, 30.4)
 Sign in as **A**. State: `state.mjs new A` (goal 3 = default, nothing visited).

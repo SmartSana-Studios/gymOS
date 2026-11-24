@@ -261,8 +261,15 @@ describe('the Progress screens are stack routes, not tabs (Story 31.4)', () => {
     expect(screen).not.toContain('BottomTabInset');
     expect(code('app/progress/entries.tsx')).not.toContain('BottomTabInset');
     expect(screen).toContain("router.push('/progress/entries')");
-    expect(code('app/progress/entries.tsx')).toContain('router.back()');
-    expect(code('app/progress/photo/[id].tsx')).toContain('router.back()');
+    // A cold deep link has no history, so Back falls back to the Progress screen instead of doing nothing.
+    expect(code('app/progress/entries.tsx')).toContain("router.canGoBack() ? router.back() : router.replace('/progress')");
+    expect(code('app/progress/photo/[id].tsx')).toContain("router.canGoBack() ? router.back() : router.replace('/progress')");
+  });
+
+  it('the Progress screen supplies the gym accent colour itself (it left the tab group whose layout did)', () => {
+    const screen = code('app/progress/index.tsx');
+    expect(screen).toContain('<GymAccentColorProvider>');
+    expect(screen).toContain('<ProgressScreenContent />');
   });
 
   it('the Progress services and screens read nothing from the engagement area', () => {

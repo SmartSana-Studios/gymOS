@@ -2,12 +2,11 @@ import { useSyncExternalStore } from 'react';
 
 import { readEngagementCache, type CachedEngagement } from '@/lib/weeklyRing';
 
-/** Story 31.4: the one answer to "is the engagement area on for this member", read by exactly three places: the tab bar (the Streak tab is shown
- * only while it is `on`; there is no Progress tab in any state), the Home streak line and the Streak screen. Profile's Progress row is always shown and does not
- * read it. The tab bar is mounted above every screen and decides before any screen has read the engagement row,
- * so the gate starts from the device copy of the last good row (`readEngagementCache`, never a second cache) and the server's answer corrects it: an engagement
- * `row` outcome sets it to `on`, a `dark` outcome to `off`, and a failed or offline read changes nothing. It is `unknown` until the device copy or a read
- * answers, and `unknown` behaves as `off` (four tabs, no Streak tab): a member of a dark gym never sees a change. Reset on sign-out and on a member change.
+/** Story 31.4: the one answer to "is the engagement area on for this member", read by exactly two places: the Home streak line and the Streak screen.
+ * The tab bar does not read it (five tabs in every state, Streak never hidden, no Progress tab), and neither does Profile's Progress row (always shown).
+ * The gate starts from the device copy of the last good row (`readEngagementCache`, never a second cache) so a cold start does not wait for the network, and
+ * the server's answer corrects it: an engagement `row` outcome sets it to `on`, a `dark` outcome to `off`, and a failed or offline read changes nothing. It is
+ * `unknown` until the device copy or a read answers, and `unknown` behaves as `off` (the Streak screen's one calm line, no Home line). Reset on sign-out and on a member change.
  * No other screen may read the engagement flag any other way (engagementGate.test.ts scans for it). */
 export type EngagementGate = 'on' | 'off' | 'unknown';
 

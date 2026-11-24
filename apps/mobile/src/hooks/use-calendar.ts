@@ -38,8 +38,8 @@ const NO_SCANS: string[] = [];
 
 /** Story 30.5 (MA-18): the calendar's data flow. Today comes from `my_engagement()` (`getMyEngagement()` only, never `openEngagement()`: opening the
  * calendar settles nothing), the visit days from `my_visit_days(month)`, the chevron bound from `my_first_visit_day()`. Every month loaded is kept on
- * the device per member and gym; a failed or offline load falls back to it. The month on screen starts at the gym's current month and is never
- * remembered. Best effort: nothing here throws. The hours left tick once a minute while the screen is focused. */
+ * the device per member and gym; a failed or offline load falls back to it. The month on screen starts at the gym's current month; a screen that unmounts forgets it (the full /calendar screen), while the mounted Streak tab
+ * keeps it between focuses (a pull to refresh keeps it too). Best effort: nothing here throws. The hours left tick once a minute while the screen is focused. */
 export function useCalendar(isConnected: boolean, pendingCheckInCount: number, userId: string | null, gymId: string | null): Calendar {
   const { t, i18n } = useTranslation();
   const language = i18n.language === 'fr' ? 'fr' : 'en';

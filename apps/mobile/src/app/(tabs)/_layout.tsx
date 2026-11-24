@@ -14,8 +14,8 @@ export default function TabsLayout() {
   const { session, gymId } = useSession();
   const userId = session?.user.id ?? null;
 
-  // Story 31.4: the engagement gate (lib/engagementGate.ts) is bound to the signed-in member here, above every tab, so the tab bar can choose Streak or
-  // Progress from the device copy before any screen has read the row. Another member, or signing out, resets it to unknown.
+  // Story 31.4: the engagement gate (lib/engagementGate.ts) is bound to the signed-in member here, above every tab, so the Home streak line and the Streak screen
+  // can start from the device copy before any screen has read the row (the tab bar does not read it). Another member, or signing out, resets it to unknown.
   useEffect(() => {
     if (!userId || !gymId) {
       resetEngagementGate();

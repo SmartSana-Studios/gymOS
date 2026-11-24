@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: code review of spec-31-4-streak-tab-and-progress-move (2026-11-24)
+
+- **A reminder tap (N-08) lands on Home with no at-risk cue.** The at-risk hint and Shield chip moved to the Streak tab; Home keeps only the "n-week streak" or "x of y this week" line, so a member who taps the streak-at-risk reminder has to find the fourth tab. The spec keeps "N-08 still opens Home" (no push deep link). Medium, unverified on a device. Options: an at-risk variant of the Home line, or an N-08 deep link to `/streak`. Where: `apps/mobile/src/components/HomeStreakLine.tsx`, `lib/homeStreakLine.ts`.
+- **A gym with the engagement area dark still runs the calendar, leaderboard and a second engagement read on every Streak focus.** Only the engagement read is needed to turn the gate on; `useCalendar` adds `getMyEngagement` and `getMyFirstVisitDay`, so a session makes three engagement reads, not two. Low, two cheap RPCs per focus. Fix: start the calendar and board loads once the gate is `on` (an `enabled` input on `useCalendar`). Where: `apps/mobile/src/app/(tabs)/streak/index.tsx`, `hooks/use-calendar.ts`.
+
 ## Deferred from: build of spec-30-7-milestones-and-celebration (2026-11-23)
 
 - **The epoch guard still protects `week` facts only, so a milestone's `silent` flag can disagree with a moved epoch.** A milestone is silent when its Nth distinct visit day is before `release_week_start`, decided once at award time. `private.engagement_epoch_guard` (0185) freezes the epoch once a WEEK fact exists, and an existing pgTAP test pins that; it does not look at milestone facts. An operator who moves the epoch after members have opened the app (so milestone facts exist but no week fact yet, e.g. every member still inside the first week) would leave those facts with the old epoch's silent decision. Rule for the operator, recorded in decisions.md: set the epoch once and do not move it after members have opened the app. Extending the guard to `kind in ('week', 'milestone')` is one line plus an edited 30.2 test; not done here because the spec freezes that test.
@@ -2458,7 +2463,7 @@ Lab, local results only (one machine runs the server, the database, the load and
   summary: Only the Streak tab label is localised; Home, Check In, Classes and Profile stay hard-coded English, so the French tab bar is mixed.
   evidence: apps/mobile/src/components/app-tabs.tsx labels are literals (pre-existing); the new Streak label uses `engage.streak.tab`. Localising the whole bar is its own change (needs keys and parity).
 - source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
-  summary: Home and the Streak screen each run `useHomeEngagement`, so a session makes two engagement reads and settles; the Streak screen on a dark gym also reads (its loaders run so the first read can turn the gate on).
+  summary: Home and the Streak screen each run `useHomeEngagement`, so a session makes two engagement reads and settles, and the Streak screen's `useCalendar` makes a third (`getMyEngagement` on every focus); on a dark gym these still run (the first read is what turns the gate on, the calendar and board loads are not needed).
   evidence: settle is idempotent so it is accepted in the spec's Design Notes. The hidden-tab part of this entry is moot: the owner decided on 2026-11-24 that the Streak tab is never hidden (five tabs in every state, no navigator remount from a server flag), so no hidden screen exists. Check Metro/Kong logs on a dark gym with `epoch.mjs off` if the extra read matters.
 - source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
   summary: The gate wiring (use-home-engagement outcome call, tab layout bind and reset) and the Streak hub conditionals are pinned by source text only; no hook or component render harness exists.

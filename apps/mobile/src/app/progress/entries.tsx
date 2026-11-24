@@ -167,7 +167,7 @@ export default function ProgressEntriesScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={() => router.back()}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={() => (router.canGoBack() ? router.back() : router.replace('/progress'))}>
             <ThemedText type="default">←</ThemedText>
           </Pressable>
           <ThemedText type="subtitle">{t('progress.entries.title')}</ThemedText>

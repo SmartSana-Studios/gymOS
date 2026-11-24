@@ -12,7 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { STATUS_COLORS } from '@/constants/subscription-status';
 import { useTheme } from '@/hooks/use-theme';
-import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
+import { GymAccentColorProvider, useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { getContrastTextColor } from '@/lib/color-contrast';
 import { getProgressPhotoSignedUrl } from '@/lib/photo-upload';
 import { useOfflineSync } from '@/lib/offline-sync-context';
@@ -128,6 +128,15 @@ function resolveDeltaColor(goal: ProgressScreenData['goal'], deltaKg: number | n
  * empty/error pattern instead, same as any other screen's first-load
  * failure. */
 export default function ProgressScreen() {
+  // Story 31.4: the screen left the (tabs) group, whose layout supplied the gym accent colour, so it supplies its own like the other pushed gym screens.
+  return (
+    <GymAccentColorProvider>
+      <ProgressScreenContent />
+    </GymAccentColorProvider>
+  );
+}
+
+function ProgressScreenContent() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();

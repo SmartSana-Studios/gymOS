@@ -115,7 +115,7 @@ export function useHomeEngagement(isConnected: boolean, pendingCheckInCount: num
       // instead of lagging up to a minute behind after a pull to refresh.
       setDeviceNowMs(receivedAt);
 
-      // Story 31.4: the answer also moves the engagement gate (tab bar, Home streak line, Profile row); a failed read leaves it as it was.
+      // Story 31.4: the answer also moves the engagement gate (the Home streak line and the Streak screen read it); a failed read leaves it as it was.
       setEngagementGateFromOutcome(userId, gymId, outcome.kind);
       if (outcome.kind === 'row') {
         setDark(false);

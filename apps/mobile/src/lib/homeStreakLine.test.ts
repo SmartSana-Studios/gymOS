@@ -162,7 +162,7 @@ describe('Home and the dark path (Story 31.4)', () => {
     expect(hook).toMatch(/options\.recordRestoredCard \?\? true/);
     expect(hook).toMatch(/if \(!recordRestoredCard \|\| !restoredId/);
     const streak = read('app/(tabs)/streak/index.tsx');
-    expect(streak).toContain('useHomeEngagement(isConnected, pendingCheckInCount)'); // the default (true): this screen draws the card
+    expect(streak).toContain("useHomeEngagement(isConnected, pendingCheckInCount, { recordRestoredCard: gate === 'on' })"); // recorded only while the screen draws the card
   });
 
   it('the dark path renders none of the new elements on Home: the line sits behind the gate, and Home has neither section', () => {

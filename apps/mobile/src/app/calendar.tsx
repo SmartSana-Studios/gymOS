@@ -12,7 +12,7 @@ import { GymAccentColorProvider } from '@/hooks/use-gym-accent-color';
 import { useSession } from '@/hooks/use-session';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 
-/** Story 30.5 (MA-18, FR-224): the attendance calendar, pushed from the Home "This week" card and the Profile Training card. Layout only: the hook
+/** Story 30.5 (MA-18, FR-224): the attendance calendar, pushed from the Streak tab's "This week" card and the Profile Training card. Layout only: the hook
  * (hooks/use-calendar.ts) loads and sequences, the view model (lib/calendarView.ts) decides every state and every word. It always opens on the gym's
  * current month and never remembers the month left. No tab bar, no tab badge. Story 31.4: the body is components/CalendarPanel.tsx (shared with the Streak
  * tab); this screen keeps the header, the back button and the pull to refresh. */

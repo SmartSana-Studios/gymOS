@@ -41,7 +41,7 @@ export default function StreakScreen() {
   const gate = useEngagementGate();
   const toast = useFocusToast();
 
-  const { view: engagementView, loadForHome: loadEngagement, dismissGoalHint, dismissShieldNotice } = useHomeEngagement(isConnected, pendingCheckInCount);
+  const { view: engagementView, loadForHome: loadEngagement, dismissGoalHint, dismissShieldNotice } = useHomeEngagement(isConnected, pendingCheckInCount, { recordRestoredCard: gate === 'on' });
   const { view: leaderboardView, loadForHome: loadLeaderboard, retry: retryLeaderboard } = useHomeLeaderboard();
   const calendar = useCalendar(isConnected, pendingCheckInCount, userId, gymId);
   // The badge count reloads on focus; a pull to refresh bumps the token to read it again.

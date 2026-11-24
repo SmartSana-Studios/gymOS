@@ -106,7 +106,7 @@ export default function ProgressPhotoDetailScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
-          onPress={() => router.back()}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/progress'))}
           style={styles.backButton}>
           <ThemedText type="default">←</ThemedText>
         </Pressable>
