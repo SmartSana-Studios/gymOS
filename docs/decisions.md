@@ -5,6 +5,16 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-25 — Push notifications follow the language the member sees (mobile, no migration)
+
+**What was wrong.** Every server-side sender (subscription expiry, class reminder, quiet-gym alert, payment receipt, streak reminder) writes its text in `users.preferred_language` (`fr`, else `en`). The mobile app took its display language from the phone (`detectDeviceLocale`) and never wrote it back: only the Profile switcher and the onboarding plan screen did, and after a restart the app showed the phone's language again whatever the member had picked. A member created by staff, or one who never touched the switcher, kept the column default `en`: a French phone showed a French app and received English pushes.
+
+**Owner decision (2026-11-25): the lightest fix, nothing heavy on the app.** `lib/languageSync.ts` copies the displayed language to `users.preferred_language`, and only when it differs from a note kept on the phone per member (`gymos.preferredLanguageSynced.<userId>` in AsyncStorage). The normal case is one local read and no network call; the single UPDATE (own row, the one column a member may change) happens at most once per language change; it is scheduled with `requestIdleCallback` after the first screen so it never delays startup; offline or a refused write notes nothing and the next start retries; it never throws. The Profile switcher notes its own successful write so it is not repeated. **Not done, on purpose:** remembering an explicit in-app choice across restarts (the app still starts in the phone's language, as before); that would add stored state and a start-up read, so the push language and the screen language are simply the same thing.
+
+**Proof.** `src/lib/languageSync.test.ts` (9: silent when equal, one update then silent, update on a change, nothing noted when the write fails, never throws, one note per member, and three wiring pins for the root layout and the Profile switcher). Mobile suite 1267 passed, `tsc` clean. Not run on a device.
+
+---
+
 ## 2026-11-25 — Sub-Saharan Africa is the target: country selects, phone codes and a seeded town list (migration 0195)
 
 **Owner decisions (2026-11-25).** (1) The Super Admin no longer builds the town list by hand: the main towns are seeded, and the Cities page becomes a table of country, town and number of gyms in alphabetical order, with the add form kept only for a missing town. (2) The target is **Sub-Saharan Africa only for now** ("black African countries"), and the same countries are the only ones offered in every country select and every phone-code picker. (3) A gym in a neighbourhood picks the main town it belongs to (Biyem-Assi picks Yaoundé); its address and map pin, which stay in the page form, say where exactly.
