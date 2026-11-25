@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { ActiveEscalation, GymDetail } from "@/services/gyms";
 import { revokeGymAccess } from "../../actions";
+import { validationMessage } from "@/lib/validation-message";
 
 /**
  * SA-03 "Revoke access" (Story 1.15 AC #4). Mandatory reason, audit-logged
@@ -56,7 +57,7 @@ export function RevokeAccessDialog({
 
     const parsed = revokeGymAccessSchema.safeParse({ reason });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
+      setError(validationMessage(parsed.error.issues[0], t));
       return;
     }
 

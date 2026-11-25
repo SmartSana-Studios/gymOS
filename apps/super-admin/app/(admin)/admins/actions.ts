@@ -17,6 +17,7 @@ import { sendMail } from "@/lib/mail";
 import { appBaseUrl } from "@/lib/recovery";
 import { adminCreatedMail, adminPromotedMail, type InviteLocale } from "@/lib/admin-invite-mail";
 import { normalizeStepUpSubject } from "@/lib/step-up-subject";
+import { validationMessage } from "@/lib/validation-message";
 
 async function inviteLocale(): Promise<InviteLocale> {
   return (await getRequestLocale()) === "fr" ? "fr" : "en";
@@ -131,7 +132,7 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
     const firstIssue = parsed.error.issues[0];
     return {
       data: null,
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
   const { email, currentPassword } = parsed.data;

@@ -7,6 +7,7 @@ import { applyCreditSchema, APPLY_CREDIT_MAX_DAYS, type AppError } from "@gymos/
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { validationMessage } from "@/lib/validation-message";
 
 // SA-07: "grants N days or one billing cycle free". Resolved client-side
 // against the row's own saasBillingInterval (already fetched, no extra
@@ -61,7 +62,7 @@ export function ApplyCreditDialog({
       setError(
         firstIssue?.path[0] === "days"
           ? t("billing.applyCredit.errors.daysPositive")
-          : (firstIssue?.message ?? t("common.invalidInput")),
+          : (validationMessage(firstIssue, t)),
       );
       return;
     }
