@@ -13,6 +13,7 @@ import {
 } from "@/services/tiers";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { validationMessage } from "@/lib/validation-message";
 
 /** SA-06 Create Tier. `{ data, error }` contract, never throws for expected
  * errors -- matches `createGym`'s established Process Pattern. */
@@ -28,7 +29,7 @@ export async function createTier(
     const firstIssue = parsed.error.issues[0];
     return {
       data: null,
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
   const tier = parsed.data;
@@ -85,7 +86,7 @@ export async function editTier(
     const firstIssue = parsed.error.issues[0];
     return {
       data: null,
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
   const tier = parsed.data;

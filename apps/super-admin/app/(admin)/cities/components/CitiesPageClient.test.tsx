@@ -51,35 +51,65 @@ describe("parseAliases", () => {
   });
 });
 
-describe("the list", () => {
-  it("shows each city with its country, slug, gym count, position and extra spellings", () => {
+describe("the table", () => {
+  it("shows each town with its country and its number of gyms, with the summary", () => {
     renderWithI18n(<CitiesPageClient data={DATA} />);
-    const list = within(screen.getByTestId("city-list"));
-    expect(list.getByText("Douala")).toBeTruthy();
-    expect(list.getByText(/Slug: douala · 2 gyms · 4.0511, 9.7679/)).toBeTruthy();
-    expect(list.getByText("Also found as: Duala")).toBeTruthy();
-    expect(list.getByText(/Slug: dakar · 0 gyms · no map position/)).toBeTruthy();
+    const table = within(screen.getByTestId("city-list"));
+    const rows = table.getAllByRole("row").slice(1);
+    // Alphabetical by country name (Cameroon before Senegal), then by town.
+    expect(rows.map((r) => within(r).getAllByRole("cell").slice(0, 3).map((c) => c.textContent))).toEqual([
+      ["Cameroon", "Douala", "2"],
+      ["Senegal", "Dakar", "0"],
+    ]);
+    expect(screen.getByTestId("city-summary").textContent).toBe("2 towns, 1 with at least one gym.");
   });
 
-  it("says '1 gym' for one gym, not '1 gyms'", () => {
-    const one: CitiesPageData = { ...DATA, cities: [{ ...DATA.cities[0], gymCount: 1 }] };
-    renderWithI18n(<CitiesPageClient data={one} />);
-    const list = within(screen.getByTestId("city-list"));
-    expect(list.getByText(/Slug: douala · 1 gym ·/)).toBeTruthy();
-    expect(list.queryByText(/1 gyms/)).toBeNull();
+  it("sorts by the country name in the language shown, then by town", () => {
+    const many: CitiesPageData = {
+      ...DATA,
+      cities: [
+        { id: "a", countryCode: "SN", name: "Thiès", slug: "thies", lat: null, lng: null, aliases: [], gymCount: 0 },
+        { id: "b", countryCode: "CM", name: "Yaoundé", slug: "yaounde", lat: null, lng: null, aliases: [], gymCount: 1 },
+        { id: "c", countryCode: "SN", name: "Dakar", slug: "dakar", lat: null, lng: null, aliases: [], gymCount: 0 },
+        { id: "d", countryCode: "CM", name: "Bamenda", slug: "bamenda", lat: null, lng: null, aliases: [], gymCount: 0 },
+      ],
+    };
+    renderWithI18n(<CitiesPageClient data={many} />);
+    const towns = within(screen.getByTestId("city-list")).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[1].textContent);
+    expect(towns).toEqual(["Bamenda", "Yaoundé", "Dakar", "Thiès"]);
   });
 
-  it("filters by country and by search text", async () => {
+  it("filters by country, by search text (name, slug or extra spelling) and to towns with gyms", async () => {
     const user = userEvent.setup();
     renderWithI18n(<CitiesPageClient data={DATA} />);
     await user.selectOptions(screen.getByLabelText("Country"), "SN");
-    const list = within(screen.getByTestId("city-list"));
+    let list = within(screen.getByTestId("city-list"));
     expect(list.queryByText("Douala")).toBeNull();
     expect(list.getByText("Dakar")).toBeTruthy();
     await user.selectOptions(screen.getByLabelText("Country"), "");
     await user.type(screen.getByRole("textbox", { name: "Search cities" }), "duala");
-    expect(within(screen.getByTestId("city-list")).getByText("Douala")).toBeTruthy();
-    expect(within(screen.getByTestId("city-list")).queryByText("Dakar")).toBeNull();
+    list = within(screen.getByTestId("city-list"));
+    expect(list.getByText("Douala")).toBeTruthy();
+    expect(list.queryByText("Dakar")).toBeNull();
+    await user.clear(screen.getByRole("textbox", { name: "Search cities" }));
+    await user.click(screen.getByLabelText("Only towns with gyms"));
+    list = within(screen.getByTestId("city-list"));
+    expect(list.getByText("Douala")).toBeTruthy();
+    expect(list.queryByText("Dakar")).toBeNull();
+  });
+
+  it("pages a long list: 25 towns on the first page", () => {
+    const cities = Array.from({ length: 60 }, (_, i) => ({ id: `id-${i}`, countryCode: "CM", name: `Town ${String(i).padStart(2, "0")}`, slug: `town-${i}`, lat: null, lng: null, aliases: [], gymCount: 0 }));
+    renderWithI18n(<CitiesPageClient data={{ ...DATA, cities }} />);
+    expect(within(screen.getByTestId("city-list")).getAllByRole("row")).toHaveLength(26);
+    expect(screen.getByTestId("city-summary").textContent).toBe("60 towns, 0 with at least one gym.");
+  });
+
+  it("has an Edit action in each row's Actions menu", async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<CitiesPageClient data={DATA} />);
+    await user.click(screen.getByRole("button", { name: "Actions for Douala" }));
+    expect(await screen.findByRole("menuitem", { name: "Edit" })).toBeTruthy();
   });
 
   it("says so when there is no city, and the French copy exists", () => {
@@ -94,7 +124,7 @@ describe("add and edit", () => {
     const user = userEvent.setup();
     addCity.mockResolvedValue({ data: { id: DOUALA }, error: null });
     renderWithI18n(<CitiesPageClient data={DATA} />);
-    await user.click(screen.getByRole("button", { name: "+ Add city" }));
+    await user.click(screen.getByRole("button", { name: "+ Add a missing town" }));
     const dialog = within(await screen.findByRole("dialog", { hidden: true }));
     await user.selectOptions(dialog.getByLabelText("Country *"), "CM");
     await user.type(dialog.getByLabelText("City name *"), "Mbouda");
@@ -110,7 +140,7 @@ describe("add and edit", () => {
   it("previews the slug that will be derived from the name", async () => {
     const user = userEvent.setup();
     renderWithI18n(<CitiesPageClient data={DATA} />);
-    await user.click(screen.getByRole("button", { name: "+ Add city" }));
+    await user.click(screen.getByRole("button", { name: "+ Add a missing town" }));
     const dialog = within(await screen.findByRole("dialog", { hidden: true }));
     await user.type(dialog.getByLabelText("City name *"), "Ngaoundéré");
     expect(dialog.getByText(/Left blank it will be: ngaoundere/)).toBeTruthy();
@@ -120,7 +150,7 @@ describe("add and edit", () => {
     const user = userEvent.setup();
     addCity.mockResolvedValue({ data: null, error: { code: "slug_taken", message: "That slug is already used by another city in this country, or was used by one in the last 12 months." } });
     renderWithI18n(<CitiesPageClient data={DATA} />);
-    await user.click(screen.getByRole("button", { name: "+ Add city" }));
+    await user.click(screen.getByRole("button", { name: "+ Add a missing town" }));
     const dialog = within(await screen.findByRole("dialog", { hidden: true }));
     await user.selectOptions(dialog.getByLabelText("Country *"), "CM");
     await user.type(dialog.getByLabelText("City name *"), "Douala Two");
@@ -135,7 +165,7 @@ describe("add and edit", () => {
     const user = userEvent.setup();
     addCity.mockResolvedValue({ data: null, error: { code: "alias_taken", message: "One of these spellings already reaches another city in this country." } });
     renderWithI18n(<CitiesPageClient data={DATA} />);
-    await user.click(screen.getByRole("button", { name: "+ Add city" }));
+    await user.click(screen.getByRole("button", { name: "+ Add a missing town" }));
     const dialog = within(await screen.findByRole("dialog", { hidden: true }));
     await user.selectOptions(dialog.getByLabelText("Country *"), "CM");
     await user.type(dialog.getByLabelText("City name *"), "Dual");
@@ -147,7 +177,7 @@ describe("add and edit", () => {
   it("a half position and a bad number are refused in the form, before any call", async () => {
     const user = userEvent.setup();
     renderWithI18n(<CitiesPageClient data={DATA} />);
-    await user.click(screen.getByRole("button", { name: "+ Add city" }));
+    await user.click(screen.getByRole("button", { name: "+ Add a missing town" }));
     const dialog = within(await screen.findByRole("dialog", { hidden: true }));
     await user.selectOptions(dialog.getByLabelText("Country *"), "CM");
     await user.type(dialog.getByLabelText("City name *"), "Halfway");
@@ -166,7 +196,8 @@ describe("add and edit", () => {
     updateCity.mockResolvedValue({ data: { id: DOUALA }, error: null });
     renderWithI18n(<CitiesPageClient data={DATA} />);
     // the list is ordered by country then name: Douala (CM) first
-    await user.click(within(screen.getByTestId("city-list")).getAllByRole("button", { name: "Edit" })[0]);
+    await user.click(screen.getByRole("button", { name: "Actions for Douala" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
     const dialog = within(await screen.findByRole("dialog", { hidden: true }));
     expect((dialog.getByLabelText("Country *") as HTMLSelectElement).disabled).toBe(true);
     expect((dialog.getByLabelText("City name *") as HTMLInputElement).value).toBe("Douala");

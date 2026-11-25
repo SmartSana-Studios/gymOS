@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PHONE_COUNTRY,
   isSupportedPhoneCountry,
+  listPhoneCountries,
   normalizePhoneForCountry,
   phoneCountryCallingCode,
   resolvePhoneCountry,
@@ -58,5 +59,21 @@ describe("country helpers", () => {
 
   it("formats the calling code with a leading +", () => {
     expect(phoneCountryCallingCode("CM")).toBe("+237");
+  });
+});
+
+describe("listPhoneCountries (owner decision 2026-11-25: Sub-Saharan Africa only)", () => {
+  it("offers the 49 target countries", () => {
+    const codes = listPhoneCountries("en").map((c) => c.code);
+    expect(codes).toHaveLength(49);
+    expect(codes).toContain("CM");
+    for (const code of ["DZ", "EG", "MA", "FR", "US"]) expect(codes).not.toContain(code);
+  });
+
+  it("keeps a country that must stay selectable (a gym saved in France), and only that one", () => {
+    const codes = listPhoneCountries("en", ["FR"]).map((c) => c.code);
+    expect(codes).toHaveLength(50);
+    expect(codes).toContain("FR");
+    expect(codes).not.toContain("US");
   });
 });

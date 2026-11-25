@@ -83,15 +83,40 @@ describe("PhoneInput (Story 16.1)", () => {
     const user = userEvent.setup();
     const { onChange } = renderPhoneInput({ value: null });
 
-    await user.type(screen.getByLabelText("Phone"), "612345678");
+    await user.type(screen.getByLabelText("Phone"), "241234567");
     onChange.mockClear();
 
     await user.click(screen.getByRole("combobox", { name: /select country/i }));
-    await user.type(screen.getByPlaceholderText(/search country/i), "France");
-    await user.click(await screen.findByText("France"));
+    await user.type(screen.getByPlaceholderText(/search country/i), "Ghana");
+    await user.click(await screen.findByText("Ghana"));
+
+    expect(screen.getByRole("combobox", { name: /select country/i })).toHaveTextContent("+233");
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith("+233241234567"));
+  });
+
+  it("offers Sub-Saharan Africa only: Ghana is in the global list, France, Algeria and the United States are not (owner decision 2026-11-25)", async () => {
+    const user = userEvent.setup();
+    renderPhoneInput({ value: null });
+
+    await user.click(screen.getByRole("combobox", { name: /select country/i }));
+
+    expect(screen.getByText("Ghana")).toBeInTheDocument();
+    expect(screen.getByText("Cameroon")).toBeInTheDocument();
+    expect(screen.queryByText("France")).not.toBeInTheDocument();
+    expect(screen.queryByText("Algeria")).not.toBeInTheDocument();
+    expect(screen.queryByText("United States")).not.toBeInTheDocument();
+  });
+
+  it("keeps a saved number from outside the list: its country shows, its digits show, and it is the one extra option", async () => {
+    const user = userEvent.setup();
+    renderPhoneInput({ value: "+33612345678" });
 
     expect(screen.getByRole("combobox", { name: /select country/i })).toHaveTextContent("+33");
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith("+33612345678"));
+    expect(screen.getByLabelText("Phone")).toHaveValue("612345678");
+
+    await user.click(screen.getByRole("combobox", { name: /select country/i }));
+    expect(screen.getAllByText("France").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Algeria")).not.toBeInTheDocument();
   });
 
   it("restricts the country list to TARAMONEY_SUPPORTED_COUNTRIES when countries='tara-money'", async () => {
