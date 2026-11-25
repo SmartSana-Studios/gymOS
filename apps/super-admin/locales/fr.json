@@ -307,6 +307,7 @@
       "invalidActorId": "Identifiant de super administrateur invalide",
       "gymNotFound": "Salle introuvable",
       "alreadyStatus": "Cette salle est déjà {{status}}.",
+      "reactivationRequiresPayment": "Cette salle est suspendue pour non-paiement : elle ne peut pas encore être réactivée. Appliquez d'abord un crédit de facturation ou enregistrez un paiement ; l'un ou l'autre la réactive et fixe une nouvelle échéance.",
       "auditLogFailedStatus": "Le changement de statut a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "alreadyOnTier": "Cette salle est déjà sur ce palier.",
       "auditLogFailedTier": "Le changement de palier a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
