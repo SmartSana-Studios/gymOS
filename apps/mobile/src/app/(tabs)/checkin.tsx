@@ -4,7 +4,7 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import { useIsFocused, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, AppState, InteractionManager, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Animated, AppState, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
@@ -81,11 +81,12 @@ export default function CheckInScreen() {
   useEffect(() => {
     if (!isFocused) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const task = InteractionManager.runAfterInteractions(() => {
+    // RN 0.88 removed InteractionManager (reading it throws in development); requestIdleCallback is the replacement it names.
+    const task = requestIdleCallback(() => {
       timer = setTimeout(() => setCameraReady(true), 400);
     });
     return () => {
-      task.cancel();
+      cancelIdleCallback(task);
       if (timer) clearTimeout(timer);
       setCameraReady(false);
     };

@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AccessibilityInfo, Animated, BackHandler, findNodeHandle, Image, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Animated, BackHandler, findNodeHandle, Image, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type ViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CelebrationMiniMonth } from '@/components/CelebrationMiniMonth';
@@ -83,7 +83,7 @@ function CelebrationContent() {
   const reduceMotion = reduceMotionFrom(motionRead, hookReduceMotion);
 
   const closedRef = useRef(false);
-  const headlineRef = useRef<View | null>(null);
+  const headlineRef = useRef<ViewInstance | null>(null);
 
   useEffect(() => {
     let cancelled = false;

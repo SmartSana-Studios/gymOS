@@ -18,7 +18,7 @@ export interface BadgeDetailSheetProps {
   onShare: () => void;
   onClose: () => void;
   /** The Share button's ref, so the iPad share sheet anchors to it. */
-  shareButtonRef: React.RefObject<import('react-native').View | null>;
+  shareButtonRef: React.RefObject<import('react-native').ViewInstance | null>;
 }
 
 /** Story 31.3 (MA-21): the badge detail bottom sheet, modelled on ShieldExplainerSheet (RN `Modal`, slide up, the dimmed area, [Close] and the Android

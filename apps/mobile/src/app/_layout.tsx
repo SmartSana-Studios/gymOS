@@ -10,7 +10,7 @@ import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 import { I18nextProvider } from 'react-i18next';
 import { PostHogProvider } from 'posthog-react-native';
 import * as Sentry from '@sentry/react-native';
@@ -75,10 +75,11 @@ function RootNavigator() {
     captureEvent(ANALYTICS_EVENT.APP_OPENED, { gymId });
   }, [isLoading, gymId]);
 
-  const appStateRef = useRef(AppState.currentState);
+  // RN 0.88 types `currentState` as nullable; the first change event always sets a real status.
+  const appStateRef = useRef<AppStateStatus | null | undefined>(AppState.currentState as AppStateStatus | null | undefined);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+      if (appStateRef.current?.match(/inactive|background/) && nextState === 'active') {
         captureEvent(ANALYTICS_EVENT.APP_OPENED, { gymId });
       }
       appStateRef.current = nextState;

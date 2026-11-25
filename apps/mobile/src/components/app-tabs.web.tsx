@@ -6,7 +6,7 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Pressable, View, StyleSheet, type PressableProps } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { ThemedText } from './themed-text';
@@ -54,7 +54,8 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
   const accent = useGymAccentColor();
 
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
+    // expo-router's slot props still type `ref` against the pre-0.88 View type; at runtime it is the same host element a Pressable takes.
+    <Pressable {...(props as unknown as PressableProps)} style={({ pressed }) => pressed && styles.pressed}>
       <View style={[styles.tabButtonView, isFocused && { backgroundColor: accent }]}>
         <ThemedText
           type="smallBold"

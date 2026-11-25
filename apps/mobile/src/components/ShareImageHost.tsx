@@ -1,12 +1,12 @@
 import type { RefObject } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type ViewInstance } from 'react-native';
 
 import { ShareImageComposition } from '@/components/ShareImageComposition';
 import type { ShareComposition } from '@/lib/shareImage';
 
 export interface ShareImageHostProps {
   composition: ShareComposition | null;
-  captureRef: RefObject<View | null>;
+  captureRef: RefObject<ViewInstance | null>;
   onLogoSettled: () => void;
 }
 

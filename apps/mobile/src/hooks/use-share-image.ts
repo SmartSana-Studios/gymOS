@@ -1,7 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PixelRatio, Platform, type View } from 'react-native';
+import { PixelRatio, Platform, type ViewInstance } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 
 import {
@@ -26,11 +26,11 @@ export interface ShareImage {
   /** The composition to mount off screen (ShareImageHost); null while there is no input. */
   composition: ShareComposition | null;
   /** The ref of the view that is captured (ShareImageHost's `captureRef`). */
-  captureViewRef: React.RefObject<View | null>;
+  captureViewRef: React.RefObject<ViewInstance | null>;
   /** Called by the composition when its logo has loaded or failed. */
   onLogoSettled: () => void;
   /** The ref of the Share button, so the iPad sheet is anchored to it. */
-  buttonRef: React.RefObject<View | null>;
+  buttonRef: React.RefObject<ViewInstance | null>;
   status: ShareStatus;
   /** False when an earlier run found sharing unavailable on this phone (the button is hidden on this view). */
   canShare: boolean;
@@ -42,7 +42,7 @@ function nextFrames(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 }
 
-function measureAnchor(node: View | null): Promise<ShareAnchor | undefined> {
+function measureAnchor(node: ViewInstance | null): Promise<ShareAnchor | undefined> {
   if (Platform.OS !== 'ios' || !node) return Promise.resolve(undefined);
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(undefined), ANCHOR_WAIT_MS);
@@ -57,8 +57,8 @@ function measureAnchor(node: View | null): Promise<ShareAnchor | undefined> {
  * local data (lib/shareImage.ts), captured at 1080 by 1920 px by react-native-view-shot as base64, written to the app's cache directory, handed to
  * the OS share sheet by expo-sharing, and deleted afterwards. No network call, no server, no photo-library or storage permission. Nothing here throws. */
 export function useShareImage(input: ShareImageInput | null): ShareImage {
-  const captureViewRef = useRef<View | null>(null);
-  const buttonRef = useRef<View | null>(null);
+  const captureViewRef = useRef<ViewInstance | null>(null);
+  const buttonRef = useRef<ViewInstance | null>(null);
   // The result of a run belongs to the subject it was made for (a badge, a milestone): `status` below is idle for any other subject, so a message never
   // follows the member to the next badge, a reopened sheet or a sheet that closed while the run was going.
   const subjectKey = shareSubjectKey(input);

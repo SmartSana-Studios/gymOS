@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View, type ViewInstance } from 'react-native';
 
 import { CelebrationMiniMonth } from '@/components/CelebrationMiniMonth';
 import { ThemedText } from '@/components/themed-text';
@@ -66,7 +66,7 @@ function renderNode(node: ShareNode, index: number, onLogo: { loaded: () => void
 /** Story 31.3 (FR-231): the share image, drawn from `buildShareComposition` (lib/shareImage.ts), which decides every node. A fixed 360 by 640 pt box
  * on the card background, captured at 3x for the 1080 by 1920 PNG. It is mounted off screen next to the card and never shown to the member; no
  * layout choice depends on the screen it sits in, so the image does not change with the phone. Layout only. */
-export const ShareImageComposition = forwardRef<View, ShareImageCompositionProps>(function ShareImageComposition({ composition, onLogoSettled }, ref) {
+export const ShareImageComposition = forwardRef<ViewInstance, ShareImageCompositionProps>(function ShareImageComposition({ composition, onLogoSettled }, ref) {
   const hasLogo = composition.nodes.some((node) => node.kind === 'logo');
   // A logo that failed is dropped for THAT URL only: another logo URL is tried again.
   const logoUri = composition.nodes.find((node) => node.kind === 'logo');
