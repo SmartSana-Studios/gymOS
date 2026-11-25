@@ -438,7 +438,9 @@ select is(private.current_gym_status(), null, 'a gym_id claim pointing at a non-
 -- ============================================================================
 reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000020291","role":"authenticated","app_role":"super_admin"}', true);
-update gyms set status = 'active' where id = '00000000-0000-0000-0000-000000020211';
+-- Migration 0193: a billing-suspended gym is reactivated the way a billing credit or a payment does it (status, billing status and a new due date together);
+-- a bare status update is refused (gym_reactivation_requires_payment).
+update gyms set status = 'active', saas_billing_status = 'active', saas_billing_anchor_date = current_date + 30 where id = '00000000-0000-0000-0000-000000020211';
 
 select is(
   (select status::text from gyms where id = '00000000-0000-0000-0000-000000020211'),
