@@ -54,8 +54,14 @@ export function isSessionDenial(ctx: ChargingContext | null): boolean {
 export interface GuestSessionRow {
   usableUntil: string;
   consumedAt: string | null;
+  /** Whole-day rows only: a Single-use (visit or class) row has no covered day. */
   coveredDay: string | null;
   voidedAt: string | null;
+  /** Story 28.1: the rule the row was consumed under, and what it covers. Null while unconsumed; absent on older callers. */
+  validityMode?: 'whole_day' | 'single_use' | null;
+  coveredKind?: 'day' | 'visit' | 'class' | null;
+  coveredAttendanceId?: string | null;
+  coveredBookingId?: string | null;
 }
 
 export type SessionsLineTone = 'success' | 'neutral' | 'info';
@@ -86,7 +92,8 @@ export function gymLocalDay(at: Date, timezone: string | null): string {
 
 /** Sessions line on the status card. Counts use each row's own
  * `usable_until`; "covered today" is a consumed row whose covered_day is the
- * gym-local day. Tones: covered today = success, usable sessions = neutral,
+ * gym-local day (a Single-use row has none, so it never reads as covered today and
+ * a null coveredDay never throws). Tones: covered today = success, usable sessions = neutral,
  * none = info (story 19.11 UX-DR19). */
 export function resolveSessionsLine(rows: GuestSessionRow[], timezone: string | null, now: Date = new Date()): SessionsLine {
   const today = gymLocalDay(now, timezone);
@@ -151,10 +158,15 @@ export interface ReceiptSessionRow {
   consumed_at: string | null;
   covered_day: string | null;
   voided_at: string | null;
+  /** Story 28.1 (absent on older callers). */
+  validity_mode?: 'whole_day' | 'single_use' | null;
+  covered_kind?: 'day' | 'visit' | 'class' | null;
+  covered_attendance_id?: string | null;
+  covered_booking_id?: string | null;
 }
 
 /** Receipt dates for a session payment's `guest_sessions` row: "use by" while
- * unused, "used on" (gym-local covered day) once consumed. A voided session
+ * unused, "used on" (gym-local covered day, or the consumed date for a Single-use row that has none) once consumed. A voided session
  * shows neither. */
 export function resolveReceiptSessionDates(row: ReceiptSessionRow | null): {
   usableUntil: string | null;

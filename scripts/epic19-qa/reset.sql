@@ -4,7 +4,7 @@ set local session_replication_role = replica;  -- bypass FKs/append-only trigger
 do $$
 declare g uuid; t text;
 begin
-  for g in select id from public.gyms where name in ('Epic19 QA Gym', 'Epic19 QA Other Gym') loop
+  for g in select id from public.gyms where upper(name) in ('EPIC19 QA GYM', 'EPIC19 QA OTHER GYM') loop
     for t in select c.conrelid::regclass::text from pg_constraint c
              join pg_attribute a on a.attrelid=c.conrelid and a.attname='gym_id'
              where c.contype='f' and c.confrelid='public.gyms'::regclass loop
@@ -16,6 +16,10 @@ begin
   -- (any gym) that points at them so the user rows below can go.
   delete from public.members where user_id in (
     select id from auth.users where phone in ('237699000001', '237670000001'));
+  -- Every gym gets a GymOS Support proxy user (users.support_proxy_gym_id, ON DELETE CASCADE); with FKs bypassed above the gym delete leaves it behind, and
+  -- support_proxy_actor.test.sql (pgTAP) then counts more proxies than gyms. Drop every proxy whose gym is gone, and its auth row.
+  delete from auth.users where id in (select u.id from public.users u where u.is_support_proxy and not exists (select 1 from public.gyms g where g.id = u.support_proxy_gym_id));
+  delete from public.users u where u.is_support_proxy and not exists (select 1 from public.gyms g where g.id = u.support_proxy_gym_id);
 end $$;
 commit;
 

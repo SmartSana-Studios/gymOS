@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Animated, Pressable, StyleSheet, TextInput } from 'react-native';
+import { Animated, Pressable, StyleSheet, TextInput, type TextInputInstance } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -26,7 +26,7 @@ export interface OtpInputProps {
 export function OtpInput({ value, onChangeText, length, editable = true, autoFocus, shakeValue }: OtpInputProps) {
   const theme = useTheme();
   const accent = useGymAccentColor();
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   const boxRow = (
     <Animated.View

@@ -242,6 +242,7 @@
       "errorLoadFailed": "Couldn't load your bookings. Check your connection and try again.",
       "cancel": "Cancel",
       "cancellationClosed": "Cancellation closed",
+      "cancelled": "Cancelled",
       "cancelConfirmTitle": "Cancel this booking?",
       "cancelConfirmAction": "Cancel booking",
       "cancelConfirmKeep": "Keep",
@@ -491,5 +492,337 @@
       "initiateFailed": "Something went wrong. Try again."
     },
     "coversDay": "Covers the whole day."
+  },
+  "engage": {
+    "ring": {
+      "title": "This week",
+      "unit": "days",
+      "goalLabel_one": "Goal: {{count}} day",
+      "goalLabel_other": "Goal: {{count}} days",
+      "goalPending_one": "Changes to {{count}} day on {{date}}",
+      "goalPending_other": "Changes to {{count}} days on {{date}}",
+      "goalHint": {
+        "default_one": "We started you at {{count}} day a week. Change it any time; a new goal starts next Monday.",
+        "default_other": "We started you at {{count}} days a week. Change it any time; a new goal starts next Monday."
+      },
+      "caption": {
+        "progress_one": "{{count}} more visit closes your ring.",
+        "progress_other": "{{count}} more visits close your ring.",
+        "fresh_one": "A fresh week. {{count}} visit closes your ring.",
+        "fresh_other": "A fresh week. {{count}} visits close your ring.",
+        "met": "Goal met. Nice week.",
+        "metStreak_one": "Goal met. Your streak becomes {{count}} week when the week ends.",
+        "metStreak_other": "Goal met. Your streak becomes {{count}} weeks when the week ends.",
+        "extra_one": "{{count}} extra visit this week.",
+        "extra_other": "{{count}} extra visits this week."
+      },
+      "pendingSync_one": "{{count}} visit waiting to sync",
+      "pendingSync_other": "{{count}} visits waiting to sync",
+      "a11y": {
+        "progress_one": "Weekly goal: {{visits}} of {{goal}} visit days this week. {{count}} more visit closes your ring.",
+        "progress_other": "Weekly goal: {{visits}} of {{goal}} visit days this week. {{count}} more visits close your ring.",
+        "met": "Weekly goal met: {{goal}} of {{goal}}."
+      },
+      "cardHint": "Double tap to open your calendar"
+    },
+    "streak": {
+      "weeks_one": "{{count}} week in a row",
+      "weeks_other": "{{count}} weeks in a row",
+      "first": "First week done",
+      "firstWeek": "Close your ring to start your streak.",
+      "startsMonday": "Your streak starts next Monday. This week's visits still show on your calendar.",
+      "nextShield_one": "{{count}} more week to your next Shield",
+      "nextShield_other": "{{count}} more weeks to your next Shield",
+      "shieldMax": "You're holding the maximum of {{max}} Shields.",
+      "daily_one": "{{count}} day in a row",
+      "daily_other": "{{count}} days in a row",
+      "best_one": "Best: {{count}} week",
+      "best_other": "Best: {{count}} weeks",
+      "tab": "Streak",
+      "off": "Your weekly streak is coming soon.",
+      "title": "Streak"
+    },
+    "goal": {
+      "title": "Weekly goal",
+      "prompt": "How many days a week do you want to come?",
+      "option": {
+        "a11y_one": "{{count}} day a week",
+        "a11y_other": "{{count}} days a week"
+      },
+      "current": "current",
+      "effective": "Starts Monday {{date}}. This week stays at {{current}}.",
+      "noChange": "This is your current goal.",
+      "pending": "Your goal changes to {{n}} on {{date}}.",
+      "why": "A change starts next Monday, so this week's result stays fair.",
+      "cta": {
+        "save": "Save goal"
+      },
+      "saved": "Goal saved. Starts {{date}}.",
+      "error": "Couldn't save your goal. Try again.",
+      "offline": "You're offline. Connect to change your goal."
+    },
+    "shield": {
+      "chip_one": "{{count}} Shield",
+      "chip_other": "{{count}} Shields",
+      "saved": {
+        "week_one": "Your Shield saved the week of {{date}}. Your streak is still {{count}} week.",
+        "week_other": "Your Shield saved the week of {{date}}. Your streak is still {{count}} weeks.",
+        "weekShort": "Your Shield saved the week of {{date}}.",
+        "day": "Your Shield saved {{date}}. Your run goes on."
+      },
+      "earned": "You earned a Shield. It will keep a missed week from ending your streak.",
+      "explainer": {
+        "title": "Streak Shield",
+        "body_one": "Every {{count}} week in a row earns a Shield. If you miss a week, a Shield keeps your streak going on its own. You can hold up to {{max}}. Shields can't be bought or given.",
+        "body_other": "Every {{count}} weeks in a row earns a Shield. If you miss a week, a Shield keeps your streak going on its own. You can hold up to {{max}}. Shields can't be bought or given."
+      },
+      "gotIt": "Got it",
+      "mascot": ""
+    },
+    "comeback": {
+      "title": "Let's get going again",
+      "best_one": "Your best streak: {{count}} week. It stays on your record.",
+      "best_other": "Your best streak: {{count}} weeks. It stays on your record.",
+      "goal": "Visit {{n}} times in {{days}} days to get back on track.",
+      "progress": "{{done}} of {{total}} visits",
+      "windowRestart": "Your {{days}} days start again with your next visit.",
+      "restored": {
+        "title": "You're back.",
+        "body": "Your new streak starts the first week you close your ring."
+      },
+      "mascot": ""
+    },
+    "updatedAt": "Updated {{time}}",
+    "celebration": {
+      "7": {
+        "headline": "7 visits",
+        "sub": "Seven visits at {{gym}}. The habit is taking shape."
+      },
+      "30": {
+        "headline": "30 visits",
+        "sub": "Thirty visits at {{gym}}. You've built something."
+      },
+      "100": {
+        "headline": "100 visits",
+        "sub": "One hundred visits at {{gym}}. That's a lasting habit."
+      },
+      "unit": "visits",
+      "cta": {
+        "share": "Share",
+        "continue": "Keep going",
+        "badges": "See your badges"
+      },
+      "a11y": "Milestone: {{n}} visits at {{gym}}.",
+      "mascot": {
+        "7": "",
+        "30": "",
+        "100": ""
+      }
+    },
+    "profile": {
+      "section": "Training",
+      "goal": {
+        "row": "Weekly goal",
+        "value_one": "{{count}} day",
+        "value_other": "{{count}} days",
+        "pending_one": "{{count}} day, then {{next}} from {{date}}",
+        "pending_other": "{{count}} days, then {{next}} from {{date}}"
+      },
+      "reminder": {
+        "label": "Streak reminder",
+        "helper": "One reminder at {{time}}, only when a visit today keeps your week or run going."
+      },
+      "anonymous": {
+        "label": "Appear as Anonymous on the gym leaderboard",
+        "a11yOn": "Appear as Anonymous on the gym leaderboard: on",
+        "a11yOff": "Appear as Anonymous on the gym leaderboard: off",
+        "helperOn": "Other members see you as Anonymous from their next refresh. You still keep your rank.",
+        "helperOff": "Other members see you as {{label}}.",
+        "helperUnseen": "You appear as Anonymous until you open the leaderboard and choose.",
+        "link": "See the leaderboard"
+      },
+      "badges": {
+        "row": "Badges",
+        "value": "{{n}} of {{total}}"
+      },
+      "progress": {
+        "row": "Progress"
+      }
+    },
+    "atRisk": {
+      "weekly": "Visit today to close your ring.",
+      "hoursLeft_one": "{{count}} hour left",
+      "hoursLeft_other": "{{count}} hours left",
+      "minutesLeft": "{{m}} min left",
+      "shieldReady": "A Shield is ready if you can't make it."
+    },
+    "home": {
+      "error": "Couldn't load your week. Pull down to refresh.",
+      "settleError": "Couldn't update your streak just now. We'll try again.",
+      "line": {
+        "streak_one": "{{count}}-week streak",
+        "streak_other": "{{count}}-week streak",
+        "week": "{{done}} of {{goal}} this week"
+      },
+      "rank": "Rank {{n}} of {{total}} this month"
+    },
+    "calendar": {
+      "title": "My visits",
+      "prev": "Previous month",
+      "next": "Next month",
+      "monthSummary_one": "{{count}} visit day in {{month}}",
+      "monthSummary_other": "{{count}} visit days in {{month}}",
+      "legend": {
+        "visit": "Visited",
+        "today": "Today",
+        "milestone": "Milestone",
+        "shield": "Saved by a Shield"
+      },
+      "day": {
+        "visited": "{{date}}: visited",
+        "none": "{{date}}: no visit",
+        "pending": "{{date}}: waiting to sync",
+        "milestone7": "{{date}}: your 7th visit",
+        "milestone30": "{{date}}: your 30th visit",
+        "milestone100": "{{date}}: your 100th visit",
+        "today": {
+          "atRisk": "Today, {{date}}: no visit yet. {{hoursLeft}}",
+          "visited": "Today, {{date}}: visited",
+          "none": "Today, {{date}}: no visit yet"
+        }
+      },
+      "empty": {
+        "current": "No visits yet this month. Your first one lights today.",
+        "past": "No visits in {{month}}."
+      },
+      "offline": {
+        "banner": "You're offline. Showing your last saved calendar.",
+        "none": "This month isn't saved on your phone yet. Connect to see it."
+      },
+      "error": "Couldn't load your calendar. Pull down to refresh.",
+      "cell": {
+        "hours_one": "{{count}} h",
+        "hours_other": "{{count}} h",
+        "minutes_one": "{{count}} m",
+        "minutes_other": "{{count}} m"
+      },
+      "week": {
+        "a11y_one": "Week of {{date}}, {{count}} visit day",
+        "a11y_other": "Week of {{date}}, {{count}} visit days"
+      },
+      "heading": {
+        "a11y_one": "{{month}}. {{count}} visit day.",
+        "a11y_other": "{{month}}. {{count}} visit days."
+      }
+    },
+    "leaderboard": {
+      "title": "Leaderboard",
+      "tab": {
+        "thisMonth": "This month",
+        "lastMonth": "Last month"
+      },
+      "row": {
+        "visits_one": "{{count}} visit",
+        "visits_other": "{{count}} visits",
+        "you": "You",
+        "anonymous": "Anonymous",
+        "tied": "Tied",
+        "gap": "Rows between are not shown"
+      },
+      "behind_one": "{{count}} visit behind the member above",
+      "behind_other": "{{count}} visits behind the member above",
+      "level": "Level with the member above",
+      "leading": "You're leading this month.",
+      "unranked": "Visit once this month to join the board.",
+      "onlyYou": "You're the only member on the board so far.",
+      "notEnough": {
+        "body": "The leaderboard appears once {{min}} members have visited this month.",
+        "title": "Not enough members yet"
+      },
+      "empty": {
+        "month": "No visits at {{gym}} yet this month. Be the first on the board."
+      },
+      "footnote": "Each day you visit counts once. The board resets on the 1st. Just for fun: rank earns no prizes.",
+      "toggle": {
+        "label": "Appear as Anonymous on the gym leaderboard"
+      },
+      "visible": {
+        "self": "Other members see you as {{label}}."
+      },
+      "hidden": {
+        "self": "You appear as Anonymous. You still keep your rank."
+      },
+      "notice": {
+        "title": "You're on your gym's leaderboard",
+        "body": "Members of {{gym}} can see a monthly ranking of visits. Other members would see you as {{label}}: your first name and the first letter of your last name. Never your photo or phone number.",
+        "until": "Until you choose, other members see you as Anonymous.",
+        "change": "You can change this any time in your Profile.",
+        "cta": {
+          "show": "Show my name",
+          "hide": "Appear as Anonymous"
+        },
+        "error": "Couldn't save your choice. You still appear as Anonymous."
+      },
+      "offline": {
+        "notice": "Connect to the internet to choose.",
+        "applies": "A change to how you appear shows from the next load.",
+        "banner": "You're offline. Showing the last board saved on your phone."
+      },
+      "error": {
+        "short": "Couldn't load. Tap to retry.",
+        "full": "Couldn't load the leaderboard. Pull down to refresh."
+      }
+    },
+    "share": {
+      "caption": {
+        "7": "7 visits at {{gym}}. One day at a time.",
+        "30": "30 visits at {{gym}}. One day at a time.",
+        "100": "100 visits at {{gym}}. One day at a time.",
+        "badge": "{{badge}} at {{gym}}."
+      },
+      "preparing": "Making your image…",
+      "error": "Couldn't make your image.",
+      "retry": "Try again",
+      "unavailable": "Sharing isn't available on this phone.",
+      "dialogTitle": "Share your progress"
+    },
+    "badges": {
+      "title": "Badges",
+      "summary": "{{n}} of {{total}} earned",
+      "first": "First visit",
+      "visits7": "7 visits",
+      "visits30": "30 visits",
+      "visits100": "100 visits",
+      "weeks4": "4 weeks in a row",
+      "earnedOn": "Earned {{date}}",
+      "locked": {
+        "first": "Check in once to earn it",
+        "visits_one": "{{count}} more visit to go",
+        "visits_other": "{{count}} more visits to go",
+        "weeks": "Keep a streak going for 4 weeks",
+        "weeksProgress": "{{n}} of 4 weeks"
+      },
+      "grantsNothing": "Badges are just for you. They don't unlock anything.",
+      "error": "Couldn't load your badges. Pull down to refresh.",
+      "sheet": {
+        "close": "Close"
+      },
+      "a11y": {
+        "earned": "{{name}}, earned {{date}}",
+        "locked": "{{name}}, not earned yet. {{progress}}"
+      }
+    }
+  },
+  "n08": {
+    "weekly": {
+      "title": "Your week is in reach",
+      "body_one": "Come in today: {{count}} visit left to close your ring.",
+      "body_other": "Come in today: {{count}} visits left to close your ring."
+    },
+    "daily": {
+      "title": "Your {{n}}-day run",
+      "body": "Come in today to keep it going."
+    },
+    "mascot": ""
   }
 }

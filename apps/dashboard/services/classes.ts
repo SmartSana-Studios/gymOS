@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { type AppError } from "@gymos/types";
+import { type AppError, type ClassSlot } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -46,8 +46,9 @@ async function getCallerGymId(
  * session scheduled in the half-open range, finished ones included. The
  * bounds are the UTC instants of the gym-local day from
  * `getGymLocalPeriodBounds()`. A head COUNT, not `listClasses()`, which
- * fetches rows and counts in JS. No cancellation filter: `class_sessions` has
- * no such column, and a reschedule deletes future sessions outright. */
+ * fetches rows and counts in JS. A cancelled session (Story 29.2,
+ * `class_sessions.cancelled_at`) is not a class that runs today, so it is
+ * not counted. */
 export async function countClassSessionsBetween(
   startIso: string,
   endIsoExclusive: string,
@@ -62,6 +63,7 @@ export async function countClassSessionsBetween(
     .from("class_sessions")
     .select("id", { count: "exact", head: true })
     .eq("gym_id", gymId)
+    .is("cancelled_at", null)
     .gte("scheduled_at", startIso)
     .lt("scheduled_at", endIsoExclusive);
 
@@ -81,9 +83,15 @@ export interface ClassRow {
   capacity: number;
   scheduleType: "one_off" | "recurring";
   oneOffSessionAt: string | null;
-  recurrenceDays: number[] | null;
-  recurrenceTime: string | null;
+  /** Story 29.2: the class's weekly times (empty for a one-off class). Stored as rows since 0180; a migrated class reads one slot per old day. */
+  slots: ClassSlot[];
   recurrenceStartDate: string | null;
+  /** Story 29.2: set when the class was cancelled; a cancelled class stays listed, sorts below live ones and offers no action. */
+  cancelledAt: string | null;
+  /** Story 29.2: bookings on this class's upcoming sessions, what the Cancel class dialog shows (the server counts the same rows when it cancels). */
+  upcomingBookingCount: number;
+  /** Story 29.2: false when `nextSessionId`'s session no longer matches the class's weekly times (the "Old time" tag); null when there is no next session or it has already started. */
+  nextSessionMatchesSlots: boolean | null;
   /** Soonest future `class_sessions` row for this class, or `null` if none
    * has been materialized yet (should not normally happen post-creation,
    * but a class whose recurring pattern has no matching day-of-week within
@@ -106,9 +114,9 @@ interface ClassRowFromDb {
   capacity: number;
   schedule_type: ClassRow["scheduleType"];
   one_off_session_at: string | null;
-  recurrence_days: number[] | null;
-  recurrence_time: string | null;
   recurrence_start_date: string | null;
+  cancelled_at: string | null;
+  class_schedule_slots: { weekday: number; start_time: string }[] | null;
   // Dual-shape acceptance matches coaches.ts's CoachAssignmentRowFromDb --
   // PostgREST's embed cardinality inference isn't reflected in the query
   // builder's inferred TS type here.
@@ -120,6 +128,8 @@ function toClassRow(
   nextSessionAt: string | null,
   nextSessionId: string | null,
   bookedCount: number,
+  upcomingBookingCount: number,
+  nextSessionMatchesSlots: boolean | null,
 ): ClassRow {
   const coach = Array.isArray(row.members) ? row.members[0] : row.members;
   return {
@@ -131,9 +141,11 @@ function toClassRow(
     capacity: row.capacity,
     scheduleType: row.schedule_type,
     oneOffSessionAt: row.one_off_session_at,
-    recurrenceDays: row.recurrence_days,
-    recurrenceTime: row.recurrence_time,
+    slots: (row.class_schedule_slots ?? []).map((s) => ({ weekday: s.weekday, startTime: s.start_time.slice(0, 5) })),
     recurrenceStartDate: row.recurrence_start_date,
+    cancelledAt: row.cancelled_at,
+    upcomingBookingCount,
+    nextSessionMatchesSlots,
     nextSessionAt,
     nextSessionId,
     bookedCount,
@@ -162,7 +174,7 @@ export async function listClasses(): Promise<{ data: ClassRow[] | null; error: A
   const { data, error } = await supabase
     .from("classes")
     .select(
-      "id, name, description, coach_id, capacity, schedule_type, one_off_session_at, recurrence_days, recurrence_time, recurrence_start_date, members(name)",
+      "id, name, description, coach_id, capacity, schedule_type, one_off_session_at, recurrence_start_date, cancelled_at, members!classes_coach_id_fkey(name), class_schedule_slots(weekday, start_time)",
     )
     .eq("gym_id", gymId)
     .order("created_at", { ascending: true });
@@ -179,8 +191,9 @@ export async function listClasses(): Promise<{ data: ClassRow[] | null; error: A
   const graceWindowStart = new Date(Date.now() - NEXT_SESSION_GRACE_HOURS * 60 * 60 * 1000).toISOString();
   const { data: sessionRows, error: sessionsError } = await supabase
     .from("class_sessions")
-    .select("id, class_id, scheduled_at")
+    .select("id, class_id, scheduled_at, class_bookings(count)")
     .eq("gym_id", gymId)
+    .is("cancelled_at", null)
     .gte("scheduled_at", graceWindowStart)
     .order("scheduled_at", { ascending: true });
 
@@ -189,9 +202,23 @@ export async function listClasses(): Promise<{ data: ClassRow[] | null; error: A
   }
 
   const nextSessionByClassId = new Map<string, { id: string; scheduledAt: string }>();
-  for (const session of sessionRows ?? []) {
+  // Story 29.2: bookings on each class's UPCOMING sessions (scheduled_at > now, exactly what cancel_class counts), from the same fetch.
+  const upcomingBookingsByClassId = new Map<string, number>();
+  const nowMs = Date.now();
+  for (const session of (sessionRows ?? []) as unknown as {
+    id: string;
+    class_id: string;
+    scheduled_at: string;
+    class_bookings: { count: number }[] | null;
+  }[]) {
     if (!nextSessionByClassId.has(session.class_id)) {
       nextSessionByClassId.set(session.class_id, { id: session.id, scheduledAt: session.scheduled_at });
+    }
+    if (new Date(session.scheduled_at).getTime() > nowMs) {
+      upcomingBookingsByClassId.set(
+        session.class_id,
+        (upcomingBookingsByClassId.get(session.class_id) ?? 0) + Number(session.class_bookings?.[0]?.count ?? 0),
+      );
     }
   }
 
@@ -222,6 +249,26 @@ export async function listClasses(): Promise<{ data: ClassRow[] | null; error: A
     }
   }
 
+  // Story 29.2: whether each next session still matches its class's weekly times, from the class_sessions_with_match view (the single
+  // source of the "Old time" tag; a one-off class's session always matches).
+  const matchesBySessionId = new Map<string, boolean>();
+  if (nextSessionIds.length > 0) {
+    const { data: matchRows, error: matchError } = await supabase
+      .from("class_sessions_with_match")
+      .select("class_session_id, matches_slots")
+      .in("class_session_id", nextSessionIds);
+
+    if (matchError) {
+      return { data: null, error: await mapAndLog(matchError) };
+    }
+
+    for (const match of matchRows ?? []) {
+      if (match.class_session_id !== null && match.matches_slots !== null) {
+        matchesBySessionId.set(match.class_session_id, match.matches_slots);
+      }
+    }
+  }
+
   return {
     data: rows.map((row) => {
       const nextSession = nextSessionByClassId.get(row.id);
@@ -230,10 +277,27 @@ export async function listClasses(): Promise<{ data: ClassRow[] | null; error: A
         nextSession?.scheduledAt ?? null,
         nextSession?.id ?? null,
         nextSession ? (bookedCountBySessionId.get(nextSession.id) ?? 0) : 0,
+        upcomingBookingsByClassId.get(row.id) ?? 0,
+        nextSession && new Date(nextSession.scheduledAt).getTime() > nowMs ? (matchesBySessionId.get(nextSession.id) ?? null) : null,
       );
     }),
     error: null,
   };
+}
+
+/** Story 29.2: the gym's IANA time zone, for the weekly-times editor's "Times are in the gym's time zone" line and the result view. */
+export async function getClassesGymTimezone(): Promise<{ data: string | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, error } = await supabase.from("gyms").select("timezone").eq("id", gymId).maybeSingle();
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: data?.timezone ?? null, error: null };
 }
 
 export interface SessionBookingRow {
@@ -299,6 +363,8 @@ export interface CoachClassSessionRow {
   classSessionId: string;
   scheduledAt: string;
   bookedCount: number;
+  /** Story 29.2: false when the session was kept on an old time after a weekly-times edit (the "Old time" tag); absent reads as matching. */
+  matchesSlots?: boolean;
 }
 
 /** Story 17.4 (AC #7): a class the calling Coach teaches, with its sessions
@@ -307,11 +373,16 @@ export interface CoachClassSessionRow {
 export interface CoachClassRow {
   classId: string;
   className: string;
+  /** Story 29.3: the Edit modal's description and start date (`list_my_classes()`, 0182). Optional so a reader of the Overview caseload need not carry them. */
+  description?: string | null;
+  recurrenceStartDate?: string | null;
   capacity: number;
   scheduleType: "one_off" | "recurring";
   oneOffSessionAt: string | null;
-  recurrenceDays: number[] | null;
-  recurrenceTime: string | null;
+  /** Story 29.2: the weekly times (empty for a one-off class). */
+  slots: ClassSlot[];
+  /** Story 29.2: set for a cancelled class, which shows the neutral Cancelled badge. */
+  cancelledAt: string | null;
   gymTimezone: string;
   sessions: CoachClassSessionRow[];
 }
@@ -322,6 +393,74 @@ export interface CoachRosterRow {
   memberId: string;
   memberName: string;
   attendedAt: string | null;
+}
+
+/** Story 29.2: `slots` from `list_my_classes()` is a jsonb array of `{weekday, start_time "HH:MM"}`; anything else reads as no slots. */
+function parseSlots(raw: unknown): ClassSlot[] {
+  if (!Array.isArray(raw)) return [];
+  const slots: ClassSlot[] = [];
+  for (const item of raw) {
+    const entry = item as { weekday?: unknown; start_time?: unknown } | null;
+    if (entry && typeof entry.weekday === "number" && typeof entry.start_time === "string") {
+      slots.push({ weekday: entry.weekday, startTime: entry.start_time.slice(0, 5) });
+    }
+  }
+  return slots;
+}
+
+/** One row of `list_my_classes()` (0182) or `list_coach_classes()` (0183, Story 29.4): the picker's rows carry no description or start date. */
+export interface CoachClassRpcRow {
+  class_id: string;
+  class_name: string;
+  description?: string | null;
+  recurrence_start_date?: string | null;
+  capacity: number;
+  schedule_type: string;
+  one_off_session_at: string | null;
+  slots: unknown;
+  cancelled_at: string | null;
+  gym_timezone: string;
+  class_session_id: string | null;
+  scheduled_at: string | null;
+  booked_count: number | string;
+  matches_slots: boolean | null;
+}
+
+/** Groups the one-row-per-(class, session) result of `list_my_classes()` or `list_coach_classes()` into classes with their sessions, in the SQL's own
+ * order. A class with no session in the window arrives as one row whose session columns are null. Shared by the Coach's own list and the picker. */
+export function groupCoachClassRows(rows: CoachClassRpcRow[]): CoachClassRow[] {
+  const byClassId = new Map<string, CoachClassRow>();
+  for (const row of rows) {
+    let cls = byClassId.get(row.class_id);
+    if (!cls) {
+      cls = {
+        classId: row.class_id,
+        className: row.class_name,
+        description: row.description,
+        recurrenceStartDate: row.recurrence_start_date,
+        capacity: row.capacity,
+        scheduleType: row.schedule_type as CoachClassRow["scheduleType"],
+        oneOffSessionAt: row.one_off_session_at,
+        slots: parseSlots(row.slots),
+        cancelledAt: row.cancelled_at,
+        gymTimezone: row.gym_timezone,
+        sessions: [],
+      };
+      byClassId.set(row.class_id, cls);
+    }
+    if (row.class_session_id !== null && row.scheduled_at !== null) {
+      cls.sessions.push({
+        classSessionId: row.class_session_id,
+        scheduledAt: row.scheduled_at,
+        // bigint over PostgREST: normally a JSON number, but never trust it.
+        bookedCount: Number(row.booked_count),
+        // A session that has already started never carries the "Old time" tag (the page lists sessions from 00:00 today); listClasses does the same.
+        matchesSlots: row.matches_slots !== false || new Date(row.scheduled_at).getTime() <= Date.now(),
+      });
+    }
+  }
+
+  return [...byClassId.values()];
 }
 
 /** Story 17.4 (AC #7): the Coach Portal's My Classes list, from
@@ -342,34 +481,7 @@ export async function listMyClasses(): Promise<{ data: CoachClassRow[] | null; e
     return { data: null, error: await mapAndLog(error) };
   }
 
-  const byClassId = new Map<string, CoachClassRow>();
-  for (const row of data ?? []) {
-    let cls = byClassId.get(row.class_id);
-    if (!cls) {
-      cls = {
-        classId: row.class_id,
-        className: row.class_name,
-        capacity: row.capacity,
-        scheduleType: row.schedule_type as CoachClassRow["scheduleType"],
-        oneOffSessionAt: row.one_off_session_at,
-        recurrenceDays: row.recurrence_days,
-        recurrenceTime: row.recurrence_time,
-        gymTimezone: row.gym_timezone,
-        sessions: [],
-      };
-      byClassId.set(row.class_id, cls);
-    }
-    if (row.class_session_id !== null && row.scheduled_at !== null) {
-      cls.sessions.push({
-        classSessionId: row.class_session_id,
-        scheduledAt: row.scheduled_at,
-        // bigint over PostgREST: normally a JSON number, but never trust it.
-        bookedCount: Number(row.booked_count),
-      });
-    }
-  }
-
-  return { data: [...byClassId.values()], error: null };
+  return { data: groupCoachClassRows(data ?? []), error: null };
 }
 
 /** Story 17.4 (AC #7): who is booked into one session, from
@@ -466,9 +578,14 @@ export interface ClassWriteInput {
   capacity: number;
   scheduleType: ClassRow["scheduleType"];
   oneOffSessionAt: string | null;
-  recurrenceDays: number[] | null;
-  recurrenceTime: string | null;
+  /** Story 29.2: the weekly times of a recurring class (1 to 14), null for a one-off class. */
+  slots: ClassSlot[] | null;
   recurrenceStartDate: string | null;
+}
+
+/** The `p_slots` payload of the 0181 overloads: `[{weekday, start_time "HH:MM"}]`, or null for a one-off class. */
+function toSlotsPayload(slots: ClassSlot[] | null) {
+  return slots === null ? null : slots.map((s) => ({ weekday: s.weekday, start_time: s.startTime }));
 }
 
 /** Calls `create_class` (0057) -- a single SECURITY DEFINER transaction that
@@ -491,13 +608,14 @@ export async function insertClass(
     p_capacity: input.capacity,
     p_schedule_type: input.scheduleType,
     p_one_off_session_at: input.oneOffSessionAt,
-    p_recurrence_days: input.recurrenceDays,
-    p_recurrence_time: input.recurrenceTime,
+    p_recurrence_days: null,
+    p_recurrence_time: null,
     p_recurrence_start_date: input.recurrenceStartDate,
+    p_slots: toSlotsPayload(input.slots),
   });
 
   if (error || !data) {
-    return { data: null, error: await mapAndLog(error) };
+    return { data: null, error: (error ? await mapCoachOwnOnly(error) : null) ?? (await mapAndLog(error)) };
   }
 
   return { data: { id: data }, error: null };
@@ -516,10 +634,10 @@ export async function insertClass(
 export async function updateClass(
   classId: string,
   input: ClassWriteInput,
-): Promise<{ error: AppError | null }> {
+): Promise<{ data: { leftUnchanged: LeftUnchangedSession[] } | null; error: AppError | null }> {
   const supabase = await createClient();
 
-  const { error } = await supabase.rpc("update_class", {
+  const { data, error } = await supabase.rpc("update_class", {
     p_class_id: classId,
     p_name: input.name,
     p_description: input.description,
@@ -527,16 +645,88 @@ export async function updateClass(
     p_capacity: input.capacity,
     p_schedule_type: input.scheduleType,
     p_one_off_session_at: input.oneOffSessionAt,
-    p_recurrence_days: input.recurrenceDays,
-    p_recurrence_time: input.recurrenceTime,
+    p_recurrence_days: null,
+    p_recurrence_time: null,
     p_recurrence_start_date: input.recurrenceStartDate,
+    p_slots: toSlotsPayload(input.slots),
   });
 
   if (error) {
-    return { error: await mapAndLog(error) };
+    return { data: null, error: (await mapCoachOwnOnly(error)) ?? (await mapAlreadyCancelled(error)) ?? (await mapAndLog(error)) };
   }
 
-  return { error: null };
+  return { data: { leftUnchanged: parseLeftUnchanged(data) }, error: null };
+}
+
+/** Story 29.2: `cancel_class` and `update_class` both raise "... is already cancelled" for a cancelled class (a stale tab); that is its own
+ * code, `class_already_cancelled`, message `classes.cancel.already`. Null for any other error. */
+async function mapAlreadyCancelled(error: { message?: string | null }): Promise<AppError | null> {
+  if (!/already cancelled/i.test(error.message ?? "")) return null;
+  const { t } = await getServerTranslation(await getRequestLocale());
+  return { code: "class_already_cancelled", message: t("classes.cancel.already") };
+}
+
+/** Story 29.3: `create_class`, `update_class` and `cancel_class` raise "... coaches can only manage their own classes" when a Coach touches a class
+ * (or names a coach) that is not theirs: another coach's class, another gym's class and a missing class all read the same. That is its own code,
+ * `class_coach_own_only`, message `classes.coach.ownOnly`. Null for any other error. */
+async function mapCoachOwnOnly(error: { message?: string | null }): Promise<AppError | null> {
+  if (!/coaches can only manage their own classes/i.test(error.message ?? "")) return null;
+  const { t } = await getServerTranslation(await getRequestLocale());
+  return { code: "class_coach_own_only", message: t("classes.coach.ownOnly") };
+}
+
+/** Story 29.2: a future session an edit left alone because it has bookings (`update_class`'s `left_unchanged`). */
+export interface LeftUnchangedSession {
+  classSessionId: string;
+  scheduledAt: string;
+  bookedCount: number;
+  capacity: number;
+}
+
+function parseLeftUnchanged(raw: unknown): LeftUnchangedSession[] {
+  const list = (raw as { left_unchanged?: unknown } | null)?.left_unchanged;
+  if (!Array.isArray(list)) return [];
+  const out: LeftUnchangedSession[] = [];
+  for (const item of list) {
+    const e = item as { class_session_id?: unknown; scheduled_at?: unknown; booked_count?: unknown; capacity?: unknown } | null;
+    if (e && typeof e.class_session_id === "string" && typeof e.scheduled_at === "string") {
+      out.push({
+        classSessionId: e.class_session_id,
+        scheduledAt: e.scheduled_at,
+        bookedCount: Number(e.booked_count),
+        capacity: Number(e.capacity),
+      });
+    }
+  }
+  return out;
+}
+
+/** Story 29.2: cancels a class through `cancel_class()` (0181). Flags the class and its future sessions on the server, deletes nothing, and
+ * returns the server-counted number of bookings on those sessions. An already-cancelled class gets its own code
+ * (`class_already_cancelled`, message `classes.cancel.already`); every other failure is `class_cancel_failed`
+ * (`classes.cancel.error`), the real cause logged server-side only. A one-off class whose session is already past gets `class_nothing_to_cancel`
+ * (`classes.cancel.nothingLeft`). */
+export async function cancelClass(
+  classId: string,
+): Promise<{ data: { bookingsCancelled: number } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("cancel_class", { p_class_id: classId });
+
+  if (error) {
+    const ownOnly = await mapCoachOwnOnly(error);
+    if (ownOnly) return { data: null, error: ownOnly };
+    const already = await mapAlreadyCancelled(error);
+    if (already) return { data: null, error: already };
+    const { t } = await getServerTranslation(await getRequestLocale());
+    if (/nothing left to cancel/i.test(error.message ?? "")) {
+      return { data: null, error: { code: "class_nothing_to_cancel", message: t("classes.cancel.nothingLeft") } };
+    }
+    console.error("[cancelClass] failed", error);
+    return { data: null, error: { code: "class_cancel_failed", message: t("classes.cancel.error") } };
+  }
+
+  const count = Number((data as { bookings_cancelled?: unknown } | null)?.bookings_cancelled ?? 0);
+  return { data: { bookingsCancelled: Number.isFinite(count) ? count : 0 }, error: null };
 }
 
 /** Thin wrapper over `log_audit_event`, following logPlanChange's pattern:
@@ -545,7 +735,7 @@ export async function updateClass(
  * gym, resolved internally rather than trusted from a caller-supplied
  * value. */
 export async function logClassChange(
-  actionType: "class_created" | "class_edited",
+  actionType: "class_created" | "class_created_by_coach" | "class_edited",
   classId: string,
   metadata: Record<string, unknown>,
 ): Promise<{ error: AppError | null }> {

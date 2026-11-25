@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 DB=${DB_CONTAINER:-supabase_db_gym_os}
 SCRIPT=scripts/job-runs-alert.sql
 
-JOBS="check_in_auto_timeout class_reminder quiet_gym_alert class_session_materializer payment_reconciliation payment_connection_cleanup support_activity_digest support_inactivity_sweep support_contact_drift_check support_factor_reset_due support_factor_reset_executor saas_billing_lifecycle subscription_lifecycle loyalty_sweep loyalty_hook_repair"
+JOBS="check_in_auto_timeout class_reminder quiet_gym_alert class_session_materializer payment_reconciliation payment_connection_cleanup support_activity_digest support_inactivity_sweep support_contact_drift_check support_factor_reset_due support_factor_reset_executor saas_billing_lifecycle subscription_lifecycle loyalty_sweep loyalty_hook_repair engagement_settle engagement_reminder"
 
 run() { # $1 = fixture sql; prints the script's rows, pipe-separated
   { echo "begin; delete from job_runs;"; echo "$1"; cat "$SCRIPT"; echo "rollback;"; } |
@@ -41,6 +41,14 @@ insert into job_runs (job_name, started_at, finished_at, status) values ('loyalt
   "not running|loyalty_sweep"
 check "never: loyalty_sweep never ran -> not running ... never" \
   "$(run "$(healthy_sql | grep -v loyalty_sweep)")" "not running|loyalty_sweep|never"
+check "stale: engagement_settle last ran 4 h ago (every other job fresh) -> not running" \
+  "$(run "$(healthy_sql | grep -v "'engagement_settle'")
+insert into job_runs (job_name, started_at, finished_at, status) values ('engagement_settle', now() - interval '4 hours', now() - interval '4 hours', 'success');")" \
+  "not running|engagement_settle"
+check "fresh enough: engagement_settle last ran 100 min ago (inside its 150-minute gap) -> no rows" \
+  "$(run "$(healthy_sql | grep -v "'engagement_settle'")
+insert into job_runs (job_name, started_at, finished_at, status) values ('engagement_settle', now() - interval '100 minutes', now() - interval '99 minutes', 'success');")" \
+  ""
 check "failed: fresh loyalty_hook failure -> failed run" \
   "$(run "$(healthy_sql)
 insert into job_runs (job_name, started_at, finished_at, status, error) values ('loyalty_hook', now() - interval '5 minutes', now() - interval '5 minutes', 'failure', 'boom');")" \

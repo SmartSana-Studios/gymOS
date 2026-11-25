@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
+import { StampSegments } from '@/components/StampSegments';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/Card';
 import { IconChip } from '@/components/ui/IconChip';
@@ -123,17 +124,7 @@ export function RewardsCard({ data, planType }: RewardsCardProps) {
               {t('home.rewards.counter', { current: progress.current, total: progress.total })}
             </ThemedText>
             {progress.display === 'segments' ? (
-              <View style={styles.segments}>
-                {Array.from({ length: progress.total }, (_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.segment,
-                      { backgroundColor: i < progress.current ? accent : theme.backgroundSelected },
-                    ]}
-                  />
-                ))}
-              </View>
+              <StampSegments total={progress.total} done={progress.current} color={accent} />
             ) : (
               <View style={[styles.bar, { backgroundColor: theme.backgroundSelected }]}>
                 <View
@@ -198,8 +189,6 @@ const styles = StyleSheet.create({
   card: { gap: Spacing.two },
   progress: { gap: Spacing.one },
   progressInner: { gap: Spacing.one },
-  segments: { flexDirection: 'row', gap: 4 },
-  segment: { flex: 1, height: 10, borderRadius: 5 },
   bar: { height: 10, borderRadius: 5, overflow: 'hidden' },
   barFill: { height: 10, borderRadius: 5 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, minHeight: 44 },

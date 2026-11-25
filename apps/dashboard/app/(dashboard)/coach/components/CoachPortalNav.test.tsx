@@ -57,6 +57,15 @@ describe("CoachPortalNav", () => {
     expect(current.map((link) => link.textContent)).toEqual([expected]);
   });
 
+  it("is the Coach's own three-item nav only: no Classes-and-Members picker pair, and no ?coach= anywhere (Story 29.4 keeps the Coach role as it was)", () => {
+    render(<CoachPortalNav />);
+
+    expect(screen.getAllByRole("link")).toHaveLength(3);
+    for (const link of screen.getAllByRole("link")) expect(link.getAttribute("href")).not.toContain("coach=");
+    expect(screen.queryByText("coach.picker.tab.classes")).toBeNull();
+    expect(screen.queryByText("coach.picker.tab.members")).toBeNull();
+  });
+
   it("renders a text-free placeholder row while the segment is unresolved", () => {
     const { container } = render(<CoachPortalNavFallback />);
 

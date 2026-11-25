@@ -46,6 +46,22 @@ vi.mock("@/services/classes", () => ({
   listMyClasses: (...args: unknown[]) => listMyClasses(...args),
 }));
 
+const getDashboardShellContext = vi.fn();
+vi.mock("@/services/session", () => ({
+  getDashboardShellContext: (...args: unknown[]) => getDashboardShellContext(...args),
+}));
+
+const listPickerCoaches = vi.fn();
+vi.mock("@/services/coachPicker", () => ({
+  listPickerCoaches: (...args: unknown[]) => listPickerCoaches(...args),
+}));
+
+vi.mock("../components/CoachPickerStates", () => ({
+  CoachPickerNotice: function CoachPickerNotice() {
+    return null;
+  },
+}));
+
 import CoachOverviewPage from "./page";
 import CoachOverviewLoading from "./loading";
 import { CaseloadList, type CaseloadListRow } from "./components/CaseloadList";
@@ -68,8 +84,10 @@ const TITLES = {
 
 const FAILED = { data: null, error: { code: "unknown", message: "boom" } };
 
+let searchParams: Record<string, string | string[]> = {};
+
 function boundary(): ReactElement<{ children: ReactElement; fallback: ReactElement }> {
-  return CoachOverviewPage() as ReactElement<{ children: ReactElement; fallback: ReactElement }>;
+  return CoachOverviewPage({ searchParams: Promise.resolve(searchParams) }) as ReactElement<{ children: ReactElement; fallback: ReactElement }>;
 }
 
 async function renderOverview(): Promise<ReactElement> {
@@ -132,8 +150,12 @@ function classRow(classId: string, className: string, sessions: [string, string,
     capacity: 15,
     scheduleType: "recurring",
     oneOffSessionAt: null,
-    recurrenceDays: [1, 3, 5],
-    recurrenceTime: "18:00:00",
+    slots: [
+      { weekday: 1, startTime: "18:00" },
+      { weekday: 3, startTime: "18:00" },
+      { weekday: 5, startTime: "18:00" },
+    ],
+    cancelledAt: null,
     gymTimezone: TZ,
     sessions: sessions.map(([classSessionId, scheduledAt, bookedCount]) => ({ classSessionId, scheduledAt, bookedCount })),
   };
@@ -155,6 +177,8 @@ describe("/coach/overview", () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW);
+    searchParams = {};
+    getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "coach", memberId: "m-coach", memberName: "Coach" }, error: null, suspended: null });
     listAssignedMembers.mockReset().mockResolvedValue({ data: memberRows({ active: 9, expiring_soon: 2, expired: 1 }), error: null });
     listMyClasses.mockReset().mockResolvedValue({ data: CLASSES, error: null });
     listAssignedMemberNoteRecency.mockReset().mockResolvedValue({
@@ -403,6 +427,76 @@ describe("/coach/overview", () => {
       expect((tree.props as { children: ReactElement[] }).children).toHaveLength(2);
       expect(list(tree, TITLES.nextSessions).state).toBe("error");
       expect(textContent(tree)).toContain("coachPortal.emptyNoAssignments");
+    });
+  });
+});
+
+describe("/coach/overview in picker mode (Story 29.4: there is no Overview for an Owner, Supervisor or Manager)", () => {
+  beforeEach(() => {
+    searchParams = {};
+    listAssignedMembers.mockReset();
+    listMyClasses.mockReset();
+    listAssignedMemberNoteRecency.mockReset();
+    listAssignedMemberProgressRecency.mockReset();
+  });
+
+  it.each(["owner", "supervisor", "manager"])("%s gets the one part-unavailable message and none of the four reads", async (role) => {
+    getDashboardShellContext.mockReset().mockResolvedValue({ data: { role, memberId: "m-x", memberName: "Staff" }, error: null, suspended: null });
+    searchParams = { coach: "11111111-1111-4111-8111-111111111111" };
+
+    const tree = await renderOverview();
+
+    expect(tree.props).toMatchObject({ state: { kind: "partUnavailable", coachId: "11111111-1111-4111-8111-111111111111" } });
+    expect(listAssignedMembers).not.toHaveBeenCalled();
+    expect(listMyClasses).not.toHaveBeenCalled();
+    expect(listAssignedMemberNoteRecency).not.toHaveBeenCalled();
+    expect(listAssignedMemberProgressRecency).not.toHaveBeenCalled();
+  });
+
+  it("carries no coach into the links when the address has a malformed one", async () => {
+    getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "manager", memberId: "m-x", memberName: "Staff" }, error: null, suspended: null });
+    searchParams = { coach: "not-a-uuid" };
+
+    expect((await renderOverview()).props).toMatchObject({ state: { kind: "partUnavailable", coachId: null } });
+    expect(listPickerCoaches).not.toHaveBeenCalled();
+  });
+
+  describe("with no coach in the address (the same answer as the other tabs, and no coach data)", () => {
+    beforeEach(() => {
+      getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "owner", memberId: "m-x", memberName: "Staff" }, error: null, suspended: null });
+      listPickerCoaches.mockReset();
+    });
+
+    afterEach(() => {
+      expect(listAssignedMembers).not.toHaveBeenCalled();
+      expect(listMyClasses).not.toHaveBeenCalled();
+    });
+
+    it("several active coaches: the choose message", async () => {
+      listPickerCoaches.mockResolvedValue({
+        data: [
+          { id: "c-1", name: "A", isActive: true },
+          { id: "c-2", name: "B", isActive: true },
+        ],
+        error: null,
+      });
+      expect((await renderOverview()).props).toMatchObject({ state: { kind: "choose" } });
+    });
+
+    it("one active coach: the part-unavailable message with that coach in its links", async () => {
+      listPickerCoaches.mockResolvedValue({ data: [{ id: "c-1", name: "A", isActive: true }], error: null });
+      expect((await renderOverview()).props).toMatchObject({ state: { kind: "partUnavailable", coachId: "c-1" } });
+    });
+
+    it("no active coach: the no-coaches message, with the Staff link for an Owner", async () => {
+      listPickerCoaches.mockResolvedValue({ data: [{ id: "c-1", name: "A", isActive: false }], error: null });
+      expect((await renderOverview()).props).toMatchObject({ state: { kind: "no-coaches", canOpenStaff: true } });
+    });
+
+    it("a failed coach list: the inline load error, no message", async () => {
+      listPickerCoaches.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+      const tree = await renderOverview();
+      expect(tree.type).toBe("div");
     });
   });
 });

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import type { SessionValidity } from "@gymos/types";
 import { getGuestChargingImpact, setGuestCharging } from "./actions";
 
 export function useGuestCharging({
@@ -108,7 +109,14 @@ export function useGuestCharging({
 
 type GuestChargingState = ReturnType<typeof useGuestCharging>;
 
-export function GuestChargingControl({ charge }: { charge: GuestChargingState }) {
+export function GuestChargingControl({
+  charge,
+  sessionValidity = "whole_day",
+}: {
+  charge: GuestChargingState;
+  /** Story 28.1: the stored session validity; the helper words the rule (Whole day keeps its sentence, Single use has its own). */
+  sessionValidity?: SessionValidity;
+}) {
   const { t } = useTranslation();
   const { chargeGuests, chargeDialog, chargeSaving, openChargeDialog } = charge;
   return (
@@ -116,7 +124,11 @@ export function GuestChargingControl({ charge }: { charge: GuestChargingState })
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <Label id="chargeGuestsLabel">{t("settings.guestCharging.label")}</Label>
-                <p className="text-xs text-muted-foreground">{t("settings.guestCharging.hint")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {sessionValidity === "single_use"
+                    ? t("settings.chargeGuests.helperSingleUse")
+                    : `${t("settings.guestCharging.hint")} ${t("settings.chargeGuests.helperWholeDay")}`}
+                </p>
               </div>
               <button
                 type="button"

@@ -7,9 +7,20 @@ import { getContrastTextColor } from '@/lib/color-contrast';
 
 export type IconChipTint = 'accent' | 'success' | 'warning' | 'danger' | 'neutral' | 'primary';
 
+/** `default` is the 36 pt chip used across the app. Story 31.3 adds `tile` (48 pt, the badge tile) and `large` (72 pt, the badge detail sheet and the
+ * share image). */
+export type IconChipSize = 'default' | 'tile' | 'large';
+
+const SIZES: Record<IconChipSize, { box: number; radius: number; icon: number }> = {
+  default: { box: 36, radius: 8, icon: 20 },
+  tile: { box: 48, radius: 10, icon: 26 },
+  large: { box: 72, radius: 16, icon: 40 },
+};
+
 export interface IconChipProps {
   icon: MaterialIconsIconName;
   tint: IconChipTint;
+  size?: IconChipSize;
 }
 
 /** success/warning/danger/neutral intentionally match subscription-status.ts's
@@ -30,7 +41,8 @@ const STATUS_TINTS: Record<'success' | 'warning' | 'danger' | 'neutral' | 'prima
   primary: { bg: '#2E4568', border: '#3F587F', icon: '#FFFFFF' },
 };
 
-export function IconChip({ icon, tint }: IconChipProps) {
+export function IconChip({ icon, tint, size = 'default' }: IconChipProps) {
+  const dimension = SIZES[size] ?? SIZES.default;
   const theme = useTheme();
   const gymAccent = useGymAccentColor();
 
@@ -53,17 +65,14 @@ export function IconChip({ icon, tint }: IconChipProps) {
   }
 
   return (
-    <View style={[styles.chip, { backgroundColor, borderColor }]}>
-      <MaterialIcons name={icon} size={20} color={iconColor} />
+    <View style={[styles.chip, { width: dimension.box, height: dimension.box, borderRadius: dimension.radius, backgroundColor, borderColor }]}>
+      <MaterialIcons name={icon} size={dimension.icon} color={iconColor} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   chip: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

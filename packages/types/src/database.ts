@@ -364,8 +364,49 @@ export type Database = {
           },
         ]
       }
+      class_schedule_slots: {
+        Row: {
+          class_id: string
+          created_at: string
+          gym_id: string
+          id: string
+          start_time: string
+          weekday: number
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          gym_id: string
+          id?: string
+          start_time: string
+          weekday: number
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          gym_id?: string
+          id?: string
+          start_time?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_schedule_slots_class_id_fkey"
+            columns: ["class_id"]
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_schedule_slots_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_sessions: {
         Row: {
+          cancelled_at: string | null
           class_id: string
           created_at: string
           gym_id: string
@@ -373,6 +414,7 @@ export type Database = {
           scheduled_at: string
         }
         Insert: {
+          cancelled_at?: string | null
           class_id: string
           created_at?: string
           gym_id: string
@@ -380,6 +422,7 @@ export type Database = {
           scheduled_at: string
         }
         Update: {
+          cancelled_at?: string | null
           class_id?: string
           created_at?: string
           gym_id?: string
@@ -403,6 +446,8 @@ export type Database = {
       }
       classes: {
         Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
           capacity: number
           coach_id: string
           created_at: string
@@ -417,6 +462,8 @@ export type Database = {
           schedule_type: string
         }
         Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           capacity: number
           coach_id: string
           created_at?: string
@@ -431,6 +478,8 @@ export type Database = {
           schedule_type: string
         }
         Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           capacity?: number
           coach_id?: string
           created_at?: string
@@ -445,6 +494,12 @@ export type Database = {
           schedule_type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "classes_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classes_coach_id_fkey"
             columns: ["coach_id"]
@@ -702,7 +757,9 @@ export type Database = {
         Row: {
           consumed_at: string | null
           covered_attendance_id: string | null
+          covered_booking_id: string | null
           covered_day: string | null
+          covered_kind: string | null
           created_at: string
           gym_id: string
           id: string
@@ -711,12 +768,15 @@ export type Database = {
           member_id: string
           payment_id: string | null
           usable_until: string
+          validity_mode: string | null
           voided_at: string | null
         }
         Insert: {
           consumed_at?: string | null
           covered_attendance_id?: string | null
+          covered_booking_id?: string | null
           covered_day?: string | null
+          covered_kind?: string | null
           created_at?: string
           gym_id: string
           id?: string
@@ -724,12 +784,15 @@ export type Database = {
           member_id: string
           payment_id?: string | null
           usable_until: string
+          validity_mode?: string | null
           voided_at?: string | null
         }
         Update: {
           consumed_at?: string | null
           covered_attendance_id?: string | null
+          covered_booking_id?: string | null
           covered_day?: string | null
+          covered_kind?: string | null
           created_at?: string
           gym_id?: string
           id?: string
@@ -737,6 +800,7 @@ export type Database = {
           member_id?: string
           payment_id?: string | null
           usable_until?: string
+          validity_mode?: string | null
           voided_at?: string | null
         }
         Relationships: [
@@ -744,6 +808,12 @@ export type Database = {
             foreignKeyName: "guest_sessions_covered_attendance_id_fkey"
             columns: ["covered_attendance_id"]
             referencedRelation: "attendance_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_sessions_covered_booking_id_fkey"
+            columns: ["covered_booking_id"]
+            referencedRelation: "class_bookings"
             referencedColumns: ["id"]
           },
           {
@@ -989,6 +1059,7 @@ export type Database = {
           saas_billing_interval: Database["public"]["Enums"]["billing_interval"]
           saas_billing_status: Database["public"]["Enums"]["saas_billing_status"]
           saas_grace_period_days: number
+          session_validity: string
           status: Database["public"]["Enums"]["gym_status"]
           tier_id: string
           timezone: string
@@ -1034,6 +1105,7 @@ export type Database = {
           saas_billing_interval?: Database["public"]["Enums"]["billing_interval"]
           saas_billing_status?: Database["public"]["Enums"]["saas_billing_status"]
           saas_grace_period_days?: number
+          session_validity?: string
           status?: Database["public"]["Enums"]["gym_status"]
           tier_id: string
           timezone?: string
@@ -1079,6 +1151,7 @@ export type Database = {
           saas_billing_interval?: Database["public"]["Enums"]["billing_interval"]
           saas_billing_status?: Database["public"]["Enums"]["saas_billing_status"]
           saas_grace_period_days?: number
+          session_validity?: string
           status?: Database["public"]["Enums"]["gym_status"]
           tier_id?: string
           timezone?: string
@@ -1217,8 +1290,11 @@ export type Database = {
           created_at: string
           gym_id: string
           id: string
+          leaderboard_hidden: boolean
+          leaderboard_notice_seen_at: string | null
           member_id: string
           quiet_gym_alerts_opted_out: boolean
+          streak_reminder_opted_out: boolean
           updated_at: string
         }
         Insert: {
@@ -1226,8 +1302,11 @@ export type Database = {
           created_at?: string
           gym_id: string
           id?: string
+          leaderboard_hidden?: boolean
+          leaderboard_notice_seen_at?: string | null
           member_id: string
           quiet_gym_alerts_opted_out?: boolean
+          streak_reminder_opted_out?: boolean
           updated_at?: string
         }
         Update: {
@@ -1235,8 +1314,11 @@ export type Database = {
           created_at?: string
           gym_id?: string
           id?: string
+          leaderboard_hidden?: boolean
+          leaderboard_notice_seen_at?: string | null
           member_id?: string
           quiet_gym_alerts_opted_out?: boolean
+          streak_reminder_opted_out?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -1248,6 +1330,43 @@ export type Database = {
           },
           {
             foreignKeyName: "member_preferences_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_weekly_goals: {
+        Row: {
+          created_at: string
+          effective_week: string
+          goal: number
+          gym_id: string
+          member_id: string
+        }
+        Insert: {
+          created_at?: string
+          effective_week: string
+          goal: number
+          gym_id: string
+          member_id: string
+        }
+        Update: {
+          created_at?: string
+          effective_week?: string
+          goal?: number
+          gym_id?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_weekly_goals_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_weekly_goals_member_id_fkey"
             columns: ["member_id"]
             referencedRelation: "members"
             referencedColumns: ["id"]
@@ -1758,24 +1877,72 @@ export type Database = {
           },
         ]
       }
+      platform_engagement_config: {
+        Row: {
+          comeback_visits: number
+          comeback_window_days: number
+          daily_streak_min: number
+          goal_default: number
+          goal_max: number
+          goal_min: number
+          id: string
+          release_week_start: string | null
+          reminder_window_end_hour: number
+          reminder_window_start_hour: number
+          shield_cap: number
+          shield_every_weeks: number
+        }
+        Insert: {
+          comeback_visits: number
+          comeback_window_days: number
+          daily_streak_min: number
+          goal_default: number
+          goal_max: number
+          goal_min: number
+          id?: string
+          release_week_start?: string | null
+          reminder_window_end_hour?: number
+          reminder_window_start_hour?: number
+          shield_cap: number
+          shield_every_weeks: number
+        }
+        Update: {
+          comeback_visits?: number
+          comeback_window_days?: number
+          daily_streak_min?: number
+          goal_default?: number
+          goal_max?: number
+          goal_min?: number
+          id?: string
+          release_week_start?: string | null
+          reminder_window_end_hour?: number
+          reminder_window_start_hour?: number
+          shield_cap?: number
+          shield_every_weeks?: number
+        }
+        Relationships: []
+      }
       platform_session_config: {
         Row: {
           free_session_validity_days: number
           id: string
           loyalty_idle_reset_days: number
           paid_session_validity_days: number
+          single_use_visit_limit_minutes: number
         }
         Insert: {
           free_session_validity_days: number
           id?: string
           loyalty_idle_reset_days: number
           paid_session_validity_days: number
+          single_use_visit_limit_minutes?: number
         }
         Update: {
           free_session_validity_days?: number
           id?: string
           loyalty_idle_reset_days?: number
           paid_session_validity_days?: number
+          single_use_visit_limit_minutes?: number
         }
         Relationships: []
       }
@@ -2640,6 +2807,30 @@ export type Database = {
           },
         ]
       }
+      class_sessions_with_match: {
+        Row: {
+          cancelled_at: string | null
+          class_id: string | null
+          class_session_id: string | null
+          gym_id: string | null
+          matches_slots: boolean | null
+          scheduled_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_sessions_class_id_fkey"
+            columns: ["class_id"]
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_sessions_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_visit_days: {
         Row: {
           gym_id: string | null
@@ -2701,6 +2892,7 @@ export type Database = {
       }
     }
     Functions: {
+      acknowledge_milestone: { Args: { p_milestone: number }; Returns: number | null }
       activate_payment_provider: {
         Args: { p_provider_key: string }
         Returns: undefined
@@ -2759,6 +2951,7 @@ export type Database = {
         }
       }
       caller_has_membership: { Args: never; Returns: boolean }
+      cancel_class: { Args: { p_class_id: string }; Returns: Json }
       cancel_class_booking: {
         Args: { p_booking_id: string }
         Returns: undefined
@@ -2920,20 +3113,36 @@ export type Database = {
           subscription_id: string
         }[]
       }
-      create_class: {
-        Args: {
-          p_capacity: number
-          p_coach_id: string
-          p_description: string
-          p_name: string
-          p_one_off_session_at: string
-          p_recurrence_days: number[]
-          p_recurrence_start_date: string
-          p_recurrence_time: string
-          p_schedule_type: string
-        }
-        Returns: string
-      }
+      create_class:
+        | {
+            Args: {
+              p_capacity: number
+              p_coach_id: string
+              p_description: string
+              p_name: string
+              p_one_off_session_at: string
+              p_recurrence_days: number[]
+              p_recurrence_start_date: string
+              p_recurrence_time: string
+              p_schedule_type: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_capacity: number
+              p_coach_id: string
+              p_description: string
+              p_name: string
+              p_one_off_session_at: string
+              p_recurrence_days: number[]
+              p_recurrence_start_date: string
+              p_recurrence_time: string
+              p_schedule_type: string
+              p_slots: Json
+            }
+            Returns: string
+          }
       create_staff_member: {
         Args: {
           p_name: string
@@ -3065,8 +3274,56 @@ export type Database = {
           requested_at: string
         }[]
       }
+      get_coach_assigned_member: {
+        Args: { p_coach_id: string; p_member_id: string }
+        Returns: {
+          experience_level: string | null
+          expiry_date: string | null
+          goal: string | null
+          join_date: string
+          member_id: string
+          member_name: string
+          phone: string | null
+          photo_url: string | null
+          plan_name: string | null
+          status: Database["public"]["Enums"]["subscription_status"] | null
+        }[]
+      }
+      get_coach_member_workout_plan: {
+        Args: { p_coach_id: string; p_member_id: string }
+        Returns: {
+          author_id: string | null
+          author_name: string | null
+          exercise_name: string | null
+          note: string | null
+          order_index: number | null
+          plan_exercise_id: string | null
+          plan_id: string
+          plan_name: string
+          reps: number | null
+          sets: number | null
+        }[]
+      }
       get_gym_page_name: { Args: { p_gym_id: string }; Returns: Json }
       get_gym_page_status: { Args: { p_gym_id: string }; Returns: Json }
+      get_my_badges: {
+        Args: never
+        Returns: {
+          code: string
+          earned: boolean
+          earned_on: string | null
+          silent: boolean | null
+          visits_remaining: number | null
+          weeks_progress: number | null
+        }[]
+      }
+      get_session_validity_settings: {
+        Args: never
+        Returns: {
+          session_validity: string
+          single_use_visit_limit_minutes: number
+        }[]
+      }
       get_gym_support_proxy_id: {
         Args: never
         Returns: string
@@ -3288,6 +3545,21 @@ export type Database = {
           next_month_start_date: string
         }[]
       }
+      gym_leaderboard: {
+        Args: { p_month: string }
+        Returns: {
+          is_anonymous: boolean
+          is_self: boolean
+          is_tied: boolean
+          label: string | null
+          position: number | null
+          rank: number | null
+          ranked_total: number
+          self_ranked: boolean
+          visits: number | null
+          visits_behind: number | null
+        }[]
+      }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       gym_registration_fee_revenue_mtd: { Args: never; Returns: number }
       gym_revenue_mtd: { Args: never; Returns: number }
@@ -3383,10 +3655,15 @@ export type Database = {
         }
         Returns: {
           amount: number
+          class_name: string | null
+          class_starts_at: string | null
           consumed_at: string | null
+          covered_booking_id: string | null
+          covered_kind: string | null
           created_at: string
           group_sessions: number | null
           group_total: number | null
+          gym_timezone: string | null
           member_id: string
           member_name: string
           method: string
@@ -3490,11 +3767,72 @@ export type Database = {
       record_page_media_purge_run: { Args: { p_ok: boolean; p_started_at: string; p_summary: string }; Returns: undefined }
       submit_page_appeal: { Args: { p_reason: string }; Returns: Json }
       take_down_gym_page: { Args: { p_gym_id: string; p_note?: string; p_reason: string }; Returns: Json }
+      list_coach_assigned_members: {
+        Args: { p_coach_id: string }
+        Returns: {
+          experience_level: string | null
+          expiry_date: string | null
+          goal: string | null
+          join_date: string
+          last_note_snippet: string | null
+          member_id: string
+          member_name: string
+          phone: string | null
+          photo_url: string | null
+          plan_name: string | null
+          status: Database["public"]["Enums"]["subscription_status"] | null
+        }[]
+      }
+      list_coach_class_session_roster: {
+        Args: { p_class_session_id: string; p_coach_id: string }
+        Returns: {
+          attended_at: string | null
+          member_id: string
+          member_name: string
+        }[]
+      }
+      list_coach_classes: {
+        Args: { p_coach_id: string }
+        Returns: {
+          booked_count: number
+          cancelled_at: string | null
+          capacity: number
+          class_id: string
+          class_name: string
+          class_session_id: string | null
+          gym_timezone: string
+          matches_slots: boolean | null
+          one_off_session_at: string | null
+          schedule_type: string
+          scheduled_at: string | null
+          slots: Json
+        }[]
+      }
+      list_coach_member_session_notes: {
+        Args: { p_coach_id: string; p_member_id: string }
+        Returns: {
+          coach_id: string
+          coach_name: string
+          created_at: string
+          edited_at: string | null
+          note_id: string
+          note_text: string
+        }[]
+      }
+      list_picker_coaches: {
+        Args: never
+        Returns: {
+          coach_id: string
+          coach_name: string
+          is_active: boolean
+        }[]
+      }
       list_my_class_bookings: {
         Args: never
         Returns: {
           booking_id: string
           can_cancel: boolean
+          class_cancelled: boolean
           class_name: string
           scheduled_at: string
         }[]
@@ -3511,16 +3849,19 @@ export type Database = {
         Args: never
         Returns: {
           booked_count: number
+          cancelled_at: string | null
           capacity: number
           class_id: string
           class_name: string
           class_session_id: string | null
+          description: string | null
           gym_timezone: string
+          matches_slots: boolean | null
           one_off_session_at: string | null
-          recurrence_days: number[] | null
-          recurrence_time: string | null
+          recurrence_start_date: string | null
           schedule_type: string
           scheduled_at: string | null
+          slots: Json
         }[]
       }
       list_own_active_gym_memberships: {
@@ -3607,11 +3948,138 @@ export type Database = {
         Args: { p_credentials_id?: string | null; p_gym_id: string; p_provider_key: string }
         Returns: undefined
       }
+      mark_leaderboard_notice_seen: { Args: never; Returns: undefined }
       materialize_class_sessions: {
         Args: { p_class_id: string; p_reschedule?: boolean }
         Returns: undefined
       }
       member_occupancy_band: { Args: never; Returns: string }
+      my_engagement: {
+        Args: never
+        Returns: {
+          at_risk_daily: boolean
+          at_risk_weekly: boolean
+          best_streak_weeks: number
+          comeback_state: string
+          comeback_visits_done: number
+          comeback_visits_goal: number
+          comeback_window_days: number
+          comeback_window_ends_on: string | null
+          comeback_window_start: string | null
+          daily_run: number | null
+          day_ends_at: string
+          day_starts_at: string
+          days_left_in_week: number
+          enabled: boolean
+          goal: number
+          goal_is_default: boolean
+          goal_met: boolean
+          gym_today: string
+          has_settled_week: boolean
+          in_release_week: boolean
+          needs_settle: boolean
+          pending_effective_week: string | null
+          pending_goal: number | null
+          pending_milestone: number | null
+          saved_week_start: string | null
+          saved_week_streak: number | null
+          server_now: string
+          shield_cap: number
+          shield_earned_week: string | null
+          shield_every_weeks: number
+          shields_held: number
+          streak_if_met: number | null
+          streak_weeks: number | null
+          visited_today: boolean
+          visits_needed: number
+          visits_this_week: number
+          week_end: string
+          week_start: string
+          weeks_to_next_shield: number | null
+        }[]
+      }
+      my_first_visit_day: { Args: never; Returns: string }
+      my_leaderboard_settings: {
+        Args: never
+        Returns: {
+          hidden: boolean
+          notice_seen: boolean
+          own_label: string
+        }[]
+      }
+      my_saved_weeks: {
+        Args: { p_month: string }
+        Returns: {
+          week_start: string
+        }[]
+      }
+      my_streak_reminder_hour: {
+        Args: never
+        Returns: number
+      }
+      my_visit_days: {
+        Args: { p_month: string }
+        Returns: {
+          milestone: number | null
+          visit_day: string
+        }[]
+      }
+      my_weekly_goal: {
+        Args: never
+        Returns: {
+          current_goal: number
+          current_goal_is_default: boolean
+          goal_max: number
+          goal_min: number
+          next_effective_week: string
+          pending_effective_week: string | null
+          pending_goal: number | null
+        }[]
+      }
+      open_engagement: {
+        Args: never
+        Returns: {
+          at_risk_daily: boolean
+          at_risk_weekly: boolean
+          best_streak_weeks: number
+          comeback_state: string
+          comeback_visits_done: number
+          comeback_visits_goal: number
+          comeback_window_days: number
+          comeback_window_ends_on: string | null
+          comeback_window_start: string | null
+          daily_run: number | null
+          day_ends_at: string
+          day_starts_at: string
+          days_left_in_week: number
+          enabled: boolean
+          goal: number
+          goal_is_default: boolean
+          goal_met: boolean
+          gym_today: string
+          has_settled_week: boolean
+          in_release_week: boolean
+          needs_settle: boolean
+          pending_effective_week: string | null
+          pending_goal: number | null
+          pending_milestone: number | null
+          saved_week_start: string | null
+          saved_week_streak: number | null
+          server_now: string
+          shield_cap: number
+          shield_earned_week: string | null
+          shield_every_weeks: number
+          shields_held: number
+          streak_if_met: number | null
+          streak_weeks: number | null
+          visited_today: boolean
+          visits_needed: number
+          visits_this_week: number
+          week_end: string
+          week_start: string
+          weeks_to_next_shield: number | null
+        }[]
+      }
       phone_has_membership: { Args: { p_phone: string }; Returns: boolean }
       platform_metrics: {
         Args: never
@@ -3726,11 +4194,25 @@ export type Database = {
         Args: { p_content: Json; p_gym_id: string; p_plans?: Json }
         Returns: undefined
       }
+      set_leaderboard_visibility: { Args: { p_hidden: boolean }; Returns: undefined }
       set_loyalty_program: {
         Args: { p_enabled: boolean; p_k: number; p_n: number; p_r: number }
         Returns: undefined
       }
       set_registration_fee: { Args: { p_amount: number }; Returns: undefined }
+      set_session_validity: {
+        Args: { p_gym_id: string; p_validity: string }
+        Returns: undefined
+      }
+      set_weekly_goal: {
+        Args: { p_goal: number }
+        Returns: {
+          current_goal: number
+          current_goal_is_default: boolean
+          effective_week: string | null
+          goal: number
+        }[]
+      }
       staff_account_for_reset: {
         Args: { p_member_id: string }
         Returns: {
@@ -3778,21 +4260,38 @@ export type Database = {
         Args: { p_aliases?: string[]; p_city_id: string; p_lat?: number; p_lng?: number; p_name: string; p_slug?: string }
         Returns: undefined
       }
-      update_class: {
-        Args: {
-          p_capacity: number
-          p_class_id: string
-          p_coach_id: string
-          p_description: string
-          p_name: string
-          p_one_off_session_at: string
-          p_recurrence_days: number[]
-          p_recurrence_start_date: string
-          p_recurrence_time: string
-          p_schedule_type: string
-        }
-        Returns: undefined
-      }
+      update_class:
+        | {
+            Args: {
+              p_capacity: number
+              p_class_id: string
+              p_coach_id: string
+              p_description: string
+              p_name: string
+              p_one_off_session_at: string
+              p_recurrence_days: number[]
+              p_recurrence_start_date: string
+              p_recurrence_time: string
+              p_schedule_type: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_capacity: number
+              p_class_id: string
+              p_coach_id: string
+              p_description: string
+              p_name: string
+              p_one_off_session_at: string
+              p_recurrence_days: number[]
+              p_recurrence_start_date: string
+              p_recurrence_time: string
+              p_schedule_type: string
+              p_slots: Json
+            }
+            Returns: Json
+          }
       update_messaging_instance: {
         Args: { p_instance_id: string }
         Returns: undefined

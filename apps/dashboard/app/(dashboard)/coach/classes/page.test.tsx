@@ -4,6 +4,9 @@
  * the page's <Suspense> to the async child and await it.
  *
  *  - one `listMyClasses()` call, no arguments;
+ *  - Story 29.3: the signed-in Coach (member id and name from the shell context) is handed to the client as `coach` for the Coach role only,
+ *    each class carries the row the Edit modal and the Cancel dialog read, and the dialog's booking count is the sum of the booked counts of
+ *    the sessions later than now;
  *  - the fallback is AD-21's 3-row skeleton;
  *  - a failed read -> the app's inline `common.loadError`;
  *  - zero classes -> AD-21's empty state and no client component;
@@ -31,8 +34,34 @@ vi.mock("@/lib/i18n/get-server-translation", () => ({
 }));
 
 const listMyClasses = vi.fn();
+const getClassesGymTimezone = vi.fn();
 vi.mock("@/services/classes", () => ({
   listMyClasses: (...args: unknown[]) => listMyClasses(...args),
+  getClassesGymTimezone: (...args: unknown[]) => getClassesGymTimezone(...args),
+}));
+
+const getDashboardShellContext = vi.fn();
+vi.mock("@/services/session", () => ({
+  getDashboardShellContext: (...args: unknown[]) => getDashboardShellContext(...args),
+}));
+
+const listPickerCoaches = vi.fn();
+const listCoachClasses = vi.fn();
+vi.mock("@/services/coachPicker", () => ({
+  listPickerCoaches: (...args: unknown[]) => listPickerCoaches(...args),
+  listCoachClasses: (...args: unknown[]) => listCoachClasses(...args),
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  },
+}));
+
+vi.mock("../components/CoachPickerStates", () => ({
+  CoachPickerNotice: function CoachPickerNotice() {
+    return null;
+  },
 }));
 
 vi.mock("./components/CoachClassesPageClient", () => ({
@@ -42,13 +71,16 @@ vi.mock("./components/CoachClassesPageClient", () => ({
 }));
 
 import CoachClassesPage from "./page";
+import { CoachPickerNotice } from "../components/CoachPickerStates";
 import CoachClassesLoading from "./loading";
 import { CoachClassesPageClient, type CoachClassView } from "./components/CoachClassesPageClient";
 
 type AsyncComponent = (props: unknown) => Promise<ReactElement>;
 
+let searchParams: Record<string, string | string[]> = {};
+
 function boundary(): ReactElement<{ children: ReactElement; fallback: ReactElement }> {
-  return CoachClassesPage() as ReactElement<{ children: ReactElement; fallback: ReactElement }>;
+  return CoachClassesPage({ searchParams: Promise.resolve(searchParams) }) as ReactElement<{ children: ReactElement; fallback: ReactElement }>;
 }
 
 async function renderPage(): Promise<ReactElement> {
@@ -83,10 +115,14 @@ const HIIT: CoachClassRow = {
   capacity: 15,
   scheduleType: "recurring",
   oneOffSessionAt: null,
-  recurrenceDays: [1, 3, 5],
-  recurrenceTime: "18:00:00",
+  slots: [
+    { weekday: 1, startTime: "18:00" },
+    { weekday: 3, startTime: "18:00" },
+    { weekday: 5, startTime: "18:00" },
+  ],
+  cancelledAt: null,
   gymTimezone: "Africa/Douala",
-  sessions: [{ classSessionId: "session-1", scheduledAt: "2026-09-11T17:00:00Z", bookedCount: 11 }],
+  sessions: [{ classSessionId: "session-1", scheduledAt: "2026-09-11T17:00:00Z", bookedCount: 11, matchesSlots: true }],
 };
 
 const WORKSHOP: CoachClassRow = {
@@ -95,8 +131,8 @@ const WORKSHOP: CoachClassRow = {
   capacity: 10,
   scheduleType: "one_off",
   oneOffSessionAt: "2026-08-31T09:00:00Z",
-  recurrenceDays: null,
-  recurrenceTime: null,
+  slots: [],
+  cancelledAt: null,
   gymTimezone: "Africa/Douala",
   sessions: [],
 };
@@ -107,7 +143,16 @@ describe("/coach/classes", () => {
     // the suite runs.
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-09-10T12:00:00Z"));
+    searchParams = {};
+    listPickerCoaches.mockReset().mockResolvedValue({ data: [], error: null });
+    listCoachClasses.mockReset().mockResolvedValue({ data: [], error: null });
     listMyClasses.mockReset().mockResolvedValue({ data: [HIIT, WORKSHOP], error: null });
+    getClassesGymTimezone.mockReset().mockResolvedValue({ data: "Africa/Douala", error: null });
+    getDashboardShellContext.mockReset().mockResolvedValue({
+      data: { role: "coach", memberId: "member-coach", memberName: "Coach One" },
+      error: null,
+      suspended: null,
+    });
   });
 
   afterEach(() => {
@@ -142,13 +187,90 @@ describe("/coach/classes", () => {
     expect(findAll(tree, (el) => el.type === CoachClassesPageClient)).toHaveLength(0);
   });
 
-  it("shows AD-21's empty state, and no class list, when the Coach teaches no classes", async () => {
+  it("hands the client an empty list and the Coach when the Coach teaches no classes (the client draws the empty state with [+ Create class])", async () => {
     listMyClasses.mockResolvedValue({ data: [], error: null });
 
     const tree = await renderPage();
 
-    expect(textContent(tree)).toEqual(["coachPortal.classes.emptyNoClasses"]);
+    expect(tree.type).toBe(CoachClassesPageClient);
+    expect(tree.props).toMatchObject({ classes: [], coach: { id: "member-coach", name: "Coach One" }, gymTimezone: "Africa/Douala" });
+  });
+
+  it("passes the signed-in Coach from the shell context, never from anything the client sends", async () => {
+    const tree = await renderPage();
+
+    expect(tree.props).toMatchObject({ coach: { id: "member-coach", name: "Coach One" }, gymTimezone: "Africa/Douala" });
+    // resolvePicker() reads the shell once, and the own-role branch reads it again for the Coach identity (cache() dedupes in the app, not in this double).
+    expect(getDashboardShellContext).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["receptionist"])("passes no Coach, and builds no edit row, for the %s role", async (role) => {
+    getDashboardShellContext.mockResolvedValue({ data: { role, memberId: "member-x", memberName: "Staff" }, error: null, suspended: null });
+
+    const tree = await renderPage();
+
+    expect((tree.props as { coach: unknown }).coach).toBeNull();
+    expect(getClassesGymTimezone).not.toHaveBeenCalled();
+    for (const view of (tree.props as { classes: CoachClassView[] }).classes) expect(view.editRow).toBeUndefined();
+  });
+
+  it("renders the inline load error, not a read-only list, when the shell read fails", async () => {
+    getDashboardShellContext.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" }, suspended: null });
+
+    const tree = await renderPage();
+
+    expect(textContent(tree)).toEqual(["common.loadError"]);
     expect(findAll(tree, (el) => el.type === CoachClassesPageClient)).toHaveLength(0);
+  });
+
+  it("passes no Coach when the shell has no member id", async () => {
+    getDashboardShellContext.mockResolvedValue({ data: { role: "coach", memberId: null, memberName: "" }, error: null, suspended: null });
+
+    const tree = await renderPage();
+
+    expect((tree.props as { coach: unknown }).coach).toBeNull();
+  });
+
+  it("builds each class's edit row: the Coach is its coach, and the cancel count is the booked sum of the sessions later than now", async () => {
+    listMyClasses.mockResolvedValue({
+      data: [
+        {
+          ...HIIT,
+          description: "Evening burn",
+          recurrenceStartDate: "2026-09-01",
+          sessions: [
+            { classSessionId: "session-past", scheduledAt: "2026-09-10T08:00:00Z", bookedCount: 7, matchesSlots: true },
+            { classSessionId: "session-1", scheduledAt: "2026-09-11T17:00:00Z", bookedCount: 11, matchesSlots: true },
+            { classSessionId: "session-2", scheduledAt: "2026-09-14T17:00:00Z", bookedCount: 4, matchesSlots: false },
+          ],
+        },
+      ],
+      error: null,
+    });
+
+    const [hiit] = await classViews();
+
+    expect(hiit.editRow).toMatchObject({
+      id: "class-hiit",
+      name: "HIIT Circuit",
+      description: "Evening burn",
+      coachId: "member-coach",
+      coachName: "Coach One",
+      capacity: 15,
+      scheduleType: "recurring",
+      recurrenceStartDate: "2026-09-01",
+      cancelledAt: null,
+      upcomingBookingCount: 15,
+      nextSessionId: "session-1",
+      nextSessionMatchesSlots: true,
+    });
+    expect(hiit.editRow?.slots).toHaveLength(3);
+  });
+
+  it("a class with no upcoming session has a zero cancel count and no next session", async () => {
+    const [, workshop] = await classViews();
+
+    expect(workshop.editRow).toMatchObject({ upcomingBookingCount: 0, nextSessionId: null, nextSessionAt: null, description: null });
   });
 
   it("hands the client component one view per class, in order", async () => {
@@ -166,6 +288,27 @@ describe("/coach/classes", () => {
     expect(hiit.scheduleLabel).toBe(
       'classes.recurringSummary|{"days":"classes.days.mon, classes.days.wed, classes.days.fri","time":"18:00"}',
     );
+  });
+
+  it("tags a cancelled class and a session kept on an old time (Story 29.2)", async () => {
+    listMyClasses.mockResolvedValue({
+      data: [
+        {
+          ...HIIT,
+          cancelledAt: "2026-09-10T09:00:00Z",
+          sessions: [{ classSessionId: "session-1", scheduledAt: "2026-09-11T17:00:00Z", bookedCount: 11, matchesSlots: false }],
+        },
+        HIIT,
+      ],
+      error: null,
+    });
+
+    const [cancelled, live] = await classViews();
+
+    expect(cancelled.cancelledLabel).toBe("classes.cancel.badge");
+    expect(cancelled.sessions[0].oldTimeLabel).toBe("classes.times.oldTimeTag");
+    expect(live.cancelledLabel).toBeUndefined();
+    expect(live.sessions[0].oldTimeLabel).toBeUndefined();
   });
 
   it("formats capacity and the booked count as locale numbers inside their keys", async () => {
@@ -230,5 +373,162 @@ describe("/coach/classes", () => {
 
     expect(tree.type).toBe(CoachClassesPageClient);
     expect(textContent(tree)).toEqual([]);
+  });
+
+  it("falls back to the first class's timezone when the gym's own read gives none", async () => {
+    getClassesGymTimezone.mockResolvedValue({ data: null, error: null });
+
+    const tree = await renderPage();
+
+    expect((tree.props as { gymTimezone: string | null }).gymTimezone).toBe("Africa/Douala");
+  });
+});
+
+const COACH_A = "11111111-1111-4111-8111-111111111111";
+const COACH_B = "22222222-2222-4222-8222-222222222222";
+const COACH_GONE = "33333333-3333-4333-8333-333333333333";
+
+describe("/coach/classes in picker mode (Story 29.4)", () => {
+  function asRole(role: string) {
+    getDashboardShellContext.mockResolvedValue({ data: { role, memberId: "member-x", memberName: "Staff" }, error: null, suspended: null });
+  }
+  const twoCoaches = {
+    data: [
+      { id: COACH_A, name: "Coach A", isActive: true },
+      { id: COACH_B, name: "Coach B", isActive: true },
+      { id: COACH_GONE, name: "Coach Gone", isActive: false },
+    ],
+    error: null,
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-10T12:00:00Z"));
+    searchParams = {};
+    listMyClasses.mockReset().mockResolvedValue({ data: [HIIT], error: null });
+    getClassesGymTimezone.mockReset().mockResolvedValue({ data: "Africa/Douala", error: null });
+    listPickerCoaches.mockReset().mockResolvedValue(twoCoaches);
+    listCoachClasses.mockReset().mockResolvedValue({ data: [HIIT, WORKSHOP], error: null });
+    asRole("owner");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each(["owner", "supervisor", "manager"])("%s with a coach chosen reads that coach's classes through list_coach_classes and nothing of the Coach's own", async (role) => {
+    asRole(role);
+    searchParams = { coach: COACH_A };
+
+    const tree = await renderPage();
+
+    expect(listCoachClasses).toHaveBeenCalledTimes(1);
+    expect(listCoachClasses).toHaveBeenCalledWith(COACH_A);
+    expect(listMyClasses).not.toHaveBeenCalled();
+    expect(tree.type).toBe(CoachClassesPageClient);
+    expect(tree.props).toMatchObject({ picker: { coachId: COACH_A, coachName: "Coach A" } });
+    expect((tree.props as { coach?: unknown }).coach ?? null).toBeNull();
+    for (const view of (tree.props as { classes: CoachClassView[] }).classes) expect(view.editRow).toBeUndefined();
+  });
+
+  it("formats the chosen coach's sessions with the same server-side labels as the Coach's own list", async () => {
+    searchParams = { coach: COACH_A };
+
+    const tree = await renderPage();
+
+    const [hiit] = (tree.props as { classes: CoachClassView[] }).classes;
+    expect(hiit.className).toBe("HIIT Circuit");
+    expect(hiit.sessions[0].label).toMatch(/18:00/);
+    expect(hiit.sessions[0].bookedLabel).toContain("coachPortal.classes.bookedCount");
+  });
+
+  it("with nothing chosen and several coaches, shows the choose message and loads no coach data", async () => {
+    const tree = await renderPage();
+
+    expect(tree.type).toBe(CoachPickerNotice);
+    expect(tree.props).toMatchObject({ state: { kind: "choose" } });
+    expect(listCoachClasses).not.toHaveBeenCalled();
+    expect(listMyClasses).not.toHaveBeenCalled();
+  });
+
+  it("pre-selects the only active coach by redirecting to Classes with ?coach=", async () => {
+    listPickerCoaches.mockResolvedValue({ data: [{ id: COACH_A, name: "Coach A", isActive: true }, { id: COACH_GONE, name: "Coach Gone", isActive: false }], error: null });
+
+    await expect(renderPage()).rejects.toThrow(`NEXT_REDIRECT:/coach/classes?coach=${COACH_A}`);
+    expect(listCoachClasses).not.toHaveBeenCalled();
+  });
+
+  it("says unavailable, and reads nothing, for a coach id that is not in the list, a malformed one and a repeated one", async () => {
+    for (const value of ["44444444-4444-4444-8444-444444444444", "not-a-uuid", [COACH_A, COACH_B]]) {
+      searchParams = { coach: value };
+      const tree = await renderPage();
+      expect(tree.props).toMatchObject({ state: { kind: "unavailable" } });
+    }
+    expect(listCoachClasses).not.toHaveBeenCalled();
+  });
+
+  it("says inactive, with the name, for a deactivated coach", async () => {
+    searchParams = { coach: COACH_GONE };
+
+    const tree = await renderPage();
+
+    expect(tree.props).toMatchObject({ state: { kind: "inactive", name: "Coach Gone" } });
+    expect(listCoachClasses).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["owner", true],
+    ["supervisor", true],
+    ["manager", false],
+  ])("a gym with no coach: %s sees the no-coaches message (Open Staff: %s)", async (role, canOpenStaff) => {
+    asRole(role);
+    listPickerCoaches.mockResolvedValue({ data: [], error: null });
+
+    const tree = await renderPage();
+
+    expect(tree.props).toMatchObject({ state: { kind: "no-coaches", canOpenStaff } });
+  });
+
+  it("a gym with no coach at all still answers a coach named in the address with unavailable, never with what exists elsewhere", async () => {
+    listPickerCoaches.mockResolvedValue({ data: [], error: null });
+    searchParams = { coach: COACH_A };
+
+    expect((await renderPage()).props).toMatchObject({ state: { kind: "unavailable" } });
+    expect(listCoachClasses).not.toHaveBeenCalled();
+  });
+
+  it("renders the inline load error when the coaches cannot be read, or the classes cannot", async () => {
+    listPickerCoaches.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+    expect(textContent(await renderPage())).toEqual(["common.loadError"]);
+
+    listPickerCoaches.mockResolvedValue(twoCoaches);
+    listCoachClasses.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+    searchParams = { coach: COACH_A };
+    expect(textContent(await renderPage())).toEqual(["common.loadError"]);
+  });
+
+  it("the Coach role ignores a typed ?coach=: their own classes, no picker, no coach list read", async () => {
+    asRole("coach");
+    getDashboardShellContext.mockResolvedValue({ data: { role: "coach", memberId: "member-coach", memberName: "Coach One" }, error: null, suspended: null });
+    searchParams = { coach: COACH_B };
+
+    const tree = await renderPage();
+
+    expect(listMyClasses).toHaveBeenCalledTimes(1);
+    expect(listCoachClasses).not.toHaveBeenCalled();
+    expect(listPickerCoaches).not.toHaveBeenCalled();
+    expect(tree.props).toMatchObject({ coach: { id: "member-coach", name: "Coach One" } });
+    expect((tree.props as { picker?: unknown }).picker ?? null).toBeNull();
+  });
+
+  it("a Receptionist's page is the plain read-only own list, with no coach list read", async () => {
+    asRole("receptionist");
+    searchParams = { coach: COACH_A };
+
+    const tree = await renderPage();
+
+    expect(listPickerCoaches).not.toHaveBeenCalled();
+    expect(listCoachClasses).not.toHaveBeenCalled();
+    expect((tree.props as { picker?: unknown }).picker ?? null).toBeNull();
   });
 });

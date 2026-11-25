@@ -1,4 +1,5 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@/hooks/use-theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
@@ -11,6 +12,9 @@ import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 export default function AppTabs() {
   const theme = useTheme();
   const accent = useGymAccentColor();
+  const { t } = useTranslation();
+  // Story 31.4: five tabs in every state. There is no Progress tab (Progress is a Profile row and a stack route) and the Streak tab is never hidden: it is for
+  // member engagement, not for gyms, so the bar does not read the engagement gate (a hidden native tab also cannot be navigated to and remounts the navigator).
 
   return (
     <NativeTabs
@@ -35,9 +39,9 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf="calendar" md="event" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="progress">
-        <NativeTabs.Trigger.Label>Progress</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" md="show_chart" />
+      <NativeTabs.Trigger name="streak">
+        <NativeTabs.Trigger.Label>{t('engage.streak.tab')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="flame" md="local_fire_department" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="profile">

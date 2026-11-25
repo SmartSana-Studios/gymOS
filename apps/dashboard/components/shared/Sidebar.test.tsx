@@ -5,7 +5,9 @@
  *    file: a Coach's sidebar contains the Coach Portal link and NO Payments,
  *    Members, Settings or Audit Log link. The owner case is the positive
  *    control -- an absence assertion that passes because nothing rendered at
- *    all would be worse than no test.
+ *    all would be worse than no test. Story 29.4 (UX V1.8 sidebar change): the
+ *    Coach Portal item (label coach.portal.nav) is also shown to Owner,
+ *    Supervisor and Manager, after Classes; never to Receptionist or Support.
  *  - The active-state rule: an exact match wins, otherwise the longest href
  *    the pathname sits under, never "/" by prefix.
  *
@@ -94,7 +96,7 @@ describe("Sidebar", () => {
       pathname = "/coach";
       renderSidebar("coach");
 
-      expect(screen.getByRole("link", { name: "nav.coachPortal" })).toHaveAttribute("href", "/coach");
+      expect(screen.getByRole("link", { name: "coach.portal.nav" })).toHaveAttribute("href", "/coach");
       for (const absent of ["nav.payments", "nav.members", "nav.settings", "nav.auditLog"]) {
         expect(screen.queryByRole("link", { name: absent }), absent).toBeNull();
       }
@@ -107,7 +109,7 @@ describe("Sidebar", () => {
       for (const present of ["nav.payments", "nav.members", "nav.settings", "nav.auditLog"]) {
         expect(screen.getByRole("link", { name: present }), present).toBeInTheDocument();
       }
-      expect(screen.queryByRole("link", { name: "nav.coachPortal" })).toBeNull();
+      expect(screen.getByRole("link", { name: "coach.portal.nav" })).toHaveAttribute("href", "/coach");
     });
 
     it("Story 23-6b: GymOS Support sees exactly what the allow-list covers, nothing else", () => {
@@ -115,9 +117,40 @@ describe("Sidebar", () => {
 
       const hrefs = screen.getAllByRole("link").map((l) => l.getAttribute("href"));
       expect(hrefs).toEqual(["/members", "/settings/staff", "/plans", "/subscriptions", "/payments", "/settings/landing-page", "/settings"]);
-      for (const absent of ["nav.overview", "nav.attendance", "nav.classes", "nav.auditLog", "nav.coachPortal"]) {
+      for (const absent of ["nav.overview", "nav.attendance", "nav.classes", "nav.auditLog", "coach.portal.nav"]) {
         expect(screen.queryByRole("link", { name: absent }), absent).toBeNull();
       }
+    });
+  });
+
+  describe("Coach Portal (Story 29.4: the picker for the three admin roles, the Coach's own portal for the Coach)", () => {
+    it.each(["owner", "supervisor", "manager", "coach"] as const)("%s sees it, as a link to /coach", (role) => {
+      pathname = "/";
+      renderSidebar(role);
+      expect(screen.getByRole("link", { name: "coach.portal.nav" })).toHaveAttribute("href", "/coach");
+    });
+
+    it.each(["receptionist", "support"] as const)("%s never sees it: absent from the DOM", (role) => {
+      pathname = "/";
+      renderSidebar(role);
+      expect(screen.queryByRole("link", { name: "coach.portal.nav" })).toBeNull();
+      expect(screen.queryByText("coach.portal.nav")).toBeNull();
+      expect(document.querySelector('a[href="/coach"]')).toBeNull();
+    });
+
+    it.each(["owner", "supervisor", "manager"] as const)("%s: it sits after Classes and before the Audit Log", (role) => {
+      pathname = "/";
+      renderSidebar(role);
+      const labels = screen.getAllByRole("link").map((l) => l.textContent);
+      const i = labels.indexOf("coach.portal.nav");
+      expect(labels[i - 1]).toBe("nav.classes");
+      expect(labels[i + 1]).toBe("nav.auditLog");
+    });
+
+    it("the Coach still sees only that one link", () => {
+      pathname = "/coach";
+      renderSidebar("coach");
+      expect(screen.getAllByRole("link").map((l) => l.getAttribute("href"))).toEqual(["/coach"]);
     });
   });
 
@@ -184,7 +217,17 @@ describe("Sidebar", () => {
         pathname = path;
         renderSidebar("coach");
 
-        expect(activeLinkLabels()).toEqual(["nav.coachPortal"]);
+        expect(activeLinkLabels()).toEqual(["coach.portal.nav"]);
+      },
+    );
+
+    it.each(["/coach", "/coach/classes", "/coach/overview", "/coach/3f2b8c1e-5d4a-4e7b-9c1d-2a6f8e0b7d35"])(
+      "manager on %s keeps Coach Portal lit (the picker's tabs and member page)",
+      (path) => {
+        pathname = path;
+        renderSidebar("manager");
+
+        expect(activeLinkLabels()).toEqual(["coach.portal.nav"]);
       },
     );
   });

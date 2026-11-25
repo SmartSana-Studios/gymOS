@@ -6,7 +6,8 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Pressable, View, StyleSheet, type PressableProps } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -17,6 +18,8 @@ import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { getContrastTextColor } from '@/lib/color-contrast';
 
 export default function AppTabs() {
+  const { t } = useTranslation();
+  // Story 31.4: five tabs in every state, Streak always present; there is no Progress tab (see app-tabs.tsx).
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
@@ -31,8 +34,8 @@ export default function AppTabs() {
           <TabTrigger name="classes" href="/classes" asChild>
             <TabButton>Classes</TabButton>
           </TabTrigger>
-          <TabTrigger name="progress" href="/progress" asChild>
-            <TabButton>Progress</TabButton>
+          <TabTrigger name="streak" href="/streak" asChild>
+            <TabButton>{t('engage.streak.tab')}</TabButton>
           </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
             <TabButton>Profile</TabButton>
@@ -51,7 +54,8 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
   const accent = useGymAccentColor();
 
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
+    // expo-router's slot props still type `ref` against the pre-0.88 View type; at runtime it is the same host element a Pressable takes.
+    <Pressable {...(props as unknown as PressableProps)} style={({ pressed }) => pressed && styles.pressed}>
       <View style={[styles.tabButtonView, isFocused && { backgroundColor: accent }]}>
         <ThemedText
           type="smallBold"

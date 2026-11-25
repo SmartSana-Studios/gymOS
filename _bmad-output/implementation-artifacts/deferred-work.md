@@ -1,5 +1,29 @@
 # Deferred Work
 
+## Deferred from: code review of spec-31-4-streak-tab-and-progress-move (2026-11-24)
+
+- **A reminder tap (N-08) lands on Home with no at-risk cue.** The at-risk hint and Shield chip moved to the Streak tab; Home keeps only the "n-week streak" or "x of y this week" line, so a member who taps the streak-at-risk reminder has to find the fourth tab. The spec keeps "N-08 still opens Home" (no push deep link). Medium, unverified on a device. Options: an at-risk variant of the Home line, or an N-08 deep link to `/streak`. Where: `apps/mobile/src/components/HomeStreakLine.tsx`, `lib/homeStreakLine.ts`.
+- **A gym with the engagement area dark still runs the calendar, leaderboard and a second engagement read on every Streak focus.** Only the engagement read is needed to turn the gate on; `useCalendar` adds `getMyEngagement` and `getMyFirstVisitDay`, so a session makes three engagement reads, not two. Low, two cheap RPCs per focus. Fix: start the calendar and board loads once the gate is `on` (an `enabled` input on `useCalendar`). Where: `apps/mobile/src/app/(tabs)/streak/index.tsx`, `hooks/use-calendar.ts`.
+
+## Deferred from: build of spec-30-7-milestones-and-celebration (2026-11-23)
+
+- **The epoch guard still protects `week` facts only, so a milestone's `silent` flag can disagree with a moved epoch.** A milestone is silent when its Nth distinct visit day is before `release_week_start`, decided once at award time. `private.engagement_epoch_guard` (0185) freezes the epoch once a WEEK fact exists, and an existing pgTAP test pins that; it does not look at milestone facts. An operator who moves the epoch after members have opened the app (so milestone facts exist but no week fact yet, e.g. every member still inside the first week) would leave those facts with the old epoch's silent decision. Rule for the operator, recorded in decisions.md: set the epoch once and do not move it after members have opened the app. Extending the guard to `kind in ('week', 'milestone')` is one line plus an edited 30.2 test; not done here because the spec freezes that test.
+- **A suspended gym keeps a shown-but-unacknowledged milestone retrying on every Home load.** `acknowledgeMilestone` maps a suspended gym to `gym_suspended`, which the shown-store treats as "retry later" (the member is routed away from Home while suspended, so in practice the retry runs after reactivation). Nothing is lost; noted so a future change does not mark it settled.
+
+## Deferred from: code review of spec-29-4-coach-picker-for-owner-supervisor-and-manager (2026-11-21)
+
+- **`coach_picker_indexes.test.sql` explains hand-copied SQL, not the shipped function bodies.** The `classes_sql` and `members_plan` strings re-type the two list queries with literals; nothing ties them to `pg_proc.prosrc`, so dropping `cs.gym_id = v_gym_id` or changing `c.coach_id = p_coach_id` in 0183 keeps the "no sequential scan" assertions green (the 2 s timing check passes at 40 classes). Deferred: performance guard on a bounded fixture, functional gates well covered. Cheap fix: assert the key predicates and the `idx_*` join shape appear in `prosrc` after whitespace normalisation, or run `EXPLAIN` on a SQL-language twin.
+
+## Deferred from: build of spec-29-4-coach-picker-for-owner-supervisor-and-manager (2026-11-20)
+
+- **`list_picker_coaches()` returns deactivated coaches too, with `is_active`.** The spec describes it as active coaches (id and name) but also needs the `inactive` state, and the picker may use only the seven RPCs. Confirmed as built by the code review of 2026-11-21 (decisions.md 29.4); the strict alternative (active only, `unavailable` for a deactivated coach) is one line in `coach/pickerContext.ts` and the migration (docs/decisions.md 29.4).
+- **0183's rollback is not executed by any stage** (the same gap as 0182's). It was run once, in a rolled-back transaction, against the local database on 2026-11-20 (apply, roll back, verify block passes). Rehearse it on a snapshot before the production deploy, together with 0180 to 0182.
+- **Whether viewing another person's coach view should be logged** is the UX contract's open `[NOTE FOR UX]` on AD-32 (read access to session notes). Not required by FR-247; nothing is audited. Owner to decide.
+- **The member photo is returned (`photo_url`) but not shown.** The picker header keeps the initial avatar of the Coach's own view; rendering the stored photo needs a decision on where those photos live and how they are signed.
+- **The coach select is read once per layout render.** A coach added in Staff appears in the select after a refresh (`router.refresh()` or a reload), not on a soft navigation inside the Coach Portal; the page itself always reads the list fresh, so a new coach chosen by URL works at once.
+- **`nav.coachPortal` is now unused** in both dashboard locales (the Sidebar label is `coach.portal.nav`). Remove it with the next locale clean-up.
+- **Owner browser QA (the one at the end of Epic 29):** the select takes focus on `/coach` with nothing chosen, the banner reads as neutral (not an info or warning colour), the Members table with the note-snippet column at narrow widths, the member page on a phone, French copy of Group G. The automated E2E (`coach-picker.spec.ts`) proves structure and data, not looks.
+
 ## Deferred from: epic 24 end, full ci-local on epic/24 (2026-11-10)
 
 - **Make `ci-local` run the real `pg_prove` too.** `scripts/pgtap-run.sh` is a plain-psql runner with its own TAP counting; PR 122's rls-tests failure showed it can disagree with the parser CI uses (it now rejects unnumbered `ok` lines, but other parser differences may exist). The pg_prove image is on this machine (`public.ecr.aws/supabase/pg_prove:3.36`) and works through a throwaway container with `docker cp` (never a bind mount); a `--pgprove` option or an extra stage would close the gap for good. Also: epic stories merge into `epic/N` without GitHub Actions, so CI only meets the code at epic end; consider a manual `gh workflow run` on a story PR for any story that adds pgTAP files.
@@ -2159,3 +2183,294 @@ Lab, local results only (one machine runs the server, the database, the load and
   summary: `scripts/correct-plan-race.sh` uses fixed sleeps (0.6 s, 0.8 s against a 2 s hold, an `elapsed >= 1000` ms assert), a `pg_stat_activity` LIKE on query text, and greps `ERROR:  <code>`; medium, unverified.
   evidence: not read in this review; older race scripts share the shape. Would settle it: run it ten times under CPU load and see whether a case flakes; if so poll for the blocked waiter and match SQLSTATE/detail.
   update 2026-11-18 (after merge): confirmed flaky in practice. The first full ci-local on c6b3e1b failed at case 1a; alone, 17 of 21 back-to-back runs passed, the 4 failures including a run that collapsed from its first case (rows=0, invalid uuid) and one with no verdict, consistent with overlapping detached `docker exec -d` copies (not proven); 6 of 6 passed when each run waited for the container to be idle. Fix: poll `pg_stat_activity` for the blocked waiter instead of `sleep 0.6/0.8`, and make the launcher refuse to start while `ci-cp-race.sh` is already running.
+- source_spec: `_bmad-output/implementation-artifacts/spec-28-1-session-validity-setting-and-session-record-changes.md`
+  summary: `platform_session_config.single_use_visit_limit_minutes` can only be changed by a Super Admin running SQL; there is no Super Admin UI or runbook step for it.
+  evidence: Story 28.1 only adds the column, its audit and the Owner read function; the tests change it with a direct UPDATE. Decide before or at Story 28.2 whether the limit needs a Super Admin control.
+
+## Deferred from: code review of spec-28-1-session-validity-setting-and-session-record-changes (2026-11-19)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-28-1-session-validity-setting-and-session-record-changes.md`
+  summary: `guest_sessions.covered_booking_id` references `class_bookings(id)` with no ON DELETE action, and class_bookings rows are hard-deleted in 0058, 0090 and 0124; medium.
+  evidence: nothing in 28.1 writes the column, so no failure today. Once Story 28.3 writes class-cover rows, deleting a booking that covers a consumed session raises FK 23503. Put the cancel / member-delete behaviour into Story 28.3's acceptance criteria with a pgTAP case.
+- source_spec: `_bmad-output/implementation-artifacts/spec-28-1-session-validity-setting-and-session-record-changes.md`
+  summary: the platform visit-limit control entry above says "decide before or at Story 28.2"; by the Epic 22 retro rule (deferrals naming a later story are acceptance criteria) it belongs in Story 28.2's criteria.
+  evidence: deferred-work.md entry for 28-1 (no Super Admin UI or runbook for `single_use_visit_limit_minutes`). Fix edits epics.md, so it is recorded here rather than patched.
+
+## Deferred from: build of spec-29-1-class-schedule-slots-foundation (2026-11-20)
+
+- **Clean-up migration: drop `classes.recurrence_days` and `classes.recurrence_time`.** Story 29.1 keeps both columns (spine AD-57): `create_class` and `update_class` still write them next to the slots, `list_my_classes` (0096) and the dashboard still read them, and the recurring-class CHECK now lets them be null. Drop them only after Story 29.2 has moved every reader and writer to the slots (`list_my_classes` output, `services/classes.ts`, the Classes page and the Coach My Classes page), and after `scripts/rollback-0180-class-schedule-slots.sql` is retired (it needs the columns to restore). Until then a class that has a second time on one weekday or a different time per day (possible from 29.2) has slots that the legacy columns cannot describe.
+- **The materializer's rolling window is the server date, not the gym's local day.** `private.materialize_sessions_for_class` still builds `current_date .. current_date + 4 weeks` from the database server's date (UTC) and compares gym-local dates inside it, so for a gym far from UTC the window's first and last local day can be off by one around midnight. Existing behaviour since 0057, deliberately unchanged by 29.1 (the daily job at 02:00 UTC makes it rarely visible); fix by deriving the window from the gym's local date if a gym ever reports a missing first or last session.
+- **A migrated class whose `recurrence_time` has seconds, or is 24:00 or later, or has a day outside 0..6, is refused by 0180's pre-flight.** The slot CHECK is minute precision (UX AD-19) and the expansion copies `recurrence_time` as is, so such a legacy row cannot be expanded. The `$preflight$` block at the top of 0180 refuses before any DDL and names the class ids, so nothing is half-applied. The create form only offers minutes, so none is expected; the snapshot rehearsal before the production apply is where it would show (see the pre-flight test entry under the code review heading below).
+
+## Deferred from: review of spec-29-1-class-schedule-slots-foundation (2026-11-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: a direct UPDATE of `classes.recurrence_days`, `recurrence_time` or `recurrence_start_date` does not refresh the slots. `classes_derive_slots` is AFTER INSERT only; every app writer goes through `create_class` / `update_class`, which write both.
+  evidence: 0180 trigger list. Story 29.2 stops writing the legacy columns, so decide there whether to revoke column UPDATE on them or add an UPDATE trigger.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: after a gym time-zone change, a later slot edit (`private.apply_class_slots`) judges existing sessions in the NEW zone. Unbooked sessions generated in the old zone are deleted and regenerated at the new zone's instants, and booked ones are all listed as left unchanged. The daily job alone moves nothing (proved in `class_schedule_slots.test.sql`).
+  evidence: 0180 `apply_class_slots` match rule (instant of `(local date + slot time) at time zone <current gym zone>`). Decide in 29.2 whether the editor's result view needs to say why many sessions are listed after a zone change.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: `apply_class_slots` compares `recurrence_start_date` with the gym-local date of each session, while the materializer's window is built from the server date (`current_date`). Around local midnight in a gym far from UTC the two can disagree by a day at the window edges.
+  evidence: 0180 sections 7 and 8; related to the existing "rolling window server-date imprecision" entry for this story.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: `update_class`'s type-change branch and the one-off `materialize_class_sessions(id, true)` reschedule check for bookings and then delete future sessions without locking them. A booking landing between the check and the delete gives an FK error. Pre-existing since 0058; the recurring path through `apply_class_slots` locks and re-checks and is not affected.
+  evidence: 0180 `update_class` else-branch and `materialize_class_sessions` one-off branch. Lock the sessions in `scheduled_at` order after the class lock (AD-21) if one-off reschedules over bookings stay reachable.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: the backfill INSERT is proven only by the migration's own `do $verify$` block (the pgTAP test re-runs the same statement on fixtures, and local databases have no recurring classes). Before production, rehearse the migration file against a snapshot that has recurring classes with bookings, and rehearse `scripts/rollback-0180-class-schedule-slots.sql` once (apply, rollback, re-apply). The local apply, rollback and re-apply on an empty database was done 2026-11-20.
+  evidence: `docs` runbook for prod migrations (nightly R2 dump is the backup; trigger it before the migration).
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: the materializer equivalence test crosses a daylight-saving transition only when the 4-week window contains one (`current_date` cannot be injected). The DST gap case is covered separately by `apply_class_slots` matching a session inserted at the next real transition, which is date-independent.
+  evidence: `supabase/tests/class_schedule_slots.test.sql` equivalence and DST sections.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: `private.apply_class_slots` does no payload validation beyond what the table constraints give (a null, empty or non-array payload is refused; weekday, seconds and 24:00 are refused by CHECKs with raw constraint messages; duplicates are collapsed). Story 29.2 must validate the slot payload and return its stable messages before calling it.
+  evidence: 0180 `apply_class_slots`; the 29.2 acceptance criteria list the stable messages.
+
+## Deferred from: code review of spec-29-1-class-schedule-slots-foundation (2026-11-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-1-class-schedule-slots-foundation.md`
+  summary: the `$preflight$` block at the top of 0180 (seconds or 24:00 in `recurrence_time`, a day outside 0..6) has no automated test: pgTAP databases have no recurring classes when the migration runs, so the refusal never has a row to reject. Low; a one-shot guard.
+  evidence: 0180 `$preflight$`. Would settle it: on the pre-deploy snapshot rehearsal, insert a recurring class with `recurrence_time` `18:00:30` and one with a day of 7 and confirm the migration refuses and names both ids.
+
+## Deferred from: bmad-build of spec-29-2-per-day-slot-editor-and-cancel-class (2026-11-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: a direct UPDATE of `classes.recurrence_days` / `recurrence_time` still does not refresh the slots (29.1 deferral). 29.2 stops the dashboard writing them (the new overloads store null, the old `update_class` wrapper still writes them for the rollout window), so the legacy columns are now dead weight; the clean-up migration that drops them (and revokes column UPDATE meanwhile) is still owed.
+  evidence: 0181 `update_class` old signature; `deferred-work.md` 29.1 entry.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: the previous dashboard release reads `recurrence_days`/`recurrence_time` directly. Until the new dashboard is deployed, (1) a per-day class created by the new release shows no days on its admin Classes page, (2) its Coach My Classes page shows a blank schedule for every class, because `list_my_classes()` no longer returns those two columns, and (3) its edits go through the old `update_class`, which follows the new slot rule on a one-off/recurring switch and returns void, so it never shows the sessions an edit left on their old time. Accepted for the rollout window; deploy the dashboard right after the migration.
+  evidence: 0181 header (comments); `docs/decisions.md` 2026-11-20 entry.
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: after a gym time-zone change the result view lists many sessions with no explanation (the 29.1 deferral on `apply_class_slots` judging sessions in the new zone). Not addressed in the result view.
+  evidence: 29.1 deferral "after a gym time-zone change".
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: `update_class` re-runs `apply_class_slots` on every edit of a recurring class, so a name-only edit of a class that holds booked old-time sessions shows the result view listing them again. Idempotent by design (the spec's repeat-edit rule); a quieter result view for an unchanged time list is a UX call.
+  evidence: 0181 `update_class` (p_slots).
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: Time fields of the weekly-times editor are text inputs (HH:MM, tidied on blur) rather than `<input type="time">`, to guarantee 24-hour entry on every OS locale. Check on a real phone browser during the Epic 29 browser QA.
+  evidence: `WeeklyTimesEditor.tsx`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-29-2-per-day-slot-editor-and-cancel-class.md`
+  summary: Nothing tests that the Classes page passes `getClassesGymTimezone()` through to the modal, so the "Times are in the gym time zone" line can disappear unnoticed.
+  evidence: Review pass 1 (verification-gap): `ClassesPageClient.weeklyTimes.test.tsx` passes `gymTimezone` as a prop and `class-weekly-times.spec.ts` never asserts the line; dropping the prop in `classes/page.tsx` fails no test. Cosmetic; one e2e assertion on the open dialog closes it.
+
+## Deferred from: code review of spec-29-2-per-day-slot-editor-and-cancel-class, chunk 2 (2026-11-20)
+
+- **`listClasses()` reads every future session of the gym in one PostgREST query (`max_rows = 1000`, `supabase/config.toml:18`), and the Cancel class dialog count now depends on it.** The fetch is ordered by `scheduled_at` ascending, so a gym with more than 1000 sessions from now minus the grace window (about 40 classes at five sessions a week over the four-week window) loses its latest sessions silently. Before 29.2 that only cost a class its next-session label; now `upcomingBookingCount` undercounts and the dialog can say "3 bookings are cancelled" when the server cancels more (the toast and audit carry the real count). Pre-existing query, new consequence. What would settle it: a gym fixture or a count query showing more than 1000 rows. Fix when it matters: count bookings per class in an RPC, or read the number when the dialog opens. (EC, BH)
+
+## Deferred from: build of spec-29-3-coaches-create-edit-and-cancel-their-own-classes (2026-11-20)
+
+- **The audit label for `class_created` (Manager, Supervisor, Owner) does not exist.** `AUDIT_ACTION_TYPE_LABEL_KEY` has no `class_created` or `class_edited` entry, so the audit log shows the raw action name for them (and the generic `key: value` Details cell). Story 29.3 adds only `class_created_by_coach` (label "Class created", Details "NAME · capacity N"), as the story asks, although its text says the other roles "use the existing class-created label". Add `class_created` and `class_edited` labels in one pass if the owner wants the two reads to look alike.
+- **`/classes` for a Coach shows the shared `errors.permissionDenied` text ("You don't have permission to do this."),** not the story's "do that" wording (another key). Either is accepted as the "global" message; align the wording if the owner cares.
+- **`coachPortal.classes.emptyNoClasses` is still used** (for a reader who is not the signed-in Coach, the future read-only picker), alongside the new `classes.coach.empty` for the Coach.
+- **Browser QA for Epic 29 (owner, once at the end of the epic):** the Coach modal and Cancel dialog layout on a narrow phone width, focus return to the row's [Edit] after [Done], and the [+ Create class] button placement beside the Coach Portal sub-navigation (the UX sketch puts it at the right of the tab row; this build puts it above the list).
+
+## Deferred from: code review of spec-29-3-coaches-create-edit-and-cancel-their-own-classes (2026-11-20, pass 2, chunk 1 of 2)
+
+- **The 0182 rollback script is never executed by any test or CI stage.** `scripts/rollback-0182-coach-own-classes.sql` has its own `do $verify$` block, but nothing runs it; its function bodies were diffed equal to 0181 by the review layer. Repo-wide convention (0181 and earlier). Before any production deploy: apply 0182, run the rollback, check a Coach `cancel_class` is `permission denied` and `list_my_classes` has no `description` column, then re-apply 0182, on the local DB and on a snapshot with recurring classes. [scripts/rollback-0182-coach-own-classes.sql]
+
+## Deferred from: code review of spec-29-3-coaches-create-edit-and-cancel-their-own-classes (2026-11-20, pass 2, chunk 2 of 2)
+
+- **Focus return on the Coach My Classes page is not asserted, and not implemented after a create or a completed cancel.** `CoachClassDialogs` restores focus to the row's [Edit] after an Edit save and to [Cancel class] or [Edit] after [Keep class], with no test (the admin page has one, `ClassesPageClient.weeklyTimes.test.tsx:440`); after a create (no ref on [+ Create class]) and after a cancelled class's buttons are removed, focus drops to the body. Closes with the Epic 29 browser QA item on focus return; add `waitFor(() => expect(button).toHaveFocus())` cases to `CoachClassesPageClient.coachControls.test.tsx` and a ref on the create button. [apps/dashboard/app/(dashboard)/coach/classes/components/CoachClassesPageClient.tsx]
+- source_spec: none
+  summary: `supabase/tests/single_use_check_in.test.sql` test 124 ("whole_day: the day row links the first entry (0175 behaviour)") can fail under the real pg_prove when the machine is busy.
+  evidence: Seen once in a full ci-local run on chore/next-16-4-6 (have 8becbca8..., want c3680ad0...); 6 of 6 runs of the file alone under pgprove-run.sh pass. Both attendance rows come from scans inside one transaction, so `now()` gives them the same checked_in_at and created_at and `order by checked_in_at, created_at limit 1` is a tie decided by heap or plan order. Settle by ordering on what the function links (its own first-entry rule) or on `id`/ctid after checking which.
+- source_spec: none
+  summary: `apps/dashboard/e2e/class-weekly-times.spec.ts` (Story 29.2) fails its first attempt whenever it runs after the first slot of the day has passed, and only passes on the CI retry.
+  evidence: Seen on 2026-11-21 at 12:12 gym time (Saturday) in four full ci-local runs and alone with retries off; the spec books the class's soonest bookable session and then expects the expanded row's first session to carry the Old time tag. At 12:12 on a Saturday the class's Sat 09:00 and 09:30 sessions are past, so the soonest session is Monday's and the first listed one is the new, tag-less Saturday session. It passed first time around 02:00 gym time the same day. Settle by booking the session that the row lists first, or by choosing the weekday and times relative to now.
+
+- ~~Story 30.4 must consume the one-shot `pendingToast` on Home as well as Profile, or stamp it with a time and ignore an old one, because Home's "Goal: N days" button opens `/goal` too.~~ **Closed 2026-11-23 by Story 30.4** (source: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`): Home consumes it through the shared `useFocusToast` hook (`apps/mobile/src/hooks/use-focus-toast.ts`, also used by Profile), pinned by a source scan in `weeklyRing.source.test.ts`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`
+  summary: Story 30.2 must decide whether `platform_engagement_config.release_week_start` can be moved earlier or cleared once any week has been settled.
+  evidence: 30.1 only requires a Monday or NULL and audits every change; the operator can set it back to NULL or move it after settle has written week facts, which would change which weeks count. Unverified: no settle exists yet. Close in 30.2's acceptance criteria (a guard or a documented rule).
+
+## Deferred from: code review of spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog (2026-11-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`
+  summary: Story 30.2 must decide how the goal in force is recorded for a member with no `member_weekly_goals` row, because `set_weekly_goal` and `my_weekly_goal` read `platform_engagement_config.goal_default` live.
+  evidence: `0184_engagement_config_weekly_goal.sql` lines 266 and 370 return `coalesce(v_cur, v_cfg.goal_default)`; an operator edit to `goal_default` changes the goal in force for every default member, past weeks included, and the sheet cannot record an explicit 3 (spec deviation 12). The epic rule says the goal in force is recorded per week and never rewritten. Unverified: no settle exists yet. Close in 30.2's acceptance criteria (snapshot the default per week, or refuse a `goal_default` change once any week has settled).
+- ~~Catalog wording hard-codes operator-tunable values: `engage.ring.goalHint.default` ("3 days a week") and `engage.shield.explainer.body` ("Every 4 weeks"), and `engage.streak.daily` has no plural form.~~ **Closed 2026-11-23 by Story 30.4** (source: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`): `engage.ring.goalHint.default` is plural and takes `{{count}}`; `engage.test.ts` fails on a literal day or week count in any `engage.*` value. The Shield explainer's "Every 4 weeks" stays the one named exception and is still open for Epic 31 (`shield_every_weeks`), as is the missing plural of `engage.streak.daily`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`
+  summary: ~~Epic 31 acceptance line (open remainder of the closed entry above): `engage.shield.explainer.body` must take the Shield interval as a `{{count}}` placeholder instead of the literal "Every 4 weeks" (`shield_every_weeks`), `engage.test.ts` must then drop its named exception for that key, and `engage.streak.daily` needs a plural form (`daily_streak_min`).~~ **Closed 2026-11-23 by Story 31.1** (source: `_bmad-output/implementation-artifacts/spec-31-1-streak-shields-and-comeback.md`): `engage.shield.explainer.body` is a plural key taking `{{count}}` (the row's `shield_every_weeks`) and `{{max}}` in EN and FR, `engage.test.ts` no longer has `KNOWN_LITERALS` and pins both placeholders, and `engage.streak.daily` has `one` and `other` forms (the daily streak itself stays deferred).
+  evidence: 30.4 closed only the goal-hint half; its `engage.test.ts` literal-config check excludes the Shield explainer by key, so the exception outlives its reason unless Epic 31 removes it. Close before the Shield explainer ships.
+- ~~Story 30.4's Home hint must read the same `markGoalHintSeen` flag that `goal.tsx` writes on open, and a test must pin that contract.~~ **Closed 2026-11-23 by Story 30.4** (source: `_bmad-output/implementation-artifacts/spec-30-1-engagement-configuration-weekly-goal-and-wording-catalog.md`): `weeklyRing.source.test.ts` pins that `goal.tsx` writes the flag in its open effect and that Home reads it (`readGoalHintSeen`) and clears it on tap (`markGoalHintSeen`).
+
+- ~~Story 30.3 must remove the stand-in `dirty_from` mark from `scripts/engagement-race.sh` (its check-in session inserts into `engagement_state` itself) once `record_check_in` and `void_staff_check_in` mark `dirty_from` under the member lock, and must prove the mark with a pgTAP case and the race.~~ **Closed 2026-11-22 by Story 30.3** (source: `_bmad-output/implementation-artifacts/spec-30-2-engagement-facts-the-fold-and-settle.md`): the stand-in is gone from `scripts/engagement-race.sh` (the check-in session runs only the real `private.record_check_in`, which marks), `record_check_in` and `void_staff_check_in` mark `dirty_from` (migration 0186), and the mark is proven by `engagement_dirty_mark.test.sql`, `engagement_journey.test.sql` and the race. `engagement_settle` and `engagement_determinism` keep direct marks on purpose (fixed March 2026 fixtures the real clock cannot reach); their headers say so.
+
+## Deferred from: build of spec-30-3-settle-triggers-and-the-at-risk-state (2026-11-22)
+
+- ~~Story 30.4 must call `open_engagement()` once per open when `needsSettle` is true, never in a retry loop on the flag.~~ **Closed 2026-11-23 by Story 30.4** (source: `_bmad-output/implementation-artifacts/spec-30-3-settle-triggers-and-the-at-risk-state.md`): `loadEngagement` (`apps/mobile/src/lib/weeklyRing.ts`) calls it at most once per focus and renders the returned row as it is; `weeklyRing.test.ts` proves one call even when the flag stays true and no retry after a failure; a source scan pins no loop.
+
+## Deferred from: code review of spec-30-3-settle-triggers-and-the-at-risk-state (2026-11-22)
+
+- ~~Reconcile `epics.md` Story 30.3 with the owner-approved candidate and `needs_settle` rule (earliest visit day's Monday on or before the last closed Monday, not before the epoch).~~ **Closed 2026-11-23 by Story 30.4** (source: `_bmad-output/implementation-artifacts/spec-30-3-settle-triggers-and-the-at-risk-state.md`): epics.md Story 30.3 was reconciled with the owner-approved candidate and `needs_settle` rule on 2026-11-23, before 30.4 was specced.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-3-settle-triggers-and-the-at-risk-state.md`
+  summary: Unverified medium: the hourly `engagement_settle_candidates` query may be slow at scale (a `min(visit_day)` subselect over the `member_visit_days` view per non-dirty member of every active gym, re-run per 200-row batch).
+  evidence: no EXPLAIN or timing exists. Settle it with `EXPLAIN (ANALYZE, BUFFERS) select * from private.engagement_settle_candidates(null, 200)` on a seeded DB of about 50k members over 50 gyms, before `release_week_start` is set on production.
+
+## Deferred from: build of spec-30-4-weekly-ring-and-streak-on-home (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
+  summary: ~~Story 30.5 acceptance line: the "This week" card on Home is tappable as a whole and opens `/calendar`.~~ **Closed 2026-11-23 by Story 30.5** (`onPressCard` on `WeeklyRingSection`, card-level button with `engage.ring.cardHint`, the goal button and goal hint stay separate targets; pinned by a source scan in `weeklyRing.source.test.ts`).
+  evidence: 30.4 leaves the card without an `onPress` because the route does not exist until 30.5 (an absent route shows an unmatched screen). 30.5 must add the card's `onPress` in `apps/mobile/src/components/WeeklyRingCard.tsx` (the `WeeklyRingSection` Card), a card-level accessibility role and the `engage.ring.cardHint` hint (key already in both locale files), and keep the goal button and the Shield chip as their own targets.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
+  summary: Offline overlay counts one dashed segment per queued scan today even when the cached row already says `visitedToday`. **OPEN for Home's ring.** (The calendar half was closed 2026-11-23 by Story 30.5: a queued scan lights today dashed only while `!visitedToday`, pinned by `calendarView.test.ts`. Home's ring still counts one dashed segment per queued scan beside a visited day; that half is not changed.)
+  evidence: The spec fixes "one dashed segment per queued scan whose scannedAt is at or after the cached dayStartsAt, capped at the goal". A member who visited online earlier today and scans again offline sees one extra dashed segment until the sync corrects it (two scans on one day are one visit day). Decide in a later pass whether the overlay should skip the day when `visitedToday` is true.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
+  summary: The Home engagement hook (`use-home-engagement.ts`) and the shared toast hook (`use-focus-toast.ts`) are covered only by source-text scans, so their cache write, cached fallback, settle-failure flag, hint dismissal, queued overlay and toast timing can regress with a green Vitest run.
+  evidence: The mobile app has no render tooling (node-env Vitest, accepted in the 30-4 spec's Design Notes). Fix when a renderer exists, or sooner by moving the hook's state transitions into a pure reducer in `lib/weeklyRing.ts` (previous state, load outcome, cache result in; next state and cache-write intent out) and testing it. The verification-gap reviewer demonstrated five single-line mutants that all pass today.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
+  summary: Unverified medium: a cached `my_engagement()` row from an earlier gym day or week is shown as the current week when the phone stays offline past the week's end (last week's ring, closed state and streak).
+  evidence: The spec shows the last stored result and the device does no week arithmetic; the at-risk hint is hidden once the cached `dayEndsAt` has passed, but the ring, caption and streak are not. Would be settled by opening Home offline on a phone whose cache is older than its `weekEnd`; a fix could hide the card or the counts once the device clock is past the cached `dayEndsAt` by more than a day, which needs an owner call on what to show.
+
+## Deferred from: code review of spec-30-4-weekly-ring-and-streak-on-home (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
+  summary: Unverified medium: Home does not reload when the app resumes on Home after the gym's midnight or Monday, so the ring, caption and streak show the closed day or week until the next tab focus or pull to refresh.
+  evidence: `use-home-engagement.ts` loads on `useFocusEffect`, which does not fire on an AppState resume; the at-risk hint hides itself once `left` is not positive, nothing else does. Settle it with a device pass: background the app Sunday night, open it Monday on Home. A fix is an AppState reload for the whole Home (a Home-level change, not engagement alone).
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
+  summary: The Home engagement hook and the shared toast hook still have no behavioural test (second review, same gap as the build entry above).
+  evidence: The verification-gap reviewer's mutants (delete `writeEngagementCache`, the cached fallback commit, `gym_id` in the `members` select, the `latest()` guard in `finally`, the `Platform.OS === 'web'` or `offline` condition on the queued-scan read) all leave Vitest green. Close with the pure reducer in `lib/weeklyRing.ts` proposed in the build entry.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-4-weekly-ring-and-streak-on-home.md`
+  summary: The offline card (cached ring, dashed queued-scan segments, `engage.home.error`) is unreachable: Home's own `users`, `gyms` and `members` queries run first and a failure sets Home's `loadError` before `loadEngagementForHome` is called.
+  evidence: `apps/mobile/src/app/(tabs)/index.tsx` lines 236-252 return on any query error, the section sits inside `!loadError && hasLoadedOnce`, and the cache key needs `gym_id` from the `members` query. Review decision 2026-11-23 (delegated to the reviewer): accept for 30.4, because showing the card offline means Home itself must work offline (a last-known `gym_id` on the device, and a decision on what Home shows around the ring), which is a Home-wide change and not mobile engagement alone. The hook's cached fallback stays as written. Close in the story that makes Home usable offline, or in the epic-end device QA if the owner wants the AC met earlier.
+
+## Deferred from: build of spec-30-5-attendance-calendar (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: ~~Story 30.6 acceptance line: its load script records the NFR-029 server time of `public.my_visit_days(date)` and `public.my_first_visit_day()` for a member with two years of attendance at the largest tier's member cap.~~ **Closed 2026-11-23 (Story 30.6):** `scripts/engagement-load.sh` records p50 and p95 of `my_visit_days(date)` and `my_first_visit_day()` (and `gym_leaderboard` and `my_engagement`) at max(member_cap) and at 2,000 members, two years of attendance each; the figures are in the docs/decisions.md entry of 2026-11-23 (Story 30.6).
+  evidence: Owner decision 2026-11-23: the figure moves from 30.5's Definition of Done to 30.6, whose load script already seeds the leaderboard at that scale. 30.5 recorded only a one-off local timing (1,000,000 events over 2,000 members and two years: 13 to 23 ms per call as measured through psql, see the spec's Implementation Notes), which is not the NFR-029 baseline.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: The calendar hook (`use-calendar.ts`) and the screen are covered only by the pure view model's tests and source-text scans, so its fallback to the device cache, month sequencing, reconnect reload and the pull to refresh can regress with a green Vitest run.
+  evidence: The mobile app has no render tooling (node-env Vitest). Same remedy as the Home hook entry above: move the hook's transitions into a pure reducer in `lib/calendarView.ts` once a renderer exists or sooner. The owner's end-of-epic device pass covers it by hand.
+
+
+## Deferred from: code review of spec-30-5-attendance-calendar.md (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: The open calendar does not follow gym midnight: today, the current-month bound and the next chevron stay on yesterday until the screen is refocused or pulled to refresh.
+  evidence: `apps/mobile/src/hooks/use-calendar.ts` ticks only `deviceNowMs`; it never reloads when the server-adjusted clock passes `dayEndsAt`. Same shape as the Home deferral from 30-4 (no AppState or `dayEndsAt` reload); settle both together with a device pass (background on Sunday night, open Monday) and fix with one shared reload-at-`dayEndsAt` rule. Medium.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: The week group label ("Week of 10 November, 3 visit days") is a 1x1 `opacity: 0` text that VoiceOver may not read.
+  evidence: `CalendarGrid.tsx` draws it as a zero-alpha element. Unverified (maybe-false, medium if true): settle with a VoiceOver pass on the calendar during the owner's end-of-epic device QA; if skipped, give the week row an `accessibilityLabel` on a real grouping view instead.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: `use-calendar.ts` transitions are covered only by source scans; mutants pass.
+  evidence: Dropping the `monthRef.current === target` half of `current()` (a slow October answer overwrites November), the cached fallback, or the `shift` bounds keeps Vitest green (verification-gap review). Fix with a pure reducer in `lib/calendarView.ts`, the same fix as 30-4's hook deferral; do both at once.
+
+## Deferred from: code review pass 2 of spec-30-5-attendance-calendar.md (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: ~~The `invalid_month` bound of `my_visit_days` (gym month, via `private.gym_today`) is not pinned by a test that controls the clock.~~ **Closed 2026-11-23 (Story 30.6):** `leaderboard_ranking.test.sql` replaces `private.gym_today` inside its rolled-back transaction with a fixed date (2031-01-15, then 2020-06-15) and asserts the `invalid_month` bound of both `my_visit_days` and `gym_leaderboard` follows it; both functions were shown failing with `current_date` in place of the gym clock (mutants applied, test failed, restored).
+  evidence: Replacing `private.gym_today(v_gym_id)` with `current_date` keeps every assertion in `my_visit_days.test.sql` and `.negative.test.sql` green; the two agree except around a month edge for a non-UTC gym. A deterministic test needs an injectable clock (`gym_today` reads the transaction clock). Record with Story 30.6's load/clock work; patch sooner if a cheap seam exists.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: Add two mutants to the `use-calendar.ts` hook-transitions entry above: `connected: offline` in `buildCalendarView` (restores the wrong "isn't saved on your phone" face on a server error) and `else next = null` on a failed refresh (restores the grid-to-error swap) both keep Vitest green.
+  evidence: Verification-gap review pass 2. The planned pure reducer for the hook's transitions would close these with the others.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: Unverified medium: the at-risk live region sits inside Home's button-role `Pressable` (30.5 made the card one button); Android may swallow it or announce the hint twice (card label plus live region).
+  evidence: `WeeklyRingCard.tsx` wraps `CardBody` (which holds `AtRiskHint`) in an accessible Pressable. Settle with a TalkBack pass on Home with an at-risk member at the end-of-epic device QA.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: Unverified medium: the grid's `Intl.DateTimeFormat` use (`timeZone: 'UTC'`, narrow weekdays, French month names) is proven only under Node's ICU, not Hermes on iOS and Android.
+  evidence: Settle with the French-locale pass on both platforms at the end-of-epic device QA (narrow weekday letters, month and weekday names, week labels).
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-5-attendance-calendar.md`
+  summary: ~~Story 30.6's acceptance criteria in `epics.md` do not yet carry the NFR-029 baseline line (record the server time of `my_visit_days` and `my_first_visit_day` for a member with two years of attendance at the largest tier's member cap).~~ **Closed 2026-11-23 (Story 30.6):** the line is carried by the 30.6 spec and `scripts/engagement-load.sh`; `epics.md` is deliberately NOT edited by 30.6 (it would stale `epic-30-context.md`), and the owner may add the NFR-029 line to Story 30.6 there. Nothing further for the story.
+  evidence: Per the owner decision of 2026-11-23 the figure moved to 30.6, but only this file records it. Add the line to `epics.md` Story 30.6 (a planning spec, so not edited by this review) before 30.6 is built.
+
+## Deferred from: build of spec-30-6-gym-leaderboard-and-anonymous-choice (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-6-gym-leaderboard-and-anonymous-choice.md`
+  summary: `public.my_engagement()` takes about 1.25 s for one call and about 5 s (p50) to 9 s (p95) ten at a time at 2,000 members with two years of attendance (384,000 check-ins), so Home's ring card misses the 2-second NFR-029 target at that gym size.
+  evidence: `scripts/engagement-load.sh` (run 2026-11-23, figures in docs/decisions.md under Story 30.6). The plan (auto_explain on the kept fixtures) shows one sub-plan of `private.engagement_state_view_at` (migration 0186), the `first_week` sub-select `select private.week_start_of(min(d.visit_day)) from member_visit_days d where d.member_id = ... and d.gym_id = ...`, run as an uncorrelated HashAggregate over a sequential scan of all 384,000 counted check-ins (19 MB temp spill); it is evaluated only for a member with no visit yet this week, which is the common case. A member who has visited this week is fast (about 40 ms). Not fixed in 30.6 (it is 30.3's function and the spec forbids other edits); fix in the next story that re-creates the function (bound the sub-select by the member with an index-friendly `order by visit_day limit 1` on `attendance_counted`, or store the member's first visit day) and re-run the load script. Medium, becomes high as gyms approach 2,000 members.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-6-gym-leaderboard-and-anonymous-choice.md`
+  summary: The leaderboard hooks (`use-leaderboard.ts`, `use-home-leaderboard.ts`, `use-leaderboard-notice.ts`) and the three screens are covered by the pure view model's tests and by source scans only; their sequencing, cache fallbacks and notice flow can regress with a green Vitest run.
+  evidence: The mobile app has no render tooling (node-env Vitest); same remedy and same entries as the Home and calendar hooks above (a pure reducer once a renderer exists). The owner's end-of-epic device pass covers it by hand.
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-6-gym-leaderboard-and-anonymous-choice.md`
+  summary: Owner decision needed: a staff member row (Owner, Manager, Coach, Receptionist) with counted visits is ranked on the gym leaderboard, but all four leaderboard RPCs refuse non-member callers, so that person can never open the notice or choose and stays "Anonymous" for good, occupying a place and a `ranked_total` slot.
+  evidence: Review pass 1 of 30-6 (2026-11-23). The eligibility rule `role is distinct from 'support'` is the epic's literal text (epics.md Story 30.6) and is pinned in `leaderboard_ranking.test.sql`. The alternative is `role = 'member'` only (one WHERE clause in `gym_leaderboard` plus the pinned test), which would also change `ranked_total`. Not changed without the owner's yes.
+
+## Deferred from: code review of spec-30-6-gym-leaderboard-and-anonymous-choice (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-30-6-gym-leaderboard-and-anonymous-choice.md`
+  summary: Extra consequence for the staff-eligibility owner decision above: a staff row with counted visits is a permanent "Anonymous" row that also counts toward `ranked_total` and the fewer-than-3 rule, so a gym with two members and a visiting owner reaches "3 ranked" and shows the two members' names (the threshold is met by someone who can never choose).
+  evidence: Re-raised by Blind Hunter in review pass 2. `0188_gym_leaderboard.sql` `eligible` CTE (`role is distinct from 'support'`) feeds `summary.total` and the `s.total >= 3` branch. Same one-WHERE-clause fix as the entry above (`role = 'member'`), which would also change `ranked_total`; not changed without the owner's yes.
+
+## Deferred from: code review of spec-31-1-streak-shields-and-comeback (2026-11-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-1-streak-shields-and-comeback.md`
+  summary: A member whose every visit day is voided keeps their effective week and comeback facts (stale streak, Shields and comeback card), because `settle_engagement` returns before evaluating when `member_visit_days` is empty.
+  evidence: Pre-existing early return from 0185/0189 (week facts are equally stale); `rebuild_engagement` would return an empty state, so derived and rebuild differ for that member. Unverified how often a member loses all visits; settle by withdrawing facts when no visit day exists would close it.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-1-streak-shields-and-comeback.md`
+  summary: The guarded day-path step in `settle_engagement` is a placeholder: `engagement_day_reservation` is always called with `p_week_missed = false`, `daily_run_ends` is ignored, and `day_shield` facts are inserted once with no revision or `withdrawn` and no effect on the fold's `shields_held`. Close before the daily streak (FR-221) turns `engagement_daily_streak_enabled()` on.
+  evidence: Inactive while the guard is false (pgTAP pins the rule and the inactive path); the daily-streak story must define a broken daily run and fold `day_shield` facts into the Shield count.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-1-streak-shields-and-comeback.md`
+  summary: Changing `shield_every_weeks`, `shield_cap`, `comeback_visits` or `comeback_window_days` after week facts exist makes later corrections re-decide history with the new numbers, and sets no dirty mark; there is no snapshot or refusal as proposed for `goal_default`.
+  evidence: The fold reads the config live (`private.engagement_shield_params()`); recorded in decisions.md as "the operator should not change them". Unverified: the operator has not changed them. Close before the operator is given a UI to edit these values.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-1-streak-shields-and-comeback.md`
+  summary: `private.engagement_fold_weeks` is no longer called by `engagement_fold` or the 0190 derived and rebuild functions but is still pinned by `engagement_fold`, `engagement_facts` and `engagement_isolation` tests; two run arithmetics exist (its `saved` does not decrement held).
+  evidence: grep of 0190 shows no call; tests at `engagement_fold.test.sql:47,140-145`, `engagement_facts.test.sql:191`, `engagement_isolation.test.sql:79` reference it. Drop it and point those tests at `engagement_shield_walk` in fact mode.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-1-streak-shields-and-comeback.md`
+  summary: Dismissal and one-time restored recording in `use-home-engagement.ts` are verified by source-text assertions only; extract the reducer and the record-once decision into `shieldView.ts` or `shieldNotices.ts` and unit test them.
+  evidence: The repo has no hook test harness (no `renderHook`); a mutant that deletes the `setShieldSeen` update still passes `weeklyRing.source.test.ts`.
+
+## Deferred from: implementation of spec-31-2-streak-reminder-n-08 (2026-11-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-2-streak-reminder-n-08.md`
+  summary: A run of `run_engagement_reminder_job` in which members failed is a `success` row whose `error` column holds 'n of m member(s) failed; first: <error>', but `job-runs-alert.sql` watches `status` only, so a run in which every member fails still reads green; the whole-run failure row is the only alert path.
+  evidence: The count is now in the row (reviewed 2026-11-24); alerting on a non-null `error` of a success row, or a failed-count column, would close it if a systematic sender failure ever matters.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-2-streak-reminder-n-08.md`
+  summary: The job's own epoch and gym-local-date guard is not observable behind the state view (the view is already off while the epoch is NULL or after the member's week), so no pgTAP case fails if it is removed; its only effect is skipping a per-member view read in a dark area.
+  evidence: Mutant run 2026-11-24: removing `private.gym_today(g.id) >= c.release_week_start` leaves `engagement_reminder.test.sql` green. Cost, not correctness; `explain` of the selection on a large dark deployment would settle whether it matters.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-2-streak-reminder-n-08.md`
+  summary: The Profile Streak reminder row's wiring (handler arguments, retry-path assignments, failed-save toast) has no behavioural test.
+  evidence: Review pass 1, Verification Gap layer. The repo has no component or hook render harness (same gap as the 31-1 hook entry); the decidable logic is in `lib/streakReminder.ts` and tested. Closes when a harness exists or the handler's decisions are extracted further.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-2-streak-reminder-n-08.md`
+  summary: Per-tick cost of `run_engagement_reminder_job` at large member counts is unmeasured (UNVERIFIED medium): every non-at-risk member of every window gym reads `engagement_state_view` on each of the 12 ticks, in one transaction, with no batch cap.
+  evidence: Review pass 1, Blind Hunter. Spec Design Notes decided "no bound"; read-only savepoints take no xid, so the subtransaction-cache concern does not apply. What would settle it: time one tick on a seeded gym of about 10,000 members (explain of the selection plus the view read per member); if it nears 15 minutes, add a per-gym transaction or a cheap at-risk prefilter.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-2-streak-reminder-n-08.md`
+  summary: `scripts/ci-local.sh` does not clean the pending `@fixture.gymos.test` rows the landing e2e leaves in `email_outbox`, so after a few e2e runs `support_payment_connection.test.sql` test 105 fails (`claim_email_outbox(50)` never reaches its row).
+  evidence: 2026-11-24, 31-2 ci-local run 2: 103 pending fixture rows (69 takedown, 34 lifted) in the local DB; deleting them made the full run GREEN. The same script already cleans orphaned `gym_page_*` audit rows (`clean_orphaned_page_audit_rows`); a matching `delete from email_outbox where recipient_email like '%@fixture.gymos.test'` before the pgtap stage would close it. Also: static fails after an e2e run until the gitignored `apps/dashboard/playwright-report` is removed (already a known trap).
+
+## Deferred from: implementation of spec-31-3-badge-shelf-and-share-image (2026-11-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: The three catalog keys that name "4 weeks" literally (`engage.badges.weeks4`, `engage.badges.locked.weeks`, `engage.badges.locked.weeksProgress`) copy the Shield interval, which is the operator-tunable `platform_engagement_config.shield_every_weeks` (4 today).
+  evidence: The UX catalog pins them byte for byte, so `engage.test.ts` exempts exactly these three keys from its no-literal-config-count check. The server clamps `weeks_progress` to `shield_every_weeks - 1`. If an operator ever changes the interval, the badge name and these two lines are wrong until the keys become `{{count}}` placeholders (`get_my_badges` would also need to return the interval).
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: The share file is deleted when `Sharing.shareAsync` resolves; on Android a target app may read the file after that.
+  evidence: Not checkable without a device (the story's manual check, step 9). If a target shows an empty or missing image, drop the immediate delete on Android and rely on the sweep that already runs before the next share (`runShareFlow` calls `cleanLeftovers` first), keeping the "no image persists" rule only up to the next share.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: `private.backfill_badges()` stays installed after the release back-fill ran, EXECUTE revoked from every client role.
+  evidence: Kept so pgTAP can prove a second run inserts nothing; it is idempotent and harmless. A clean-up migration may drop it after one release.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: On Android the share temp file is deleted as soon as `Sharing.shareAsync` resolves, which may be before the target app has read it.
+  evidence: Maybe-false, unverified (review pass 1, EH and BH). It depends on when expo-sharing resolves on Android and only a device build shows it; the owner's device check (steps 5, 6, 9 in the spec's Implementation Notes) is the settling test. If a target shows an empty image, leave deletion to the next share's leftover sweep on Android.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: The share flow's real adapters (cache sweep predicate, delete guard, view-shot capture size) are covered only by source-text assertions and fakes.
+  evidence: The repo has no render harness (spec decision). Nothing automated shows that the PNG is exactly 1080 by 1920 or that only `gymos-share-*.png` files are swept; the device check is the planned proof (review pass 1, VG and BH).
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-3-badge-shelf-and-share-image.md`
+  summary: A badge share image opened offline right after a cold start has no gym name, logo or calendar, because `use-share-context` reads them over the network each time and nothing is cached on disk.
+  evidence: The image is still built and shared (the acceptance criterion holds), and within a session `getGymBranding`'s last-good name covers it. Caching branding and the month's lit days with the badge copy would close it (review pass 1, BH).
+
+## Deferred from: code review of spec-31-3-badge-shelf-and-share-image (2026-11-24)
+
+- iOS may present the OS share sheet behind, or fail to present it from, the React Native `Modal` that holds the badge detail sheet [apps/mobile/src/components/BadgeDetailSheet.tsx]. Maybe-false, would be medium if true; settled only by the owner's iOS device check (added to its steps). Fix if it fails: close the sheet before `shareAsync`.
+- Share tapped before `useShareContext` reads resolve, or offline from a cold start, produces an image with no gym name, logo, caption or calendar while the button looks normal [apps/mobile/src/hooks/use-share-image.ts, use-share-context.ts]. Extends the earlier cold-start entry. Options for the owner: disable Share until the context is ready, a bounded wait like the logo's, or cache branding and lit days on disk.
+- `cleanLeftovers` removes every `gymos-share-*.png` before each share, including one a previous target may still be reading [apps/mobile/src/lib/shareFlow.ts]. Same unverified Android timing as the existing delete-after-share entry; an age-based sweep would serve both. Settled by the device check.
+- At pixel ratios such as 2.625 the capture size rounds to whole logical points, so the PNG can be about 1079 by 1919 rather than exactly 1080 by 1920 [apps/mobile/src/lib/shareImage.ts:22-25]. Known; only the device check shows the real output.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
+  summary: Only the Streak tab label is localised; Home, Check In, Classes and Profile stay hard-coded English, so the French tab bar is mixed.
+  evidence: apps/mobile/src/components/app-tabs.tsx labels are literals (pre-existing); the new Streak label uses `engage.streak.tab`. Localising the whole bar is its own change (needs keys and parity).
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
+  summary: Home and the Streak screen each run `useHomeEngagement`, so a session makes two engagement reads and settles, and the Streak screen's `useCalendar` makes a third (`getMyEngagement` on every focus); on a dark gym these still run (the first read is what turns the gate on, the calendar and board loads are not needed).
+  evidence: settle is idempotent so it is accepted in the spec's Design Notes. The hidden-tab part of this entry is moot: the owner decided on 2026-11-24 that the Streak tab is never hidden (five tabs in every state, no navigator remount from a server flag), so no hidden screen exists. Check Metro/Kong logs on a dark gym with `epoch.mjs off` if the extra read matters.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
+  summary: The gate wiring (use-home-engagement outcome call, tab layout bind and reset) and the Streak hub conditionals are pinned by source text only; no hook or component render harness exists.
+  evidence: no testing-library in apps/mobile; the reducer and store are behaviour-tested in engagementGate.test.ts. Medium if the wiring broke (a cold-start member whose gym is on would see the Streak screen's off line until a later read, and no Home streak line); close it when a render harness is added.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
+  summary: `useBadgeRows` re-reads on the hub's pull to refresh through a `void reloadToken` identity trick; pull to refresh does not await the badge count and bumps it even offline.
+  evidence: apps/mobile/src/hooks/use-badges.ts and streak/index.tsx handleRefresh; a `refresh()` that returns a promise (like useCalendar) is the clean fix, best done with a hook test.
+- source_spec: `_bmad-output/implementation-artifacts/spec-31-4-streak-tab-and-progress-move.md`
+  summary: The Home streak line row has an accessibility label equal to its text and no hint that it opens the Streak tab.
+  evidence: apps/mobile/src/components/HomeStreakLine.tsx; a hint needs a new locale key with EN/FR parity, left for an accessibility pass.

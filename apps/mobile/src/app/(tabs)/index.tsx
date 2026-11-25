@@ -2,20 +2,27 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, type MaterialIconsIconName } from '@react-native-vector-icons/material-icons';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { IconChip, type IconChipTint } from '@/components/ui/IconChip';
 import { ListItem } from '@/components/ui/ListItem';
+import { HomeStreakLine } from '@/components/HomeStreakLine';
 import { RewardsCard } from '@/components/RewardsCard';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { STATUS_COLORS, statusLabelKey, type BadgeStatus, type SubscriptionStatus } from '@/constants/subscription-status';
 import { INFO_STATUS } from '@/constants/info-status';
+import { useFocusToast } from '@/hooks/use-focus-toast';
+import { useHomeCelebration } from '@/hooks/use-home-celebration';
+import { useHomeEngagement } from '@/hooks/use-home-engagement';
 import { useTheme } from '@/hooks/use-theme';
+import { homeReadyForCelebration } from '@/lib/celebrationView';
+import { useEngagementGate } from '@/lib/engagementGate';
+import { buildHomeStreakLine } from '@/lib/homeStreakLine';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import {
   collapseDenials,
@@ -29,6 +36,7 @@ import {
   type GuestSessionRow,
 } from '@/lib/sessionState';
 import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
+import { upcomingClassesForHome } from '@/lib/classBookings';
 import { listMyClassBookings, type MyClassBooking } from '@/services/classes';
 import { getOwnLoyalty } from '@/services/loyalty';
 import type { RewardsData } from '@/lib/rewards';
@@ -115,8 +123,16 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pendingCheckInCount, sessionDenials, dismissSessionDenials } = useOfflineSync();
+  const { isConnected, pendingCheckInCount, sessionDenials, dismissSessionDenials } = useOfflineSync();
   const theme = useTheme();
+  // Story 30.4: the engagement read (the celebration, the settle and the engagement gate all need this one read) and the toast a goal saved from here
+  // leaves behind. Story 31.4: the This week section and the Leaderboard card moved to the Streak tab; Home keeps one streak line that opens it, shown only
+  // while the gate says the engagement area is on and the view is a card (never when dark, loading or in error).
+  const { view: engagementView, engagement: engagementRow, loadForHome: loadEngagementForHome } = useHomeEngagement(isConnected, pendingCheckInCount, { recordRestoredCard: false });
+  const engagementGate = useEngagementGate();
+  const streakLine = engagementGate === 'on' ? buildHomeStreakLine(engagementView, engagementRow, t) : null;
+  const toast = useFocusToast();
+  const [refreshing, setRefreshing] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -141,6 +157,8 @@ export default function HomeScreen() {
 
   const [noActivePlan, setNoActivePlan] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
+  // Story 30.7: the milestone celebration is pushed over Home about 600 ms after Home has painted, never to an expired plan. It takes the one engagement read.
+  const { loadForHome: loadCelebrationForHome } = useHomeCelebration(isConnected, homeReadyForCelebration({ loading, loadError, subscriptionStatus }));
   const [expiryDate, setExpiryDate] = useState<string | null>(null);
   const [planName, setPlanName] = useState<string | null>(null);
 
@@ -197,6 +215,10 @@ export default function HomeScreen() {
 
     if (!hasLoadedOnceRef.current) setLoading(true);
     setLoadError(false);
+    // Story 30.4: the engagement read (and its one settle) is detached from the rest of Home like Rewards, never trips loadError, and never throws;
+    // loadHome still waits for it at the very end so a pull to refresh spins until the card is current.
+    let engagementDone: Promise<unknown> = Promise.resolve();
+    let celebrationDone: Promise<void> = Promise.resolve();
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!isCurrent()) return;
@@ -215,7 +237,7 @@ export default function HomeScreen() {
         supabase.from('gyms').select('name, logo_url, charge_guests_per_session, timezone').single(),
         supabase
           .from('members')
-          .select('id')
+          .select('id, gym_id')
           .eq('user_id', userId)
           .is('deactivated_at', null)
           .order('created_at', { ascending: false })
@@ -246,6 +268,9 @@ export default function HomeScreen() {
       setGymName(gymResult.data.name);
       setGymLogoUrl(gymResult.data.logo_url);
       markLoadedOnce();
+      const engagementRead = loadEngagementForHome(userId, memberResult.data.gym_id, isCurrent);
+      engagementDone = engagementRead;
+      celebrationDone = loadCelebrationForHome(userId, memberResult.data.gym_id, isCurrent, engagementRead);
 
       // Story 4.15: shared with the Renew screen (services/subscriptions.ts)
       // -- same distinction onboarding/plan.tsx's loadPlan already makes
@@ -294,7 +319,9 @@ export default function HomeScreen() {
           const now = new Date();
           const { data: sessionRows, error: sessionError } = await supabase
             .from('guest_sessions')
-            .select('usable_until, consumed_at, covered_day, voided_at')
+            .select(
+              'usable_until, consumed_at, covered_day, voided_at, validity_mode, covered_kind, covered_attendance_id, covered_booking_id',
+            )
             .eq('member_id', memberResult.data.id)
             .is('voided_at', null)
             .or(homeSessionsOrFilter(now, ctx.timezone))
@@ -307,6 +334,10 @@ export default function HomeScreen() {
                 consumedAt: r.consumed_at,
                 coveredDay: r.covered_day,
                 voidedAt: r.voided_at,
+                validityMode: r.validity_mode === 'whole_day' || r.validity_mode === 'single_use' ? r.validity_mode : null,
+                coveredKind: r.covered_kind === 'day' || r.covered_kind === 'visit' || r.covered_kind === 'class' ? r.covered_kind : null,
+                coveredAttendanceId: r.covered_attendance_id,
+                coveredBookingId: r.covered_booking_id,
               })),
             );
           }
@@ -377,7 +408,7 @@ export default function HomeScreen() {
       // upcoming classes": render nothing.
       try {
         const bookings = await listMyClassBookings();
-        if (isCurrent()) setUpcomingClasses((bookings ?? []).slice(0, UPCOMING_CLASSES_LIMIT));
+        if (isCurrent()) setUpcomingClasses(upcomingClassesForHome(bookings ?? [], UPCOMING_CLASSES_LIMIT));
       } catch {
         if (isCurrent()) setUpcomingClasses([]);
       }
@@ -407,7 +438,17 @@ export default function HomeScreen() {
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, []);
+    await Promise.all([engagementDone, celebrationDone]);
+  }, [loadEngagementForHome, loadCelebrationForHome]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadHome();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadHome]);
 
   // Story 4.15: refetches whenever this tab regains focus (not just on
   // mount) -- returning from the Renew screen after a successful renewal
@@ -496,6 +537,7 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <ScrollView
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} />}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: insets.bottom + BottomTabInset + Spacing.three },
@@ -674,6 +716,8 @@ export default function HomeScreen() {
                 </View>
               </View>
 
+              {streakLine && <HomeStreakLine line={streakLine} onPress={() => router.push('/streak')} />}
+
               <RewardsCard data={rewardsData} planType={chargingCtx?.planType ?? null} />
 
               {/* Story 13.3: no mockup covers a workout-plan entry point on
@@ -763,6 +807,17 @@ export default function HomeScreen() {
             </>
           )}
         </ScrollView>
+
+        {toast && (
+          <View
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            style={[styles.toast, { bottom: insets.bottom + BottomTabInset + Spacing.three }]}>
+            <ThemedText type="small" style={styles.toastText}>
+              {toast}
+            </ThemedText>
+          </View>
+        )}
       </SafeAreaView>
     </ThemedView>
   );
@@ -884,6 +939,19 @@ const styles = StyleSheet.create({
   statusTextGroup: {
     flex: 1,
     gap: Spacing.half,
+  },
+  toast: {
+    position: 'absolute',
+    left: Spacing.four,
+    right: Spacing.four,
+    backgroundColor: '#1F2937',
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+  },
+  toastText: {
+    color: '#F9FAFB',
   },
   occupancyPill: {
     alignSelf: 'flex-start',

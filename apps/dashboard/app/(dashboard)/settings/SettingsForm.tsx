@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { gymSettingsSchema, type PageStatusState } from "@gymos/types";
+import { gymSettingsSchema, type PageStatusState, type SessionValidity } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
 import type { GymSettingsRow } from "@/services/gym-settings";
@@ -24,7 +24,8 @@ import { QrCodeCard, QrRegenerateDialog, useQrCode } from "./QrCodeSection";
 import { StaffSection } from "./StaffSection";
 import { LandingPageSection, canSeeLandingPageRow } from "./LandingPageSection";
 import { GymosSupportSection } from "./GymosSupportSection";
-import type { GymosSupportStatus } from "@/services/gym-settings";
+import type { GymosSupportStatus, SessionValiditySettings } from "@/services/gym-settings";
+import { SessionValiditySection } from "./SessionValiditySection";
 import type { FieldErrors } from "./settingsFormTypes";
 import { useLogoUpload } from "./useLogoUpload";
 
@@ -38,6 +39,7 @@ export function SettingsForm({
   loyaltyEnabled,
   loyaltyPlans = [],
   gymosSupportStatus = null,
+  sessionValidity = null,
   landingPageState = null,
   landingPageUserKey = "",
 }: {
@@ -55,6 +57,8 @@ export function SettingsForm({
   loyaltyPlans?: LoyaltyPlanDuration[];
   /** Story 23.3: the Owner-only GymOS Support readout; null for any other role (the section is not rendered). */
   gymosSupportStatus?: GymosSupportStatus | null;
+  /** Story 28.1: the gym's session validity and the platform visit limit; null for any role that may not set it (the section is not rendered). */
+  sessionValidity?: SessionValiditySettings | null;
   /** Story 24.9: the landing page's derived state for the Settings row; null when it could not be read. */
   landingPageState?: PageStatusState | null;
   /** Story 24.9: who the first-visit prompt's dismissal belongs to (per user, in browser storage). */
@@ -115,6 +119,8 @@ export function SettingsForm({
   const charge = useGuestCharging({ initialValue: initial.chargeGuestsPerSession, showToast });
   // Story 20.5: mirrors the saved loyalty switch for the turn-off dialog; the section reports changes.
   const [loyaltyActive, setLoyaltyActive] = useState(initial.loyaltyEnabled);
+  // Story 28.1: the stored session validity, lifted so the "Charge guests per session" helper follows it after a save.
+  const [savedValidity, setSavedValidity] = useState<SessionValidity>(sessionValidity?.sessionValidity ?? "whole_day");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); // validate on submit only, per UX-DR11
@@ -184,7 +190,7 @@ export function SettingsForm({
     <div ref={formTopRef} className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex items-center justify-between rounded-md border bg-muted/40 px-4 py-3">
-          <span className="text-sm text-muted-foreground">{t("settings.saveHint")}</span>
+          <span className="text-sm text-muted-foreground">{t("settings.saveHint.v18")}</span>
           <Button type="submit" disabled={submitting || uploadingLogo}>
             {submitting ? t("common.saving") : t("settings.saveButton")}
           </Button>
@@ -242,8 +248,19 @@ export function SettingsForm({
               initialFee={initial.registrationFee}
               canManageGuestCharging={canManageGuestCharging}
               charge={charge}
+              sessionValidity={savedValidity}
               showToast={showToast}
             />
+
+            {canManageGuestCharging && sessionValidity && (
+              <SessionValiditySection
+                initial={sessionValidity}
+                chargingOn={charge.chargeGuests}
+                loyaltyOn={loyaltyEnabled ?? loyaltyActive}
+                onSaved={showToast}
+                onSavedValueChange={setSavedValidity}
+              />
+            )}
 
             {canManageGuestCharging && (
               <LoyaltyProgramSection

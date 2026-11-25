@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { listClasses } from "@/services/classes";
+import { getClassesGymTimezone, listClasses } from "@/services/classes";
 import { listCoaches } from "@/services/coaches";
 import { getDashboardShellContext } from "@/services/session";
 import { ClassesPageClient } from "./components/ClassesPageClient";
@@ -20,6 +20,10 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
  * enforcement is the RLS write policies (0057_class_creation_scheduling.sql).
  * A Receptionist who reaches /classes directly gets real read-only data via
  * "gym_staff_read_own_classes"; every write silently no-ops at RLS.
+ *
+ * Story 29.3 (FR-053): the one role guard. A Coach now runs their own classes from /coach/classes, so the admin page must say plainly that it is
+ * closed to them: the Coach role gets the global permission message and no class, coach or timezone read is issued. The Sidebar hides the link
+ * for the Coach role as before. Manager, Supervisor, Owner and Receptionist are unchanged.
  */
 export default function ClassesPage() {
   return (
@@ -30,8 +34,22 @@ export default function ClassesPage() {
 }
 
 async function ClassesData() {
-  const [{ data: classes, error: classesError }, { data: coaches, error: coachesError }, { data: shell, error: shellError }] =
-    await Promise.all([listClasses(), listCoaches(), getDashboardShellContext()]);
+  const { data: shell, error: shellError } = await getDashboardShellContext();
+
+  if (shell?.role === "coach") {
+    const { t } = await getServerTranslation(await getRequestLocale());
+    return (
+      <div role="alert" className="text-sm text-red-600">
+        {t("errors.permissionDenied")}
+      </div>
+    );
+  }
+
+  const [{ data: classes, error: classesError }, { data: coaches, error: coachesError }, { data: gymTimezone }] = await Promise.all([
+    listClasses(),
+    listCoaches(),
+    getClassesGymTimezone(),
+  ]);
 
   if (classesError || coachesError || shellError || !shell) {
     const { t } = await getServerTranslation(await getRequestLocale());
@@ -43,6 +61,7 @@ async function ClassesData() {
       initialClasses={classes ?? []}
       coaches={coaches ?? []}
       role={shell.role}
+      gymTimezone={gymTimezone}
     />
   );
 }

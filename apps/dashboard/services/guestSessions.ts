@@ -27,10 +27,29 @@ export interface MemberGuestSession {
   usableUntil: string;
   consumedAt: string | null;
   coveredDay: string | null;
+  /** Story 28.1: the rule the row was consumed under; null while unconsumed. */
+  validityMode: "whole_day" | "single_use" | null;
+  /** Story 28.1: what the row covers once consumed; null while unconsumed. A Single-use row has no `coveredDay`. */
+  coveredKind: "day" | "visit" | "class" | null;
+  coveredAttendanceId: string | null;
+  coveredBookingId: string | null;
+  /** Story 28.3: a `class` row's class name and start, from the booking embed; null for every other row. */
+  className: string | null;
+  classStartsAt: string | null;
+  /** The gym's timezone, for the gym-local date and time of a Used row; null if the embed did not come back. */
+  gymTimezone: string | null;
   voidedAt: string | null;
   method: string | null;
   recordedByName: string | null;
 }
+
+type ClassEmbed = {
+  class_sessions:
+    | { scheduled_at: string; classes: { name: string } | { name: string }[] | null }
+    | { scheduled_at: string; classes: { name: string } | { name: string }[] | null }[]
+    | null;
+};
+const first = <T,>(value: T | T[] | null | undefined): T | null => (Array.isArray(value) ? (value[0] ?? null) : (value ?? null));
 
 interface GuestSessionRowFromDb {
   id: string;
@@ -40,8 +59,14 @@ interface GuestSessionRowFromDb {
   usable_until: string;
   consumed_at: string | null;
   covered_day: string | null;
+  validity_mode: string | null;
+  covered_kind: string | null;
+  covered_attendance_id: string | null;
+  covered_booking_id: string | null;
   voided_at: string | null;
   payments: { method: string; actor_id: string | null } | { method: string; actor_id: string | null }[] | null;
+  class_bookings?: ClassEmbed | ClassEmbed[] | null;
+  gyms?: { timezone: string } | { timezone: string }[] | null;
 }
 
 // Only recent history is shown (lapsed and voided rows disappear after 90
@@ -65,7 +90,7 @@ export async function listMemberGuestSessions(
   const { data, error } = await supabase
     .from("guest_sessions")
     .select(
-      "id, payment_id, loyalty_grant_id, created_at, usable_until, consumed_at, covered_day, voided_at, payments(method, actor_id)",
+      "id, payment_id, loyalty_grant_id, created_at, usable_until, consumed_at, covered_day, validity_mode, covered_kind, covered_attendance_id, covered_booking_id, voided_at, payments(method, actor_id), class_bookings(class_sessions(scheduled_at, classes(name))), gyms(timezone)",
     )
     .eq("gym_id", gymId)
     .eq("member_id", memberId)
@@ -93,6 +118,7 @@ export async function listMemberGuestSessions(
     // Lapsed and voided rows age out of the list after 90 days.
     if (row.voided_at && new Date(row.voided_at).getTime() < cutoff) return;
     if (lapsed && new Date(row.usable_until).getTime() < cutoff) return;
+    const classSession = first(first(row.class_bookings)?.class_sessions);
     sessions.push({
       id: row.id,
       source: row.payment_id ? "paid" : "free",
@@ -100,6 +126,13 @@ export async function listMemberGuestSessions(
       usableUntil: row.usable_until,
       consumedAt: row.consumed_at,
       coveredDay: row.covered_day,
+      validityMode: row.validity_mode === "whole_day" || row.validity_mode === "single_use" ? row.validity_mode : null,
+      coveredKind: row.covered_kind === "day" || row.covered_kind === "visit" || row.covered_kind === "class" ? row.covered_kind : null,
+      coveredAttendanceId: row.covered_attendance_id,
+      coveredBookingId: row.covered_booking_id,
+      className: first(classSession?.classes)?.name ?? null,
+      classStartsAt: classSession?.scheduled_at ?? null,
+      gymTimezone: first(row.gyms)?.timezone ?? null,
       voidedAt: row.voided_at,
       method: payment?.method ?? null,
       recordedByName: payment?.actor_id ? (names.get(payment.actor_id) ?? null) : null,
@@ -182,6 +215,11 @@ export async function listPaidGuestSessions(
     group_sessions: number | null;
     group_total: number | null;
     total_count: number;
+    covered_kind?: "day" | "visit" | "class" | null;
+    covered_booking_id?: string | null;
+    class_name?: string | null;
+    class_starts_at?: string | null;
+    gym_timezone?: string | null;
   }>("list_guest_sessions_paid", {
     p_period: params.period,
     p_refunded_after_use_only: params.refundedAfterUseOnly ?? false,
@@ -206,6 +244,11 @@ export async function listPaidGuestSessions(
         recorderKind: r.recorder_kind,
         groupSessions: r.group_sessions == null ? null : Number(r.group_sessions),
         groupTotal: r.group_total == null ? null : Number(r.group_total),
+        coveredKind: r.covered_kind ?? null,
+        coveredBookingId: r.covered_booking_id ?? null,
+        className: r.class_name ?? null,
+        classStartsAt: r.class_starts_at ?? null,
+        gymTimezone: r.gym_timezone ?? null,
       })),
     },
     error: null,

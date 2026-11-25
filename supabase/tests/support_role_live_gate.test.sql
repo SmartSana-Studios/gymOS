@@ -371,8 +371,8 @@ select ok((select (length(seen) - length(replace(seen, '=', ''))) from owner_wal
           'proof is not vacuous: the owner sees rows in at least 10 gym-scoped tables (' || (select seen from owner_walk) || ')');
 select is((select array_agg(c.relname::text order by c.relname) from pg_class c join pg_attribute at on at.attrelid = c.oid and at.attname = 'gym_id' and not at.attisdropped
             where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and not has_table_privilege('authenticated', c.oid, 'select')),
-          array['audit_disclosure_requests', 'gym_data_escalations', 'gym_page_media', 'gym_pages', 'page_names', 'staff_notices', 'support_action_identity', 'support_assignments', 'support_staff_review']::text[],
-          'the only gym_id tables the walk cannot read are the nine with no client grant (a new one must be added here deliberately)');
+          array['audit_disclosure_requests', 'engagement_facts', 'engagement_state', 'gym_data_escalations', 'gym_page_media', 'gym_pages', 'member_weekly_goals', 'page_names', 'staff_notices', 'support_action_identity', 'support_assignments', 'support_staff_review']::text[],
+          'the only gym_id tables the walk cannot read are the twelve with no client grant (a new one must be added here deliberately)');
 select pg_temp.claims('00000000-0000-0000-0000-000000231101', '00000000-0000-0000-0000-000000231001', 'support', 'aal2', '00000000-0000-0000-0000-0000000231a3');
 select is(pg_temp.seen(), '00000000-0000-0000-0000-000000231001|-|-', 'zero-row proof runs with a fully live support session');
 set local role authenticated;
@@ -388,7 +388,7 @@ select is((select count(*)::int from pg_constraint where pg_get_constraintdef(oi
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prosrc like '%''support''%'),
           array['public.assign_support', 'private.authorize_action', 'private.capability_roles', 'public.confirm_support_assignment', 'public.create_staff_member', 'private.current_member_role', 'public.custom_access_token_hook', 'private.guard_support_membership', 'private.gym_id',
-                'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'public.set_allow_gymos_support', 'private.support_email_collision', 'private.support_gym_id', 'private.support_restore_assignments', 'private.support_set_membership', 'public.switch_active_gym']::text[],
+                'public.gym_leaderboard', 'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'public.set_allow_gymos_support', 'private.support_email_collision', 'private.support_gym_id', 'private.support_restore_assignments', 'private.support_set_membership', 'public.switch_active_gym']::text[],
           'only the expected functions mention the support role');
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)

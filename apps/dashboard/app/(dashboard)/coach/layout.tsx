@@ -2,7 +2,12 @@ import { Suspense } from "react";
 
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { getDashboardShellContext } from "@/services/session";
+import { listPickerCoaches } from "@/services/coachPicker";
 import { CoachPortalNav, CoachPortalNavFallback } from "./components/CoachPortalNav";
+import { CoachPickerHeader, CoachPickerHeaderFallback } from "./components/CoachPickerHeader";
+import { CoachPickerNav } from "./components/CoachPickerNav";
+import { PICKER_ROLES } from "./pickerContext";
 
 /**
  * Story 17.3 (AC #6, #9, #13): the Coach Portal's shared frame -- the heading
@@ -24,8 +29,13 @@ import { CoachPortalNav, CoachPortalNavFallback } from "./components/CoachPortal
  * wraps `children` -- this layout included -- in that same ancestor boundary.
  * Do not narrow or remove it (spec-cache-components-suspense-boundary-fix.md).
  *
- * No role guard: a non-Coach reaching `/coach/*` behaves exactly as before
- * (coach/page.tsx documents the precedent). It renders inside
+ * Story 29.4 (FR-053 amended, FR-247): the one role guard of the Portal lives here. A Receptionist or GymOS Support gets the global permission message
+ * on every `/coach/*` route, and none of the page's reads run (the page is never rendered). An Owner, Supervisor or Manager gets the coach picker
+ * (select, read-only banner, then the Classes and Members tabs) in place of the Coach's own three-item sub-nav; the Coach role is exactly as before.
+ * The role is the shell's (the claim) and only chooses the screen: every read behind it re-checks the live role in the database. The layout reads the
+ * gym's active coaches once for the select (a layout cannot see search params, so the chosen coach is read by each page and by the client header).
+ *
+ * It renders inside
  * `(dashboard)/layout.tsx`'s `key={shell.gymId}` Fragment, so a gym switch
  * remounts it with the page; the sub-nav holds no state worth keeping.
  *
@@ -36,13 +46,37 @@ import { CoachPortalNav, CoachPortalNavFallback } from "./components/CoachPortal
  */
 export default async function CoachPortalLayout({ children }: { children: React.ReactNode }) {
   const { t } = await getServerTranslation(await getRequestLocale());
+  const { data: shell } = await getDashboardShellContext();
+  const role = shell?.role;
+
+  if (role === "receptionist" || role === "support") {
+    return (
+      <div role="alert" className="text-sm text-red-600">
+        {t("errors.permissionDenied")}
+      </div>
+    );
+  }
+
+  const isPicker = role !== undefined && PICKER_ROLES.includes(role);
+  const coaches = isPicker ? ((await listPickerCoaches()).data ?? []).filter((coach) => coach.isActive) : [];
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t("coachPortal.title")}</h1>
-      <Suspense fallback={<CoachPortalNavFallback />}>
-        <CoachPortalNav />
-      </Suspense>
+      {isPicker ? (
+        <>
+          <Suspense fallback={<CoachPickerHeaderFallback />}>
+            <CoachPickerHeader coaches={coaches.map((coach) => ({ id: coach.id, name: coach.name }))} />
+          </Suspense>
+          <Suspense fallback={<CoachPortalNavFallback />}>
+            <CoachPickerNav />
+          </Suspense>
+        </>
+      ) : (
+        <Suspense fallback={<CoachPortalNavFallback />}>
+          <CoachPortalNav />
+        </Suspense>
+      )}
       {children}
     </div>
   );

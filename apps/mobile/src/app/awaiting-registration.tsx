@@ -8,7 +8,10 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
+import { clearBadgesCache } from '@/lib/badgesView';
+import { clearShown } from '@/lib/celebrationView';
 import { clearCachedProgressPayload } from '@/services/progress';
+import { clearShieldNotices } from '@/services/shieldNotices';
 import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
 
 /**
@@ -45,6 +48,9 @@ export default function AwaitingRegistrationScreen() {
         style: 'destructive',
         onPress: () => {
           clearCachedProgressPayload();
+          void clearShown();
+          void clearBadgesCache();
+          void clearShieldNotices();
           clearCachedWorkoutPlan();
           void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
         },

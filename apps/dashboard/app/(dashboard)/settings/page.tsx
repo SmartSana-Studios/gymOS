@@ -1,4 +1,4 @@
-import { getGymSettings, getGymosSupportStatus } from "@/services/gym-settings";
+import { getGymSettings, getGymosSupportStatus, getSessionValiditySettings } from "@/services/gym-settings";
 import { getGymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
 import { getGymBillingInfo, listSelectableTiers } from "@/services/billing";
 import { listStaff } from "@/services/staff";
@@ -58,6 +58,10 @@ export default async function SettingsPage() {
   // Story 23.3: the Owner-only GymOS Support readout; a failure just hides the section.
   const gymosSupportStatus = shell?.role === "owner" ? (await getGymosSupportStatus()).data : null;
 
+  // Story 28.1: the Session validity section (Owner, Supervisor, assigned support); the read returns no row for anyone else.
+  const showSessionValidity = shell?.role === "owner" || shell?.role === "supervisor" || shell?.role === "support";
+  const sessionValidity = showSessionValidity ? (await getSessionValiditySettings()).data : null;
+
   // Story 24.9: the Landing page row (Owner, Supervisor, assigned support only). A failed read just shows no badge.
   const showLandingPage = shell?.role === "owner" || shell?.role === "supervisor" || shell?.role === "support";
   const landingPageState = showLandingPage ? await getLandingPageState() : null;
@@ -74,6 +78,7 @@ export default async function SettingsPage() {
         role={shell?.role ?? null}
         loyaltyPlans={loyaltyPlans}
         gymosSupportStatus={gymosSupportStatus}
+        sessionValidity={sessionValidity}
         landingPageState={landingPageState}
         landingPageUserKey={`${shell?.gymId ?? "gym"}:${shell?.memberId ?? shell?.role ?? "user"}`}
       />

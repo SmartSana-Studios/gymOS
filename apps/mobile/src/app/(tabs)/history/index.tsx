@@ -452,7 +452,7 @@ export default function HistoryScreen() {
                         <ThemedText type="link">{t('common.tryAgain')}</ThemedText>
                       </Pressable>
                     </View>
-                  ) : null
+                  ) : undefined
                 }
               />
             )}
@@ -522,7 +522,7 @@ export default function HistoryScreen() {
                         <ThemedText type="link">{t('common.tryAgain')}</ThemedText>
                       </Pressable>
                     </View>
-                  ) : null
+                  ) : undefined
                 }
               />
             )}

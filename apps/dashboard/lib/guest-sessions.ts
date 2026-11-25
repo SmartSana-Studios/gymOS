@@ -49,6 +49,27 @@ export interface PaidGuestSessionRow {
   /** Full-period window totals of the row's recorder group; null when ungrouped. */
   groupSessions: number | null;
   groupTotal: number | null;
+  /** Story 28.3: what the consumed session covered; null while unconsumed. Optional so older fixtures stay valid. */
+  coveredKind?: "day" | "visit" | "class" | null;
+  coveredBookingId?: string | null;
+  /** The class's name and start for a `class` row. */
+  className?: string | null;
+  classStartsAt?: string | null;
+  /** The gym's timezone: every date and time of a Used cell is gym-local, never the browser's or UTC. */
+  gymTimezone?: string | null;
+}
+
+/**
+ * Story 28.3: a date or a time in the GYM's timezone (never the browser's, never UTC). A missing timezone (only a hand-built test fixture
+ * has one) falls back to the runtime's own, so the formatter never throws on it.
+ */
+export function formatGymLocal(iso: string, timeZone: string | null | undefined, locale: string, part: "date" | "time"): string {
+  const options: Intl.DateTimeFormatOptions = part === "date" ? { dateStyle: "short" } : { timeStyle: "short" };
+  try {
+    return new Intl.DateTimeFormat(locale, { ...options, ...(timeZone ? { timeZone } : {}) }).format(new Date(iso));
+  } catch {
+    return new Intl.DateTimeFormat(locale, options).format(new Date(iso));
+  }
 }
 
 export interface BlockedAttemptRow {

@@ -8,6 +8,7 @@ import {
   gymSettingsSchema,
   initiateSaasBillingPaymentSchema,
   registrationFeeSchema,
+  sessionValiditySchema,
   type AppError,
 } from "@gymos/types";
 import {
@@ -22,6 +23,7 @@ import {
   setGymCategory as setGymCategoryRow,
   setLoyaltyProgram as setLoyaltyProgramRow,
   setRegistrationFee,
+  setSessionValidity as setSessionValidityRow,
   updateGymSettings,
   uploadGymLogo,
 } from "@/services/gym-settings";
@@ -462,6 +464,27 @@ export async function saveGymCategory(
   if (error || !data) {
     return { data: null, error: { code: error?.code ?? "unknown", message: t("settings.category.saveFailed") } };
   }
+  return { data, error: null };
+}
+
+/**
+ * Story 28.1: saves the gym's session validity through `set_session_validity()` (0177), not `saveGymSettings`
+ * (the column is pinned against the general save, which never carries it). The RPC is the real authorization
+ * boundary (Owner or Supervisor of this gym; a Super Admin is refused) and writes the audit row. Any refusal is
+ * one fixed, translated message.
+ */
+export async function saveSessionValidity(
+  input: unknown,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const failure = (code: string): { data: null; error: AppError } => ({
+    data: null,
+    error: { code, message: t("settings.sessionValidity.error") },
+  });
+  const parsed = sessionValiditySchema.safeParse(input);
+  if (!parsed.success) return failure("validation_error");
+  const { data, error } = await setSessionValidityRow(parsed.data);
+  if (error || !data) return failure(error?.code ?? "unknown");
   return { data, error: null };
 }
 

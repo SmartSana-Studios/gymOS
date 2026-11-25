@@ -8,7 +8,7 @@ import en from "@/locales/en.json";
 import fr from "@/locales/fr.json";
 import { AUDIT_ACTION_TYPE_LABEL_KEY } from "./auditLabels";
 
-const EPIC_27_ACTION_TYPES = ["staff_check_in", "staff_check_in_rejected", "staff_check_in_voided", "subscription_plan_corrected"];
+const EPIC_27_ACTION_TYPES = ["staff_check_in", "staff_check_in_rejected", "staff_check_in_voided", "subscription_plan_corrected", "session_validity_changed"];
 
 function resolve(locale: unknown, key: string): unknown {
   return key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], locale);
@@ -35,6 +35,9 @@ describe("audit labels for Epic 27 action types", () => {
     // Story 27.4
     expect(resolve(en, AUDIT_ACTION_TYPE_LABEL_KEY.subscription_plan_corrected)).toBe("Plan corrected");
     expect(resolve(fr, AUDIT_ACTION_TYPE_LABEL_KEY.subscription_plan_corrected)).toBe("Formule corrigée");
+    // Story 28.1
+    expect(resolve(en, AUDIT_ACTION_TYPE_LABEL_KEY.session_validity_changed)).toBe("Session validity changed");
+    expect(resolve(fr, AUDIT_ACTION_TYPE_LABEL_KEY.session_validity_changed)).toBe("Validité de la séance modifiée");
   });
 
   it("has the plan-correction Details wording in both locales", () => {

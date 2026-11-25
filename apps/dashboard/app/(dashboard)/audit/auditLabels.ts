@@ -118,7 +118,8 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // member. session_refund_applied metadata { outcome: voided | kept_partial |
   // kept_consumed, refund_id, payment_id, guest_session_id, refund_amount,
   // payment_amount }. session_consumed metadata { guest_session_id, payment_id,
-  // covered_day, consumed_at, source: paid | free }. session_attempt_blocked
+  // covered_day, consumed_at, source: paid | free, validity_mode, covered_kind, and for a class row covered_booking_id (Story 28.3; the key
+  // is absent for a day or visit row) }. session_attempt_blocked
   // metadata { attempt_id, scan_id, source, class_session_id, scanned_at }.
   session_refund_applied: "audit.actionTypes.sessionRefundApplied",
   session_consumed: "audit.actionTypes.sessionConsumed",
@@ -148,4 +149,16 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // new_price, old_expiry_date, new_expiry_date, old_status, new_status, basis_start_date, loyalty_days_added, reason }. The Details cell
   // carries both plans, both prices, both expiries and the reason (AuditLogPageClient).
   subscription_plan_corrected: "audit.actionTypes.planCorrected",
+  // Story 28.1 (0177, UX AD-13 V1.8). Written by set_session_validity(): ONE gym-scoped row, target = the gym, the actor the Owner or
+  // Supervisor, or "GymOS Support". Metadata { old_validity, new_validity }, each whole_day | single_use. The Details cell reads
+  // "Whole day → Single use" (AuditLogPageClient).
+  session_validity_changed: "audit.actionTypes.sessionValidityChanged",
+  // Story 29.2 (0181, UX AD-12 V1.8). Both are written by the database functions themselves, gym-scoped, target = the class. class_times_changed
+  // (update_class, only when the weekly times changed) metadata { class_name, old_schedule_type, new_schedule_type, old_slots, new_slots
+  // ([{weekday, start_time}]), left_unchanged_count }. class_cancelled (cancel_class) metadata { class_name, bookings_cancelled }.
+  class_times_changed: "audit.actionTypes.classTimesChanged",
+  class_cancelled: "audit.actionTypes.classCancelled",
+  // Story 29.3 (UX AD-12 V1.8). Written by the dashboard action (create_class writes no audit row of its own) when the signed-in role is Coach; a
+  // Manager, Supervisor or Owner creating a class writes class_created, as before. Metadata { name, coach_id, capacity, schedule_type }.
+  class_created_by_coach: "audit.actionTypes.classCreatedByCoach",
 };

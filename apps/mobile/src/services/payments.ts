@@ -175,7 +175,9 @@ export async function getPaymentReceipt(
     try {
       const { data: sessionRow } = await supabase
         .from('guest_sessions')
-        .select('usable_until, consumed_at, covered_day, voided_at')
+        .select(
+          'usable_until, consumed_at, covered_day, voided_at, validity_mode, covered_kind, covered_attendance_id, covered_booking_id',
+        )
         .eq('payment_id', row.id)
         .maybeSingle();
       const dates = resolveReceiptSessionDates(sessionRow);

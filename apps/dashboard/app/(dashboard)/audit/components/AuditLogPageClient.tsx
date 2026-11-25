@@ -16,6 +16,7 @@ import { exportAuditLogCsvAction } from "../actions";
 import { DisclosureRequestDialog } from "./DisclosureRequestDialog";
 import { DisclosureRequestsPanel } from "./DisclosureRequestsPanel";
 import { formatDayMonthYear } from "@/lib/dayMonth";
+import { summarizeSlots } from "@/lib/classTimes";
 
 function actionLabel(
   t: (key: string) => string,
@@ -101,6 +102,63 @@ function planCorrectionDetails(
     expiry: t("audit.planCorrection.expiry", { old: date(old_expiry_date), new: date(new_expiry_date) }),
     reason,
   });
+}
+
+// Story 28.1 (UX AD-13 V1.8): "Whole day → Single use" -- the two codes in the words of the Settings radio. Any other value falls back to
+// the generic cell.
+function sessionValidityDetails(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  metadata: Record<string, unknown>,
+): string | null {
+  const label = (value: unknown): string | null =>
+    value === "whole_day" ? t("settings.sessionValidity.wholeDay") : value === "single_use" ? t("settings.sessionValidity.singleUse") : null;
+  const oldLabel = label(metadata.old_validity);
+  const newLabel = label(metadata.new_validity);
+  if (!oldLabel || !newLabel) return null;
+  return t("audit.sessionValidity.details", { old: oldLabel, new: newLabel });
+}
+
+// Story 29.2 (UX AD-12 V1.8): "SPIN · Mon 07:00 · Wed 18:30 → Mon 07:30 · Wed 18:30 · 2 sessions with bookings left unchanged" for a weekly-times
+// change, and "SPIN · 8 bookings cancelled" for a cancelled class. Anything unexpected falls back to the generic cell.
+function slotsFromMetadata(value: unknown): { weekday: number; startTime: string }[] | null {
+  if (!Array.isArray(value)) return null;
+  const slots: { weekday: number; startTime: string }[] = [];
+  for (const item of value) {
+    const entry = item as { weekday?: unknown; start_time?: unknown } | null;
+    if (!entry || typeof entry.weekday !== "number" || typeof entry.start_time !== "string") return null;
+    slots.push({ weekday: entry.weekday, startTime: entry.start_time.slice(0, 5) });
+  }
+  return slots;
+}
+
+function classDetails(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  actionType: string,
+  metadata: Record<string, unknown>,
+): string | null {
+  if (actionType === "class_created_by_coach") {
+    const createdName = metadata.name;
+    const capacity = metadata.capacity;
+    return typeof createdName === "string" && typeof capacity === "number"
+      ? t("audit.classCreated.details", { name: createdName, capacity })
+      : null;
+  }
+  const name = metadata.class_name;
+  if (typeof name !== "string") return null;
+  if (actionType === "class_cancelled") {
+    const n = metadata.bookings_cancelled;
+    return typeof n === "number" ? t("audit.classCancelled.details", { name, count: n }) : null;
+  }
+  if (actionType === "class_times_changed") {
+    const oldSlots = slotsFromMetadata(metadata.old_slots);
+    const newSlots = slotsFromMetadata(metadata.new_slots);
+    const left = metadata.left_unchanged_count;
+    if (!oldSlots || !newSlots || typeof left !== "number") return null;
+    const describe = (slots: { weekday: number; startTime: string }[]) =>
+      slots.length === 0 ? t("classes.modal.oneOff") : summarizeSlots(slots, t).full;
+    return t("audit.classTimes.details", { name, old: describe(oldSlots), new: describe(newSlots), count: left });
+  }
+  return null;
 }
 
 function formatTimestamp(iso: string, locale: string): string {
@@ -303,6 +361,8 @@ export function AuditLogPageClient({
                   <td className="p-3">{targetLabel(row)}</td>
                   <td className="p-3">{staffCheckInDetails(t, row.actionType, row.metadata, i18n.language) ??
                       (row.actionType === "subscription_plan_corrected" ? planCorrectionDetails(t, row.metadata, i18n.language) : null) ??
+                      (row.actionType === "session_validity_changed" ? sessionValidityDetails(t, row.metadata) : null) ??
+                      classDetails(t, row.actionType, row.metadata) ??
                       detailsLabel(row.metadata)}</td>
                   {role === "owner" && (
                     <td className="p-3">

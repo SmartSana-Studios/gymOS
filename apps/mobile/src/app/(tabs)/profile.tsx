@@ -1,26 +1,45 @@
 import { profileSetupSchema } from '@gymos/types';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LeaderboardNotice } from '@/components/LeaderboardNotice';
 import { LogEntrySheet } from '@/components/LogEntrySheet';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { IconChip } from '@/components/ui/IconChip';
 import { ListItem } from '@/components/ui/ListItem';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import { useSession } from '@/hooks/use-session';
 import { useTheme } from '@/hooks/use-theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
+import { TOAST_MS, useFocusToast } from '@/hooks/use-focus-toast';
+import { useBadgeRows } from '@/hooks/use-badges';
+import { useLeaderboardNotice } from '@/hooks/use-leaderboard-notice';
 import { getContrastTextColor } from '@/lib/color-contrast';
 import type { MobileLocale } from '@/lib/i18n';
 import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
-import { getMemberPreferences, updateMemberPreferences } from '@/services/notificationPreferences';
+import { myVisitsRowAfterRead, myVisitsRowFromCache } from '@/lib/calendarView';
+import { buildAnonymousRowView, buildNoticeView, decideToggle, gateFromResult, mayKeepSettingsCopy, profileSettingsPlan, readLeaderboardCache, settingsAfterNotice, settingsAfterToggle, settingsFromDeviceCopy, writeLeaderboardSettings } from '@/lib/leaderboardView';
+import { useOfflineSync } from '@/lib/offline-sync-context';
+import { profileGoalValue } from '@/lib/weeklyGoalSheet';
+import { readEngagementCache } from '@/lib/weeklyRing';
+import { buildStreakReminderRow, streakReminderAfterToggle } from '@/lib/streakReminder';
+import { getMemberPreferences, getStreakReminderHour, updateMemberPreferences } from '@/services/notificationPreferences';
+import { clearBadgesCache, profileBadgesValue } from '@/lib/badgesView';
+import { clearShown } from '@/lib/celebrationView';
 import { clearCachedProgressPayload } from '@/services/progress';
+import { clearShieldNotices } from '@/services/shieldNotices';
 import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
+import { getMyEngagement } from '@/services/engagement';
+import { getMyLeaderboardSettings, setLeaderboardVisibility, type LeaderboardSettings } from '@/services/leaderboard';
+import { getMyWeeklyGoal, type WeeklyGoal } from '@/services/weeklyGoal';
 
 // Narrows the untyped embedded-select response, same discipline as
 // onboarding/plan.tsx's `isSubscriptionRow` (Review finding there) -- a
@@ -48,9 +67,11 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const accent = useGymAccentColor();
   const mountedRef = useRef(true);
+  const saveErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
       mountedRef.current = false;
+      if (saveErrorTimerRef.current) clearTimeout(saveErrorTimerRef.current);
     };
   }, []);
 
@@ -78,9 +99,99 @@ export default function ProfileScreen() {
   const [classReminderOptedOut, setClassReminderOptedOut] = useState(false);
   const [quietGymAlertsPending, setQuietGymAlertsPending] = useState(false);
   const [classReminderPending, setClassReminderPending] = useState(false);
+  // Story 31.2 (FR-233): the streak reminder (N-08) off-switch, the hour the server's window opens (null = unread, the helper line is then left out)
+  // and the existing toast element carrying a failed save.
+  const [streakReminderOptedOut, setStreakReminderOptedOut] = useState(false);
+  const [streakReminderPending, setStreakReminderPending] = useState(false);
+  const [streakReminderHour, setStreakReminderHour] = useState<number | null>(null);
+  const [saveErrorToast, setSaveErrorToast] = useState<string | null>(null);
   const [notificationsLoadError, setNotificationsLoadError] = useState(false);
 
   const [logEntrySheetVisible, setLogEntrySheetVisible] = useState(false);
+
+  // Story 30.1 (FR-219): the Training card's weekly goal, re-read whenever the screen takes focus (the /goal sheet closes onto it), and the
+  // one-shot toast the sheet leaves behind.
+  const [weeklyGoal, setWeeklyGoal] = useState<WeeklyGoal | null>(null);
+  // Story 30.5: the "My visits" row opens the calendar, so it shows only while the engagement area is on for this member (the operator has set the
+  // release week). Home's device copy of the row answers first (so the row shows offline and does not pop in), the live read then confirms or turns it
+  // off, and a failed read leaves what is showing: a dark area (no copy, or a copy that says disabled) looks exactly as it did before.
+  const { session, gymId } = useSession();
+  const sessionUserId = session?.user.id ?? null;
+  const [engagementEnabled, setEngagementEnabled] = useState(false);
+  // Story 30.6 (MA-12, FR-227): the Anonymous row of the Training card. The settings are read only while the engagement area is on (a dark area calls
+  // no leaderboard function), the toggle shows the stored choice, and turning it off while the first-open notice is unseen opens the notice instead.
+  const { isConnected } = useOfflineSync();
+  const [leaderboardSettings, setLeaderboardSettings] = useState<LeaderboardSettings | null>(null);
+  const [anonymousPending, setAnonymousPending] = useState(false);
+  // Read by the focus effect: a settings read that returns during a save must not overwrite the optimistic value.
+  const anonymousPendingRef = useRef(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  // The same first-open notice as /leaderboard, in a full-screen modal. Choosing saves; leaving (header back, Android back) closes it and marks nothing.
+  const notice = useLeaderboardNotice(
+    useCallback(
+      async (_choice, outcome) => {
+        const current = leaderboardSettings;
+        if (!current) return;
+        // A written hide stands even when the mark failed (hidden and un-noticed, never named); the notice is chosen on only when the whole choice succeeded.
+        const after = settingsAfterNotice(current, outcome);
+        setLeaderboardSettings(after);
+        if (outcome.ok) {
+          if (sessionUserId && gymId && mayKeepSettingsCopy(after)) void writeLeaderboardSettings(sessionUserId, gymId, { hidden: after.hidden, ownLabel: after.ownLabel });
+          setNoticeOpen(false);
+        }
+      },
+      [leaderboardSettings, sessionUserId, gymId],
+    ),
+  );
+  const toast = useFocusToast();
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void getMyWeeklyGoal().then((result) => {
+        if (!cancelled && result.status === 'success') setWeeklyGoal(result.goal);
+      });
+      let liveAnswered = false;
+      if (sessionUserId && gymId) {
+        void readEngagementCache(sessionUserId, gymId).then((cached) => {
+          if (!cancelled && !liveAnswered) setEngagementEnabled(myVisitsRowFromCache(cached));
+        });
+      }
+      void getMyEngagement().then(async (result) => {
+        liveAnswered = true;
+        if (!cancelled) setEngagementEnabled((current) => myVisitsRowAfterRead(current, result));
+        // One pure plan (lib/leaderboardView.ts): read the settings only when the area is on, clear the row when it is dark, and when the read failed use the
+        // device copy of the settings only if the device copy of the engagement row says the area is on.
+        const gate = gateFromResult(result);
+        const deviceCopy = gate === 'unknown' && sessionUserId && gymId ? await readEngagementCache(sessionUserId, gymId) : null;
+        if (cancelled) return;
+        const plan = profileSettingsPlan(gate, myVisitsRowFromCache(deviceCopy));
+        // A read that returns while a toggle save is pending must not undo the optimistic flip: the save's own result decides.
+        const commitSettings = (next: LeaderboardSettings | null) => {
+          if (!anonymousPendingRef.current) setLeaderboardSettings(next);
+        };
+        if (plan === 'clear') {
+          commitSettings(null);
+        } else if (plan === 'read') {
+          const settings = await getMyLeaderboardSettings();
+          if (cancelled) return;
+          if (settings.status === 'success') commitSettings(settings.settings);
+          else if (settings.status === 'unavailable') commitSettings(null);
+          else if (sessionUserId && gymId) {
+            // A failed read: the device copy (it exists only once the notice was chosen on) keeps the row; with none, the row stays as it was.
+            const copy = settingsFromDeviceCopy(await readLeaderboardCache(sessionUserId, gymId));
+            if (!cancelled && copy && !anonymousPendingRef.current) setLeaderboardSettings((current) => current ?? copy);
+          }
+        } else if (plan === 'device' && sessionUserId && gymId) {
+          const copy = settingsFromDeviceCopy(await readLeaderboardCache(sessionUserId, gymId));
+          if (!cancelled && copy && !anonymousPendingRef.current) setLeaderboardSettings((current) => current ?? copy);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [sessionUserId, gymId]),
+  );
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -140,7 +251,7 @@ export default function ProfileScreen() {
       // by migration 0047's auto-create trigger), not on an active
       // subscription -- fetched alongside subscription rather than gated
       // behind noActivePlan (Story 6.4 AC #2).
-      const [subscriptionResult, preferences] = await Promise.all([
+      const [subscriptionResult, preferences, reminderHour] = await Promise.all([
         // Same PGRST116 distinction as above -- a member with no active
         // subscription is a distinct, non-retryable state from a real
         // network/connectivity failure (same distinction onboarding/plan.tsx's
@@ -154,6 +265,7 @@ export default function ProfileScreen() {
           .limit(1)
           .single(),
         getMemberPreferences(resolvedMemberId),
+        getStreakReminderHour(),
       ]);
 
       if (!mountedRef.current) return;
@@ -179,6 +291,8 @@ export default function ProfileScreen() {
         setNotificationsLoadError(false);
         setQuietGymAlertsOptedOut(preferences.quietGymAlertsOptedOut);
         setClassReminderOptedOut(preferences.classReminderOptedOut);
+        setStreakReminderOptedOut(preferences.streakReminderOptedOut);
+        setStreakReminderHour(reminderHour);
       } else {
         setNotificationsLoadError(true);
       }
@@ -333,14 +447,94 @@ export default function ProfileScreen() {
     }
   }
 
+  // Story 31.2 (FR-233): the Streak reminder toggle. Optimistic flip, saved at once, with its own pending flag; a failed save puts the previous
+  // value back (lib/streakReminder.ts decides) and shows the existing toast element with the profile's save-failed message.
+  async function handleToggleStreakReminder() {
+    if (streakReminderPending || !memberId) return;
+    const previous = streakReminderOptedOut;
+    setStreakReminderPending(true);
+    setStreakReminderOptedOut(!previous);
+    try {
+      const saved = await updateMemberPreferences(memberId, { streakReminderOptedOut: !previous });
+      const after = streakReminderAfterToggle(previous, saved);
+      if (!mountedRef.current) return;
+      setStreakReminderOptedOut(after.optedOut);
+      if (after.showError) {
+        if (saveErrorTimerRef.current) clearTimeout(saveErrorTimerRef.current);
+        setSaveErrorToast(t('profile.errorSaveFailed'));
+        saveErrorTimerRef.current = setTimeout(() => setSaveErrorToast(null), TOAST_MS);
+      }
+    } finally {
+      if (mountedRef.current) setStreakReminderPending(false);
+    }
+  }
+
+  // Story 30.6 (FR-227): the Anonymous toggle shows the stored choice (on = hidden). On saves at once, optimistic, reverted on failure, with its own
+  // pending flag; off while the notice is unseen saves nothing and opens the notice.
+  async function handleToggleAnonymous(nextHidden: boolean) {
+    const current = leaderboardSettings;
+    if (!current || anonymousPending || !isConnected) return;
+    if (decideToggle(nextHidden, current.noticeSeen) === 'openNotice') {
+      notice.reset();
+      setNoticeOpen(true);
+      return;
+    }
+    anonymousPendingRef.current = true;
+    setAnonymousPending(true);
+    setLeaderboardSettings(settingsAfterToggle(current, nextHidden, true));
+    try {
+      const result = await setLeaderboardVisibility(nextHidden);
+      const ok = result.status === 'success';
+      // The save's own result decides: the new choice on success, the previous one (the optimistic flip reverted) on failure.
+      const after = settingsAfterToggle(current, nextHidden, ok);
+      if (mountedRef.current) setLeaderboardSettings(after);
+      // The device copy is written only for a member who has chosen on the notice (every reader treats a copy as noticeSeen: true).
+      if (ok && sessionUserId && gymId && mayKeepSettingsCopy(after)) void writeLeaderboardSettings(sessionUserId, gymId, { hidden: after.hidden, ownLabel: after.ownLabel });
+    } finally {
+      anonymousPendingRef.current = false;
+      if (mountedRef.current) setAnonymousPending(false);
+    }
+  }
+
+  function renderAnonymousRow() {
+    if (!leaderboardSettings) return null;
+    const row = buildAnonymousRowView({ settings: leaderboardSettings, pending: anonymousPending, connected: isConnected, t });
+    return (
+      <View style={[styles.goalRow, styles.rowDivider, { borderTopColor: theme.border }]}>
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <IconChip icon="visibility-off" tint="primary" />
+        </View>
+        <View style={styles.goalRowText}>
+          <ThemedText type="smallBold">{row.label}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {row.helper}
+          </ThemedText>
+          <Pressable accessibilityRole="link" onPress={() => router.push('/leaderboard')} hitSlop={Spacing.one}>
+            <ThemedText type="link">{row.linkLabel}</ThemedText>
+          </Pressable>
+        </View>
+        <Switch
+          accessibilityRole="switch"
+          accessibilityLabel={row.accessibilityLabel}
+          accessibilityState={{ checked: row.checked, disabled: row.disabled }}
+          disabled={row.disabled}
+          value={row.checked}
+          onValueChange={(next) => void handleToggleAnonymous(next)}
+        />
+      </View>
+    );
+  }
+
   async function handleRetryNotifications() {
     if (!memberId) return;
-    const preferences = await getMemberPreferences(memberId);
+    const [preferences, reminderHour] = await Promise.all([getMemberPreferences(memberId), getStreakReminderHour()]);
     if (!mountedRef.current) return;
     if (preferences) {
       setNotificationsLoadError(false);
       setQuietGymAlertsOptedOut(preferences.quietGymAlertsOptedOut);
       setClassReminderOptedOut(preferences.classReminderOptedOut);
+      setStreakReminderOptedOut(preferences.streakReminderOptedOut);
+      setStreakReminderHour(reminderHour);
     }
   }
 
@@ -354,6 +548,9 @@ export default function ProfileScreen() {
           // a different member signing in on the same device never sees a
           // prior member's cached weight/measurements/photos.
           clearCachedProgressPayload();
+          void clearShown();
+          void clearBadgesCache();
+          void clearShieldNotices();
           clearCachedWorkoutPlan();
           void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
         },
@@ -361,6 +558,20 @@ export default function ProfileScreen() {
       { text: t('common.cancel'), style: 'cancel' },
     ]);
   }
+
+  const streakReminderRow = buildStreakReminderRow({
+    optedOut: streakReminderOptedOut,
+    pending: streakReminderPending,
+    hour: streakReminderHour,
+    language: i18n.language,
+    t,
+  });
+  const goalRowValue = weeklyGoal ? profileGoalValue(weeklyGoal, t, i18n.language === 'fr' ? 'fr' : 'en') : null;
+  const goalRowLabel = goalRowValue ? `${t('engage.profile.goal.row')}, ${goalRowValue}` : null;
+  // Story 31.3 (MA-12): the Badges row's "2 of 5", from the device copy and one read per focus; hidden with the rest of the area while it is dark.
+  const badgeRows = useBadgeRows(engagementEnabled, isConnected, session?.user.id ?? null, gymId);
+  const badgesRowValue = profileBadgesValue(badgeRows, t);
+  const badgesRowLabel = badgesRowValue ? `${t('engage.profile.badges.row')}, ${badgesRowValue}` : t('engage.profile.badges.row');
 
   const displayPhotoUri = editing ? (editPhotoUri ?? photoUrl) : photoUrl;
   const isDirty = editName.trim() !== (displayName ?? '') || editPhotoUri !== null;
@@ -518,6 +729,87 @@ export default function ProfileScreen() {
               </View>
             </Card>
 
+            {/* Story 30.1 (MA-12, FR-219): the Training card, between the account card and the rest. One row for now: the weekly goal, which
+                opens the MA-23 sheet. The Badges and Anonymous rows come with later stories. */}
+            <ThemedText type="default">{t('engage.profile.section')}</ThemedText>
+            <Card variant="flat">
+              {/* Not a ListItem: its title is a single line and its meta a short label, and this row's value ("3 days, then 4 from Mon 24 Nov") and
+                  French title must wrap rather than clip at 360pt and large text sizes. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={goalRowLabel ?? t('engage.profile.goal.row')}
+                onPress={() => router.push('/goal')}
+                style={styles.goalRow}>
+                <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  <IconChip icon="flag" tint="primary" />
+                </View>
+                <View style={styles.goalRowText}>
+                  <ThemedText type="smallBold">{t('engage.profile.goal.row')}</ThemedText>
+                  {goalRowValue && (
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {goalRowValue}
+                    </ThemedText>
+                  )}
+                </View>
+                <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
+              </Pressable>
+              {/* Story 30.5 (FR-224): the calendar of visit days, pushed full screen. */}
+              {engagementEnabled && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('engage.calendar.title')}
+                  onPress={() => router.push('/calendar')}
+                  style={[styles.goalRow, styles.rowDivider, { borderTopColor: theme.border }]}>
+                  <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                    <IconChip icon="event" tint="primary" />
+                  </View>
+                  <View style={styles.goalRowText}>
+                    <ThemedText type="smallBold">{t('engage.calendar.title')}</ThemedText>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
+                </Pressable>
+              )}
+              {/* Story 31.3 (MA-12, FR-230): the Badges row, "2 of 5", opens the shelf. */}
+              {engagementEnabled && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={badgesRowLabel}
+                  onPress={() => router.push('/badges')}
+                  style={[styles.goalRow, styles.rowDivider, { borderTopColor: theme.border }]}>
+                  <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                    <IconChip icon="military-tech" tint="primary" />
+                  </View>
+                  <View style={styles.goalRowText}>
+                    <ThemedText type="smallBold">{t('engage.profile.badges.row')}</ThemedText>
+                    {badgesRowValue && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {badgesRowValue}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
+                </Pressable>
+              )}
+              {/* Story 30.6 (MA-12, FR-227): the Anonymous toggle (on = hidden), its helper line and the link to the board. */}
+              {engagementEnabled && renderAnonymousRow()}
+              {/* Story 31.4: Progress (body measurements and photos, screens unchanged) left the tab bar for good and is reached from here, in every
+                  gate state: this row sits outside the engagementEnabled blocks, so the Training card renders for a dark gym with the Weekly goal row and
+                  this one. It pushes the root stack route /progress (a Back header, no tab bar). */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('engage.profile.progress.row')}
+                onPress={() => router.push('/progress')}
+                style={[styles.goalRow, styles.rowDivider, { borderTopColor: theme.border }]}>
+                <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  <IconChip icon="show-chart" tint="primary" />
+                </View>
+                <View style={styles.goalRowText}>
+                  <ThemedText type="smallBold">{t('engage.profile.progress.row')}</ThemedText>
+                </View>
+                <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
+              </Pressable>
+            </Card>
+
             {/* Story 10.1 AC #2's "or visit Progress at any later time" --
                 an interim entry point before Story 10.3 formally adds this
                 to the Progress tab. Reuses /onboarding/body-profile itself
@@ -598,6 +890,29 @@ export default function ProfileScreen() {
                     <ThemedText type="small" themeColor="textSecondary">
                       {t('profile.notifications.classReminderDescription')}
                     </ThemedText>
+
+                    <View style={[styles.rowDivider, { borderTopColor: theme.border }]}>
+                      <ListItem
+                        icon="notifications"
+                        tint="primary"
+                        title={streakReminderRow.label}
+                        trailing={
+                          <Switch
+                            accessibilityRole="switch"
+                            accessibilityLabel={streakReminderRow.accessibilityLabel}
+                            accessibilityState={{ checked: streakReminderRow.checked, disabled: streakReminderRow.disabled }}
+                            disabled={streakReminderRow.disabled}
+                            value={streakReminderRow.checked}
+                            onValueChange={() => void handleToggleStreakReminder()}
+                          />
+                        }
+                      />
+                    </View>
+                    {streakReminderRow.helper !== null && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {streakReminderRow.helper}
+                      </ThemedText>
+                    )}
                   </Card>
                 )}
               </View>
@@ -607,7 +922,33 @@ export default function ProfileScreen() {
           </>
           )}
         </ScrollView>
+
+        {(saveErrorToast ?? toast) && (
+          <View
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            style={[styles.toast, { bottom: insets.bottom + BottomTabInset + Spacing.three }]}>
+            <ThemedText type="small" style={styles.toastText}>
+              {saveErrorToast ?? toast}
+            </ThemedText>
+          </View>
+        )}
       </SafeAreaView>
+      {leaderboardSettings && (
+        <Modal visible={noticeOpen} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setNoticeOpen(false)}>
+          <ThemedView style={styles.noticeModal}>
+            <SafeAreaView style={styles.noticeSafeArea}>
+              <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={() => setNoticeOpen(false)} style={styles.noticeBack}>
+                <ThemedText type="default">←</ThemedText>
+              </Pressable>
+              <LeaderboardNotice
+                view={buildNoticeView({ ownLabel: leaderboardSettings.ownLabel, gymName, busy: notice.busy, failed: notice.failed, connected: isConnected, t })}
+                onChoose={(choice) => void notice.choose(choice)}
+              />
+            </SafeAreaView>
+          </ThemedView>
+        </Modal>
+      )}
       <LogEntrySheet
         visible={logEntrySheetVisible}
         onClose={() => setLogEntrySheetVisible(false)}
@@ -681,6 +1022,41 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: Spacing.two,
     marginBottom: Spacing.two,
+  },
+  noticeModal: {
+    flex: 1,
+  },
+  noticeSafeArea: {
+    flex: 1,
+    paddingHorizontal: Spacing.three,
+  },
+  noticeBack: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  goalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    minHeight: 44,
+  },
+  goalRowText: {
+    flex: 1,
+    gap: Spacing.half,
+  },
+  toast: {
+    position: 'absolute',
+    left: Spacing.four,
+    right: Spacing.four,
+    backgroundColor: '#1F2937',
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+  },
+  toastText: {
+    color: '#F9FAFB',
   },
   languageToggle: {
     flexDirection: 'row',

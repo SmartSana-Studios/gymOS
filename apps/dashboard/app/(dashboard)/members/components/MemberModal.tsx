@@ -20,6 +20,7 @@ import {
 } from "@/app/(dashboard)/payments/actions";
 import { RecordSessionPaymentDialog } from "@/components/shared/RecordSessionPaymentDialog";
 import type { MemberGuestSession } from "@/services/guestSessions";
+import { formatGymLocal } from "@/lib/guest-sessions";
 import type { MemberLoyalty } from "@/services/loyalty";
 import { PAYMENT_METHOD_LABEL_KEY } from "@/app/(dashboard)/payments/paymentLabels";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
@@ -212,6 +213,34 @@ function SessionsSection({
     return key ? t(key) : method;
   };
 
+  // Story 28.3: a visit or class row says what it covered (gym-local date and time); a day row, and a legacy row with no kind, keep the
+  // "Used <date> · covered <day>" wording. A class row whose class did not come back reads as the date it was used.
+  const usedText = (row: MemberGuestSession): string => {
+    const consumedAt = row.consumedAt as string;
+    if (row.coveredKind === "visit") {
+      return t("members.modal.sessions.usedVisit", {
+        date: formatGymLocal(consumedAt, row.gymTimezone, locale, "date"),
+        time: formatGymLocal(consumedAt, row.gymTimezone, locale, "time"),
+      });
+    }
+    if (row.coveredKind === "class") {
+      return t("members.modal.sessions.usedClass", {
+        name: row.className ?? "",
+        date: formatGymLocal(row.classStartsAt ?? consumedAt, row.gymTimezone, locale, "date"),
+      });
+    }
+    return (
+      t("members.modal.sessions.usedOn", { date: date(consumedAt) }) +
+      (row.coveredDay ? ` · ${t("members.modal.sessions.covered", { date: formatLocalDate(row.coveredDay, locale) })}` : "")
+    );
+  };
+  const usedTitle = (row: MemberGuestSession): string | undefined =>
+    row.coveredKind === "visit"
+      ? t("members.modal.sessions.coveredVisit")
+      : row.coveredKind === "class"
+        ? t("members.modal.sessions.coveredClass")
+        : undefined;
+
   const unused = rows
     .filter((r) => !r.consumedAt && !r.voidedAt && new Date(r.usableUntil).getTime() >= now)
     .sort((a, b) => (a.usableUntil < b.usableUntil ? -1 : 1));
@@ -257,10 +286,8 @@ function SessionsSection({
           <p className="text-xs font-medium text-muted-foreground">{t("members.modal.sessions.used")}</p>
           <ul className="space-y-1 text-sm">
             {used.map((row) => (
-              <li key={row.id} className="rounded-md border p-2">
-                {t("members.modal.sessions.usedOn", { date: date(row.consumedAt as string) })}
-                {row.coveredDay &&
-                  ` · ${t("members.modal.sessions.covered", { date: formatLocalDate(row.coveredDay, locale) })}`}
+              <li key={row.id} className="rounded-md border p-2" title={usedTitle(row)}>
+                {usedText(row)}
               </li>
             ))}
           </ul>

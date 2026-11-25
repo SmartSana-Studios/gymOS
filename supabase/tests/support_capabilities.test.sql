@@ -6,7 +6,7 @@
 --   E. step-up (refund, waiver, staff creation) and the staff ceiling
 --   F. revocation leaves support-created staff active and tagged
 begin;
-select plan(146);
+select plan(157);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -90,7 +90,7 @@ select private.support_set_membership('00000000-0000-0000-0000-000000236401', tr
 -- ============================================================================================================
 -- A. catalog
 -- ============================================================================================================
-select is((select count(*)::int from private.support_capabilities), 48, 'the allow-list holds 48 objects (21 policies, 27 RPCs): a change is deliberate (24.8 added publish_gym_page and unpublish_gym_page, 24.9 get_gym_page_status, 25.1 set_gym_location, 27.3 staff_check_in, void_staff_check_in and list_attendance_log, 27.4 correct_plan_eligibility and correct_subscription_plan)');
+select is((select count(*)::int from private.support_capabilities), 50, 'the allow-list holds 50 objects (21 policies, 29 RPCs): a change is deliberate (24.8 added publish_gym_page and unpublish_gym_page, 24.9 get_gym_page_status, 25.1 set_gym_location, 27.3 staff_check_in, void_staff_check_in and list_attendance_log, 27.4 correct_plan_eligibility and correct_subscription_plan, 28.1 set_session_validity and get_session_validity_settings)');
 select is(has_table_privilege('authenticated', 'private.support_capabilities', 'select') or has_table_privilege('anon', 'private.support_capabilities', 'select'),
           false, 'support_capabilities is not readable by clients');
 select is((select count(*)::int from private.support_capabilities c
@@ -123,6 +123,7 @@ select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') 
           'catalog: the direct consumers of support_gym_id are exactly the helpers, the three triggers, status, audit and the actor (23.7)');
 
 -- classification of every policy / function that names 'supervisor'. A new one fails until it is added here, deliberately.
+-- 0183 (Story 29.4): the seven coach picker reads name 'supervisor' (Owner, Supervisor, Manager) and are NOT support capabilities (FR-251).
 create temp table cls (kind text, name text, support text, primary key (kind, name));
 insert into cls (kind, name, support) values
   ('policy', 'attendance_events.gym_staff_read_own_attendance_events', 'excludes'),
@@ -158,6 +159,7 @@ insert into cls (kind, name, support) values
   ('policy', 'workout_plan_exercises.manager_or_owner_read_own_workout_plan_exercises', 'excludes'),
   ('policy', 'workout_plans.manager_or_owner_read_own_workout_plan', 'excludes'),
   ('function', 'assign_coach', 'excludes'),
+  ('function', 'cancel_class', 'excludes'),
   ('function', 'capability_roles', 'excludes'),
   ('function', 'check_out_member', 'excludes'),
   ('function', 'create_class', 'excludes'),
@@ -175,6 +177,13 @@ insert into cls (kind, name, support) values
   ('function', 'update_class', 'excludes'),
   ('function', 'update_staff_role', 'excludes'),
   ('function', 'void_registration_fee_payment', 'excludes'),
+  ('function', 'get_coach_assigned_member', 'excludes'),
+  ('function', 'get_coach_member_workout_plan', 'excludes'),
+  ('function', 'list_coach_assigned_members', 'excludes'),
+  ('function', 'list_coach_class_session_roster', 'excludes'),
+  ('function', 'list_coach_classes', 'excludes'),
+  ('function', 'list_coach_member_session_notes', 'excludes'),
+  ('function', 'list_picker_coaches', 'excludes'),
   ('function', 'confirm_renewal', 'includes'),
   ('function', 'create_staff_member', 'includes'),
   ('function', 'record_registration_fee', 'includes'),
@@ -198,7 +207,9 @@ insert into cls (kind, name, support) values
   ('function', 'staff_check_in', 'includes'),
   ('function', 'void_staff_check_in', 'includes'),
   ('function', 'correct_plan_eligibility', 'includes'),
-  ('function', 'correct_subscription_plan', 'includes');
+  ('function', 'correct_subscription_plan', 'includes'),
+  ('function', 'set_session_validity', 'includes'),
+  ('function', 'get_session_validity_settings', 'includes');
 create temp table found_sup as
   select 'policy'::text as kind, p.tablename || '.' || p.policyname as name from pg_policies p
    where coalesce(p.qual, '') || coalesce(p.with_check, '') like '%''supervisor''%'
@@ -236,11 +247,13 @@ set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000236101', 'support', 'aal1', '00000000-0000-0000-0000-000000236001', '00000000-0000-0000-0000-0000000236a1');
 select is(pg_temp.visible(), '0/0/0/0/0', 'aal1: zero rows');
 select is(pg_temp.err($$select set_registration_fee(100)$$), 'P0001:permission denied', 'aal1: RPC refused');
+select is(pg_temp.err($$select set_session_validity('00000000-0000-0000-0000-000000236001', 'single_use')$$), 'P0001:permission denied', 'aal1: set_session_validity refused');
 select pg_temp.claims('00000000-0000-0000-0000-000000236101', 'support', 'aal2', null, '00000000-0000-0000-0000-0000000236a1');
 select is(pg_temp.visible(), '0/0/0/0/0', 'no gym in the claim: zero rows');
 select pg_temp.claims('00000000-0000-0000-0000-000000236101', 'support', 'aal2', '00000000-0000-0000-0000-000000236002', '00000000-0000-0000-0000-0000000236a1');
 select is(pg_temp.visible(), '0/0/0/0/0', 'a gym with no assignment: zero rows');
 select is(pg_temp.err($$select update_plan_pricing('00000000-0000-0000-0000-000000236503', 'monthly', 1, 30, 'monthly', null, null)$$), 'P0001:permission denied', 'a gym with no assignment: RPC refused');
+select is(pg_temp.err($$select set_session_validity('00000000-0000-0000-0000-000000236002', 'single_use')$$), 'P0001:permission denied', 'a gym with no assignment: set_session_validity refused');
 select pg_temp.claims('00000000-0000-0000-0000-000000236101', 'support', 'aal2', '00000000-0000-0000-0000-000000236001', null);
 select is(pg_temp.visible(), '0/0/0/0/0', 'no session: zero rows');
 reset role;
@@ -252,6 +265,7 @@ set local role authenticated;
 select pg_temp.live_support();
 select is(pg_temp.visible(), '0/0/0/0/0', 'Owner switch off: zero rows');
 select is(pg_temp.err($$select set_gym_category('00000000-0000-0000-0000-000000236001', 'other')$$), 'P0001:permission denied', 'Owner switch off: RPC refused');
+select is(pg_temp.err($$select set_session_validity('00000000-0000-0000-0000-000000236001', 'single_use')$$), 'P0001:permission denied', 'Owner switch off: set_session_validity refused');
 reset role;
 select set_config('gymos.allow_support_setter', 'on', true);
 update gyms set allow_gymos_support = true where id = '00000000-0000-0000-0000-000000236001';
@@ -268,6 +282,7 @@ set local role authenticated;
 select pg_temp.live_support();
 select is(pg_temp.visible(), '0/0/0/0/0', 'assignment suspended: zero rows');
 select is(pg_temp.err($$select set_gym_category('00000000-0000-0000-0000-000000236001', 'other')$$), 'P0001:permission denied', 'assignment suspended: RPC refused');
+select is(pg_temp.err($$select set_session_validity('00000000-0000-0000-0000-000000236001', 'single_use')$$), 'P0001:permission denied', 'assignment suspended: set_session_validity refused');
 reset role;
 update public.support_assignments set state = 'active' where id = '00000000-0000-0000-0000-000000236401';
 
@@ -301,9 +316,21 @@ select is(pg_temp.err($$select set_loyalty_program(true, 5, 6, 3)$$), 'ok', 'all
 select is(pg_temp.err($$select set_gym_category('00000000-0000-0000-0000-000000236001', 'yoga_studio')$$), 'ok', 'allow-list: category');
 select is(pg_temp.err($$select set_gym_category('00000000-0000-0000-0000-000000236002', 'yoga_studio')$$), 'P0001:permission denied', 'category of another gym is refused');
 select is((select category || ':' || loyalty_enabled || ':' || charge_guests_per_session from gyms where id = '00000000-0000-0000-0000-000000236001'), 'yoga_studio:true:true', 'the settings changed');
+-- session validity (28.1): a live support caller sets it for the assigned gym only; the audit row is one more entry below
+select is(pg_temp.err($$select set_session_validity('00000000-0000-0000-0000-000000236001', 'single_use')$$), 'ok', 'allow-list: session validity');
+select is(pg_temp.err($$select set_session_validity('00000000-0000-0000-0000-000000236002', 'single_use')$$), 'P0001:permission denied', 'session validity of another gym is refused');
+select is((select session_validity from gyms where id = '00000000-0000-0000-0000-000000236001'), 'single_use', 'session validity changed for the assigned gym');
+-- the read RPC the Settings page calls for a support caller: one row for the assigned gym, none otherwise (review of 28.1)
+select is((select session_validity || ':' || (single_use_visit_limit_minutes is not null)::text from get_session_validity_settings()), 'single_use:true', 'support read: the assigned gym returns its setting and the platform limit');
+select pg_temp.claims('00000000-0000-0000-0000-000000236101', 'support', 'aal2', '00000000-0000-0000-0000-000000236002', '00000000-0000-0000-0000-0000000236a1');
+select is((select count(*)::int from get_session_validity_settings()), 0, 'support read: a gym with no assignment returns no row');
+select pg_temp.claims('00000000-0000-0000-0000-000000236101', 'support', 'aal1', '00000000-0000-0000-0000-000000236001', '00000000-0000-0000-0000-0000000236a1');
+select is((select count(*)::int from get_session_validity_settings()), 0, 'support read: aal1 returns no row');
+select pg_temp.live_support();
 reset role;
+select is((select session_validity from gyms where id = '00000000-0000-0000-0000-000000236002'), 'whole_day', 'session validity of the unassigned gym is untouched');
 select is((select array_agg(action_type order by action_type) from audit_log where gym_id = '00000000-0000-0000-0000-000000236001' and actor_id = (select id from users where support_proxy_gym_id = '00000000-0000-0000-0000-000000236001')),
-          array['guest_charging_changed', 'guest_charging_changed', 'gym_category_changed', 'loyalty_program_changed', 'plan_price_changed', 'registration_fee_changed'],
+          array['guest_charging_changed', 'guest_charging_changed', 'gym_category_changed', 'loyalty_program_changed', 'plan_price_changed', 'registration_fee_changed', 'session_validity_changed'],
           'each allow-listed RPC audited its change');
 -- members created after the fee is on are unsettled
 insert into members (id, gym_id, user_id, role, name) values

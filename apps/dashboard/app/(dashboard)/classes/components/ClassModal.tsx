@@ -8,9 +8,21 @@ import { classSchema } from "@gymos/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ClassRow } from "@/services/classes";
+import { summarizeSlots } from "@/lib/classTimes";
+import type { ClassRow, LeftUnchangedSession } from "@/services/classes";
 import type { CoachRow } from "@/services/coaches";
 import { createClass, editClass } from "../actions";
+import { WeeklyTimesEditor } from "./WeeklyTimesEditor";
+import {
+  isAtRowLimit,
+  nextRowAfter,
+  normalizeTime,
+  rowsFromSlots,
+  rowsToSlots,
+  sortRows,
+  validateRows,
+  type TimeRow,
+} from "./weeklyRows";
 
 type ScheduleType = ClassRow["scheduleType"];
 
@@ -19,8 +31,7 @@ interface FieldErrors {
   coachId?: string;
   capacity?: string;
   oneOffSessionAt?: string;
-  recurrenceDays?: string;
-  recurrenceTime?: string;
+  slots?: string;
   recurrenceStartDate?: string;
 }
 
@@ -29,20 +40,19 @@ const FIELD_ERROR_KEY: Record<keyof FieldErrors, string> = {
   coachId: "classes.modal.errors.coachRequired",
   capacity: "classes.modal.errors.capacityInvalid",
   oneOffSessionAt: "classes.modal.errors.oneOffDateTimeRequired",
-  recurrenceDays: "classes.modal.errors.recurringFieldsRequired",
-  recurrenceTime: "classes.modal.errors.recurringFieldsRequired",
+  slots: "classes.times.error.none",
   recurrenceStartDate: "classes.modal.errors.recurringFieldsRequired",
 };
 
-const DAY_TOGGLES: { value: number; key: string }[] = [
-  { value: 0, key: "classes.days.sun" },
-  { value: 1, key: "classes.days.mon" },
-  { value: 2, key: "classes.days.tue" },
-  { value: 3, key: "classes.days.wed" },
-  { value: 4, key: "classes.days.thu" },
-  { value: 5, key: "classes.days.fri" },
-  { value: 6, key: "classes.days.sat" },
-];
+function hasLeftUnchanged(data: unknown): data is { leftUnchanged: LeftUnchangedSession[] } {
+  return typeof data === "object" && data !== null && Array.isArray((data as { leftUnchanged?: unknown }).leftUnchanged);
+}
+
+let rowKeyCounter = 0;
+function makeRowKey(): string {
+  rowKeyCounter += 1;
+  return `r${rowKeyCounter}`;
+}
 
 const emptyForm = {
   name: "",
@@ -52,8 +62,7 @@ const emptyForm = {
   scheduleType: "one_off" as ScheduleType,
   oneOffDate: "",
   oneOffTime: "",
-  recurrenceDays: [] as number[],
-  recurrenceTime: "",
+  rows: [] as TimeRow[],
   recurrenceStartDate: "",
 };
 
@@ -73,7 +82,7 @@ function toTimeInputValue(iso: string): string {
 }
 
 function formFromClass(cls: ClassRow | null) {
-  if (!cls) return emptyForm;
+  if (!cls) return { ...emptyForm, rows: [{ key: makeRowKey(), weekday: "1", time: "" }] };
   return {
     name: cls.name,
     description: cls.description ?? "",
@@ -82,15 +91,12 @@ function formFromClass(cls: ClassRow | null) {
     scheduleType: cls.scheduleType,
     oneOffDate: cls.oneOffSessionAt ? toDateInputValue(cls.oneOffSessionAt) : "",
     oneOffTime: cls.oneOffSessionAt ? toTimeInputValue(cls.oneOffSessionAt) : "",
-    recurrenceDays: cls.recurrenceDays ?? [],
-    // Postgres's `time` column round-trips as "HH:mm:ss" (e.g. "18:00:00"),
-    // but the <input type="time"> value and classSchema's own regex both
-    // expect "HH:mm" -- left un-normalized, an edit submitted without
-    // retouching the time field failed validation silently (no visible
-    // per-field error was ever rendered for this field), matching
-    // toDateInputValue/toTimeInputValue's own local-formatting discipline
-    // for the one-off fields just above.
-    recurrenceTime: cls.recurrenceTime ? cls.recurrenceTime.slice(0, 5) : "",
+    // One row per stored slot, in week order (a migrated class opens as one row per old day at its old hour, with no label). A one-off
+    // class has no slot: switching it to Recurring starts from one empty row.
+    rows:
+      cls.slots.length > 0
+        ? rowsFromSlots(cls.slots, makeRowKey)
+        : [{ key: makeRowKey(), weekday: "1", time: "" }],
     recurrenceStartDate: cls.recurrenceStartDate ?? "",
   };
 }
@@ -106,19 +112,36 @@ export function ClassModal({
   onSaved,
   editingClass,
   coaches,
+  gymTimezone = null,
+  coachMode = null,
+  onOwnOnlyRefused,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: (warning?: string) => void;
   editingClass: ClassRow | null;
   coaches: CoachRow[];
+  gymTimezone?: string | null;
+  /** Story 29.3 (UX AD-19 Coach mode): the signed-in Coach, resolved on the server (never typed by the user). Coach is then plain text, not a
+   * select, and the class is saved with this id. Null for Manager, Supervisor and Owner, who keep the full select. */
+  coachMode?: { id: string; name: string } | null;
+  /** Story 29.3: called when the server refuses a Coach on a class that is not theirs (a stale tab after a reassignment); the message is shown
+   * in the modal and the caller refreshes its list. */
+  onOwnOnlyRefused?: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState(emptyForm);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Story 29.2: the weekly-times editor's own state (rows live in `form.rows`).
+  const [showTimeErrors, setShowTimeErrors] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  // Story 29.2: after an edit the modal shows the sessions the edit left unchanged, in place of the form.
+  const [result, setResult] = useState<{ leftUnchanged: LeftUnchangedSession[]; summary: string | null; warning?: string } | null>(null);
+  const resultHeadingRef = useRef<HTMLHeadingElement>(null);
 
   // Adjusted during render, matching PlanModal's own documented rationale --
   // catches editingClass changing reference while the dialog is already
@@ -129,9 +152,13 @@ export function ClassModal({
   });
   if (open && (!syncedWith.open || syncedWith.editingClass !== editingClass)) {
     setSyncedWith({ open, editingClass });
-    setForm(formFromClass(editingClass));
+    setForm({ ...formFromClass(editingClass), ...(coachMode ? { coachId: coachMode.id } : {}) });
     setFieldErrors({});
     setFormError(null);
+    setShowTimeErrors(false);
+    setAnnouncement("");
+    setFocusKey(null);
+    setResult(null);
   } else if (!open && syncedWith.open) {
     setSyncedWith({ open, editingClass });
   }
@@ -146,32 +173,77 @@ export function ClassModal({
     }
   }, [open]);
 
-  const isRecurring = form.scheduleType === "recurring";
+  useEffect(() => {
+    if (result) resultHeadingRef.current?.focus();
+  }, [result]);
 
+  const isRecurring = form.scheduleType === "recurring";
+  const timesValidation = validateRows(form.rows);
+
+  // Closing the result view (Done, the close button, Escape) is the end of a successful save: the list refreshes.
   function resetAndClose() {
+    if (result) {
+      onSaved(result.warning);
+      return;
+    }
     onClose();
   }
 
-  function toggleDay(day: number) {
-    setForm((prev) => ({
-      ...prev,
-      recurrenceDays: prev.recurrenceDays.includes(day)
-        ? prev.recurrenceDays.filter((d) => d !== day)
-        : [...prev.recurrenceDays, day].sort((a, b) => a - b),
-    }));
+  function changeRow(key: string, patch: Partial<Pick<TimeRow, "weekday" | "time">>) {
+    setAnnouncement("");
+    setForm((prev) => ({ ...prev, rows: prev.rows.map((r) => (r.key === key ? { ...r, ...patch } : r)) }));
+  }
+
+  // A row that loses focus: its time is tidied ("7:00" -> "07:00") and the rows re-sort, Monday first, with a polite announcement.
+  function blurRow(key: string) {
+    setForm((prev) => {
+      const tidied = prev.rows.map((r) => {
+        if (r.key !== key) return r;
+        const normalized = normalizeTime(r.time);
+        return normalized !== null && normalized !== r.time ? { ...r, time: normalized } : r;
+      });
+      const sorted = sortRows(tidied);
+      if (sorted !== tidied) setAnnouncement(t("classes.times.sorted"));
+      return { ...prev, rows: sorted };
+    });
+  }
+
+  function addRow() {
+    if (isAtRowLimit(form.rows)) return;
+    const row = nextRowAfter(form.rows, makeRowKey());
+    setForm((prev) => ({ ...prev, rows: [...prev.rows, row] }));
+    setFocusKey(row.key);
+  }
+
+  function removeRow(key: string) {
+    setAnnouncement("");
+    setForm((prev) => ({ ...prev, rows: prev.rows.filter((r) => r.key !== key) }));
+  }
+
+  function formatLeftRow(session: LeftUnchangedSession): string {
+    const when = new Date(session.scheduledAt);
+    const zone = gymTimezone ?? undefined;
+    return t("classes.times.left.row", {
+      day: new Intl.DateTimeFormat(i18n.language, { weekday: "short", timeZone: zone }).format(when),
+      date: new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short", timeZone: zone }).format(when),
+      time: new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: zone }).format(when),
+      n: session.bookedCount,
+      capacity: session.capacity,
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); // validate on submit only, UX-DR11
     setFieldErrors({});
     setFormError(null);
+    setShowTimeErrors(false);
 
     const preErrors: FieldErrors = {};
 
     if (form.name.trim() === "") {
       preErrors.name = t("classes.modal.errors.nameRequired");
     }
-    if (form.coachId === "") {
+    if (!coachMode && form.coachId === "") {
       preErrors.coachId = t("classes.modal.errors.coachRequired");
     }
 
@@ -192,14 +264,24 @@ export function ClassModal({
         preErrors.oneOffSessionAt = t("classes.modal.errors.oneOffDateTimeInPast");
       }
     } else {
-      if (form.recurrenceDays.length === 0 || form.recurrenceTime === "" || form.recurrenceStartDate === "") {
-        preErrors.recurrenceDays = t("classes.modal.errors.recurringFieldsRequired");
+      if (form.recurrenceStartDate === "") {
+        preErrors.recurrenceStartDate = t("classes.modal.errors.recurringFieldsRequired");
+      }
+      if (timesValidation.hasErrors) {
+        setShowTimeErrors(true);
       }
     }
 
-    if (Object.keys(preErrors).length > 0) {
+    if (Object.keys(preErrors).length > 0 || (isRecurring && timesValidation.hasErrors)) {
       setFieldErrors(preErrors);
       return;
+    }
+
+    // Sort on save, with the same polite announcement as on blur.
+    const sortedRows = sortRows(form.rows);
+    if (isRecurring && sortedRows !== form.rows) {
+      setForm((prev) => ({ ...prev, rows: sortedRows }));
+      setAnnouncement(t("classes.times.sorted"));
     }
 
     let oneOffSessionAt: string | null = null;
@@ -215,12 +297,11 @@ export function ClassModal({
     const parsed = classSchema.safeParse({
       name: form.name,
       description: form.description.trim() === "" ? undefined : form.description,
-      coachId: form.coachId,
+      coachId: coachMode ? coachMode.id : form.coachId,
       capacity: capacityNum,
       scheduleType: form.scheduleType,
       oneOffSessionAt,
-      recurrenceDays: isRecurring ? form.recurrenceDays : null,
-      recurrenceTime: isRecurring ? form.recurrenceTime : null,
+      slots: isRecurring ? rowsToSlots(sortedRows) : null,
       recurrenceStartDate: isRecurring ? form.recurrenceStartDate : null,
     });
 
@@ -236,7 +317,7 @@ export function ClassModal({
 
     setSubmitting(true);
     try {
-      const { error } = editingClass
+      const { data, error } = editingClass
         ? await editClass(editingClass.id, parsed.data)
         : await createClass(parsed.data);
 
@@ -249,10 +330,27 @@ export function ClassModal({
         // discarding error.message -- the translated warning strings were
         // unreachable dead code).
         if (error.code === "audit_log_failed") {
+          if (editingClass && hasLeftUnchanged(data)) {
+            setResult({
+              leftUnchanged: data.leftUnchanged,
+              summary: parsed.data.slots ? summarizeSlots(parsed.data.slots, t).full : null,
+              warning: error.message,
+            });
+            return;
+          }
           onSaved(error.message);
           return;
         }
         setFormError(error.message);
+        if (error.code === "class_coach_own_only") onOwnOnlyRefused?.();
+        return;
+      }
+
+      if (editingClass && hasLeftUnchanged(data)) {
+        setResult({
+          leftUnchanged: data.leftUnchanged,
+          summary: parsed.data.slots ? summarizeSlots(parsed.data.slots, t).full : null,
+        });
         return;
       }
 
@@ -267,13 +365,55 @@ export function ClassModal({
   return (
     <dialog
       ref={dialogRef}
-      onClose={resetAndClose}
+      onClose={() => {
+        if (open) resetAndClose();
+      }}
       onCancel={(e) => {
         if (submitting) e.preventDefault();
       }}
       className="w-full max-w-[520px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
     >
-      <form onSubmit={handleSubmit} className="space-y-4 p-6">
+      {result ? (
+        <div className="space-y-4 p-6" data-testid="class-saved-result">
+          <div className="flex items-center justify-between">
+            <h2 ref={resultHeadingRef} tabIndex={-1} className="text-lg font-semibold outline-none">
+              {t("classes.times.saved.title")}
+            </h2>
+            <button
+              type="button"
+              aria-label={t("classes.modal.close")}
+              onClick={resetAndClose}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          {result.summary && <p className="text-sm">{t("classes.times.saved.summary", { summary: result.summary })}</p>}
+          {result.leftUnchanged.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("classes.times.left.none")}</p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">
+                {result.leftUnchanged.length === 1
+                  ? t("classes.times.left.title1")
+                  : t("classes.times.left.title", { n: result.leftUnchanged.length })}
+              </p>
+              <p className="text-sm text-muted-foreground">{t("classes.times.left.help")}</p>
+              <ul className="space-y-1 text-sm">
+                {result.leftUnchanged.map((session) => (
+                  <li key={session.classSessionId}>{formatLeftRow(session)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="flex justify-end pt-2">
+            <Button type="button" onClick={resetAndClose}>
+              {t("classes.times.done")}
+            </Button>
+          </div>
+        </div>
+      ) : (
+      <form onSubmit={handleSubmit} className="space-y-4 p-6" noValidate>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">
             {editingClass
@@ -311,23 +451,43 @@ export function ClassModal({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="classCoach">{t("classes.modal.coach")}</Label>
-          <select
-            id="classCoach"
-            value={form.coachId}
-            onChange={(e) => setForm({ ...form, coachId: e.target.value })}
-            className={selectClassName}
-          >
-            <option value="">{t("classes.modal.coachPlaceholder")}</option>
-            {coaches.map((coach) => (
-              <option key={coach.id} value={coach.id}>
-                {coach.name}
-              </option>
-            ))}
-          </select>
-          {fieldErrors.coachId && <p className="text-sm text-red-600">{fieldErrors.coachId}</p>}
-        </div>
+        {coachMode ? (
+          <div className="space-y-2">
+            <p id="classCoachFixedLabel" className="text-sm font-medium leading-none">
+              {t("classes.coach.fixed")}
+            </p>
+            <p
+              data-testid="class-coach-fixed"
+              role="group"
+              aria-labelledby="classCoachFixedLabel"
+              aria-describedby="classCoachFixedHelp"
+              className="text-sm"
+            >
+              {coachMode.name}
+            </p>
+            <p id="classCoachFixedHelp" className="text-xs text-muted-foreground">
+              {t("classes.coach.fixedHelp")}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="classCoach">{t("classes.modal.coach")}</Label>
+            <select
+              id="classCoach"
+              value={form.coachId}
+              onChange={(e) => setForm({ ...form, coachId: e.target.value })}
+              className={selectClassName}
+            >
+              <option value="">{t("classes.modal.coachPlaceholder")}</option>
+              {coaches.map((coach) => (
+                <option key={coach.id} value={coach.id}>
+                  {coach.name}
+                </option>
+              ))}
+            </select>
+            {fieldErrors.coachId && <p className="text-sm text-red-600">{fieldErrors.coachId}</p>}
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="classCapacity">{t("classes.modal.capacity")}</Label>
@@ -392,45 +552,35 @@ export function ClassModal({
         ) : (
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label>{t("classes.modal.daysOfWeek")}</Label>
-              <div className="flex flex-wrap gap-3">
-                {DAY_TOGGLES.map((day) => (
-                  <label key={day.value} className="flex items-center gap-1 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={form.recurrenceDays.includes(day.value)}
-                      onChange={() => toggleDay(day.value)}
-                    />
-                    {t(day.key)}
-                  </label>
-                ))}
-              </div>
+              <Label htmlFor="recurrenceStartDate">{t("classes.modal.startDate")}</Label>
+              <Input
+                id="recurrenceStartDate"
+                type="date"
+                value={form.recurrenceStartDate}
+                onChange={(e) => setForm({ ...form, recurrenceStartDate: e.target.value })}
+              />
+              {fieldErrors.recurrenceStartDate && (
+                <p className="text-sm text-red-600">{fieldErrors.recurrenceStartDate}</p>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="recurrenceTime">{t("classes.modal.time")}</Label>
-                <Input
-                  id="recurrenceTime"
-                  type="time"
-                  value={form.recurrenceTime}
-                  onChange={(e) => setForm({ ...form, recurrenceTime: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="recurrenceStartDate">{t("classes.modal.startDate")}</Label>
-                <Input
-                  id="recurrenceStartDate"
-                  type="date"
-                  value={form.recurrenceStartDate}
-                  onChange={(e) => setForm({ ...form, recurrenceStartDate: e.target.value })}
-                />
-              </div>
-            </div>
-            {(fieldErrors.recurrenceDays || fieldErrors.recurrenceTime || fieldErrors.recurrenceStartDate) && (
-              <p className="text-sm text-red-600">
-                {fieldErrors.recurrenceDays || fieldErrors.recurrenceTime || fieldErrors.recurrenceStartDate}
+            {showTimeErrors && timesValidation.hasErrors && (
+              <p role="alert" className="text-sm text-red-600">
+                {t("classes.times.error.summary")}
               </p>
             )}
+            <WeeklyTimesEditor
+              rows={form.rows}
+              validation={timesValidation}
+              showErrors={showTimeErrors}
+              timezone={gymTimezone}
+              editNotice={Boolean(editingClass?.nextSessionId)}
+              announcement={announcement}
+              focusKey={focusKey}
+              onRowChange={changeRow}
+              onRowBlur={blurRow}
+              onAdd={addRow}
+              onRemove={removeRow}
+            />
           </div>
         )}
 
@@ -449,6 +599,7 @@ export function ClassModal({
           </Button>
         </div>
       </form>
+      )}
     </dialog>
   );
 }

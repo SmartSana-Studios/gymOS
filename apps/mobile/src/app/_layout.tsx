@@ -10,7 +10,7 @@ import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 import { I18nextProvider } from 'react-i18next';
 import { PostHogProvider } from 'posthog-react-native';
 import * as Sentry from '@sentry/react-native';
@@ -75,10 +75,11 @@ function RootNavigator() {
     captureEvent(ANALYTICS_EVENT.APP_OPENED, { gymId });
   }, [isLoading, gymId]);
 
-  const appStateRef = useRef(AppState.currentState);
+  // RN 0.88 types `currentState` as nullable; the first change event always sets a real status.
+  const appStateRef = useRef<AppStateStatus | null | undefined>(AppState.currentState as AppStateStatus | null | undefined);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+      if (appStateRef.current?.match(/inactive|background/) && nextState === 'active') {
         captureEvent(ANALYTICS_EVENT.APP_OPENED, { gymId });
       }
       appStateRef.current = nextState;
@@ -134,6 +135,11 @@ function RootNavigator() {
         <Stack.Screen name="renew" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="pay-session" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="notifications" options={{ presentation: 'modal', headerShown: false }} />
+        {/* Story 30.1 (MA-23): the weekly goal bottom sheet, up to 60% of the screen. Swipe down or Android back dismisses without saving. */}
+        <Stack.Screen
+          name="goal"
+          options={{ presentation: 'formSheet', headerShown: false, sheetAllowedDetents: [0.6], sheetGrabberVisible: true }}
+        />
         {/* Review finding: was never registered here despite being reachable
             via router.push('/workout-plan') from Home -- an unregistered
             top-level route still resolves via expo-router's file-based
@@ -141,6 +147,21 @@ function RootNavigator() {
             JSX subtree, which is what let it reach useOfflineSync() without
             OfflineSyncProvider actually being an ancestor. */}
         <Stack.Screen name="workout-plan" />
+        {/* Story 30.5 (MA-18): the attendance calendar, a pushed full-screen route with no tab bar. Registered inside the group for the same reason as
+            workout-plan: it reads useOfflineSync(), so it must render under OfflineSyncProvider. */}
+        <Stack.Screen name="calendar" />
+        {/* Story 30.6 (MA-19): the gym leaderboard, a pushed full-screen route with no tab bar. Same reason as calendar: it reads useOfflineSync(). */}
+        <Stack.Screen name="leaderboard" />
+        {/* Story 31.3 (MA-21): the Badge Shelf, a pushed full-screen route with no tab bar. Same reason as calendar: it reads useOfflineSync(). */}
+        <Stack.Screen name="badges" />
+        {/* Story 31.4: Progress (body measurements and photos) left the tab bar for a Profile row, so its three screens are pushed stack routes (the
+            same URLs as before, no tab bar, a Back header). A hidden native tab cannot be navigated to, which is why they are not tab screens. They read
+            useOfflineSync(), so they sit inside the group like calendar. */}
+        <Stack.Screen name="progress/index" />
+        <Stack.Screen name="progress/entries" />
+        <Stack.Screen name="progress/photo/[id]" />
+        {/* Story 30.7 (MA-20): the milestone celebration, pushed once over Home. A fade, and no swipe-down: [Keep going] or Android back closes it. */}
+        <Stack.Screen name="celebration/[milestoneId]" options={{ animation: 'fade', gestureEnabled: false }} />
       </Stack.Protected>
 
       <Stack.Protected guard={showSuspended}>

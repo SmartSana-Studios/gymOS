@@ -121,8 +121,14 @@ stage_pgtap() {
   bash "$ROOT/scripts/pgprove-run.sh" || return 1
   # Refund-vs-consume and loyalty-ledger race (two real sessions; pgTAP runs one). Epic 19 R-1, Epic 20 R-1.
   bash "$ROOT/scripts/session-refund-race.sh" || return 1
+  # Single-use consumption: two simultaneous scans, a stale visit, refund vs scan (two real sessions; Story 28.2, NFR-021).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/single-use-race.sh" || return 1
+  # Book vs slot edit (50 iterations), the 14th vs 15th slot, a materializer run behind a slot edit, and book vs cancel class (two real sessions; Stories 29.1 and 29.2, FR-244).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/class-slot-race.sh" || return 1
   # Member lock on every check-in, charging or not; a second scan must wait behind it (two real sessions; Story 27.2, NFR-021).
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/check-in-member-lock-race.sh" || return 1
+  # Engagement settle against an offline check-in behind a held member lock, both queue orders, 8 iterations (two real sessions plus a holder; Story 30.2, NFR-028).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/engagement-race.sh" || return 1
   # The plan correction against complete_verified_payment, confirm_renewal, the Tara initiation and the lifecycle job, both orders (two real sessions; Story 27.4, NFR-021).
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/correct-plan-race.sh" || return 1
   # job-runs-alert.sql against fixtures (Epic 20 R-4).
@@ -137,6 +143,8 @@ stage_pgtap() {
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/landing-gate/purge-staleness.test.sh" || return 1
   # Claim-read inventory (Story 22.2; enforcing since 22.4): any non-exempt claim-only / null-unsafe entry fails.
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims || return 1
+  # Coach picker isolation (Story 29.4, FR-247): no picker function reaches a progress table, a body column or the progress bucket; not a support capability.
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:coach-picker || return 1
 }
 
 stage_unit() {

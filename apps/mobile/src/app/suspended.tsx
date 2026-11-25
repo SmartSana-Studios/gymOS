@@ -6,7 +6,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { clearBadgesCache } from '@/lib/badgesView';
+import { clearShown } from '@/lib/celebrationView';
 import { clearCachedProgressPayload } from '@/services/progress';
+import { clearShieldNotices } from '@/services/shieldNotices';
 import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
 
 /**
@@ -31,6 +34,9 @@ export default function SuspendedScreen() {
         style: 'destructive',
         onPress: () => {
           clearCachedProgressPayload();
+          void clearShown();
+          void clearBadgesCache();
+          void clearShieldNotices();
           clearCachedWorkoutPlan();
           void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
         },

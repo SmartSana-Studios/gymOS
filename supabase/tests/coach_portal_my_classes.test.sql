@@ -246,10 +246,10 @@ select ok(
 );
 
 select results_eq(
-  $$ select distinct class_name, capacity, schedule_type, recurrence_days, recurrence_time from list_my_classes() order by class_name $$,
+  $$ select distinct class_name, capacity, schedule_type, slots from list_my_classes() order by class_name $$,
   $$ values
-       ('ARCHIVED WORKSHOP'::text, 10, 'one_off'::text, null::smallint[], null::time),
-       ('HIIT CIRCUIT'::text, 15, 'recurring'::text, '{1,3,5}'::smallint[], '18:00'::time) $$,
+       ('ARCHIVED WORKSHOP'::text, 10, 'one_off'::text, '[]'::jsonb),
+       ('HIIT CIRCUIT'::text, 15, 'recurring'::text, '[{"weekday":1,"start_time":"18:00"},{"weekday":3,"start_time":"18:00"},{"weekday":5,"start_time":"18:00"}]'::jsonb) $$,
   'each class carries its capacity and schedule'
 );
 

@@ -103,7 +103,9 @@
   },
   "settings": {
     "title": "Settings",
-    "saveHint": "Save applies changes across every section below, except Registration fee, Charge guests per session, Loyalty program, Category, Allow GymOS Support and Landing page, which save on their own.",
+    "saveHint": {
+      "v18": "Save applies changes across every section below, except Registration fee, Charge guests per session, Loyalty program, Category, Allow GymOS Support, Landing page and Session validity, which save on their own."
+    },
     "guestCharging": {
       "label": "Charge guests per session",
       "hint": "When on, Pay-per-session members need a paid session to check in. Saves on its own.",
@@ -126,6 +128,26 @@
       "offStamps": "Guests stop earning loyalty stamps.",
       "stop": "Stop charging",
       "offToast": "Guests no longer pay per session."
+    },
+    "chargeGuests": {
+      "helperWholeDay": "One session covers the whole day.",
+      "helperSingleUse": "Pay-per-session members need a paid session to check in or attend a class. One session covers one visit."
+    },
+    "sessionValidity": {
+      "title": "Session validity",
+      "description": "Whether a paid session covers the whole day or one visit",
+      "wholeDay": "Whole day",
+      "wholeDayDesc": "A paid session covers every check-in until the end of the day.",
+      "singleUse": "Single use",
+      "singleUseDesc_one": "A paid session covers one visit. A visit ends at check-out, or {{hours}} hour after check-in, whichever comes first.",
+      "singleUseDesc": "A paid session covers one visit. A visit ends at check-out, or {{hours}} hours after check-in, whichever comes first.",
+      "classNote": "A class attended during an open visit uses that visit's session. Otherwise it uses its own session.",
+      "chargingOff": "Takes effect when \"Charge guests per session\" is on.",
+      "applies": "The change applies to check-ins from now on. A visit already open finishes under the old rule, and sessions already used keep their coverage.",
+      "loyaltyNote": "Single use earns loyalty stamps faster: one per paid session. Check your loyalty setting.",
+      "save": "Save session validity",
+      "saved": "Session validity saved.",
+      "error": "Couldn't save session validity. Try again."
     },
     "saveButton": "Save Settings",
     "savedToast": "Settings saved.",
@@ -962,7 +984,7 @@
     "columnNextSession": "Next Session",
     "columnBooked": "Booked",
     "noUpcomingSession": "No upcoming session",
-    "recurringSummary": "{{days}} at {{time}}",
+    "recurringSummary": "{{days}} {{time}}",
     "days": {
       "sun": "Sun",
       "mon": "Mon",
@@ -986,7 +1008,6 @@
       "recurring": "Recurring",
       "date": "Date *",
       "time": "Time *",
-      "daysOfWeek": "Days of the Week *",
       "startDate": "Start Date *",
       "saveChanges": "Save Changes",
       "errors": {
@@ -995,7 +1016,7 @@
         "capacityInvalid": "Enter a capacity of at least 1",
         "oneOffDateTimeRequired": "Enter a session date and time",
         "oneOffDateTimeInPast": "Session date and time must be in the future",
-        "recurringFieldsRequired": "Select at least one day, a time, and a start date"
+        "recurringFieldsRequired": "Choose a start date"
       }
     },
     "errors": {
@@ -1012,6 +1033,71 @@
       "noSession": "This class has no upcoming session to mark attendance for.",
       "loadingBookings": "Loading booked members…",
       "recordSessionPayment": "Record session payment"
+    },
+    "times": {
+      "label": "Weekly times",
+      "counter": "{{n}} of 14",
+      "day": "Day",
+      "time": "Time",
+      "add": "+ Add a time",
+      "remove": "Remove",
+      "removeAria": "Remove {{day}} {{time}}",
+      "limit": "A class can have up to 14 weekly times.",
+      "timezone": "Times are in the gym's time zone ({{zone}}).",
+      "error": {
+        "none": "Add at least one day and time.",
+        "day": "Choose a day.",
+        "time": "Enter a time, for example 18:30.",
+        "duplicate": "This day and time is already in the list.",
+        "summary": "Fix the weekly times marked below before saving."
+      },
+      "dayNames": {
+        "sun": "Sunday",
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday"
+      },
+      "editNotice": "Changes apply to upcoming sessions that nobody has booked. Sessions with bookings stay as they are, and you'll see them after you save.",
+      "saved": {
+        "title": "Class saved",
+        "summary": "Weekly times: {{summary}}"
+      },
+      "left": {
+        "title": "{{n}} sessions with bookings were left unchanged",
+        "title1": "1 session with bookings was left unchanged",
+        "help": "They keep their old time and their bookings.",
+        "row": "{{day}} {{date}} · {{time}} · {{n}} / {{capacity}} booked",
+        "none": "Nothing was left unchanged. Upcoming sessions follow the new times."
+      },
+      "done": "Done",
+      "oldTimeTag": "Old time",
+      "sorted": "Weekly times sorted",
+      "summary": {
+        "more": "+{{n}} more"
+      }
+    },
+    "cancel": {
+      "action": "Cancel class",
+      "title": "Cancel {{name}}?",
+      "body_one": "All upcoming sessions are cancelled, and {{count}} booking is cancelled. Past sessions and attendance stay on record.",
+      "body_other": "All upcoming sessions are cancelled, and {{count}} bookings are cancelled. Past sessions and attendance stay on record.",
+      "bodyNoBookings": "All upcoming sessions are cancelled. Nobody has booked yet.",
+      "keep": "Keep class",
+      "toast": "{{name}} cancelled.",
+      "badge": "Cancelled",
+      "error": "Couldn't cancel the class. Try again.",
+      "already": "This class was already cancelled.",
+      "nothingLeft": "This class has already taken place, so there is nothing left to cancel."
+    },
+    "coach": {
+      "fixed": "Coach",
+      "fixedHelp": "Classes you create are taught by you.",
+      "ownOnly": "You can only change your own classes.",
+      "create": "+ Create class",
+      "empty": "You don't have any classes yet. Create one, or ask your manager to assign you to a class."
     }
   },
   "members": {
@@ -1126,6 +1212,10 @@
         "lapsesOn": "Lapses {{date}}",
         "usedOn": "Used {{date}}",
         "covered": "covered {{date}}",
+        "usedVisit": "Used · visit on {{date}}, {{time}}",
+        "usedClass": "Used · class {{name}}, {{date}}",
+        "coveredVisit": "This session covered one visit",
+        "coveredClass": "This session covered one class",
         "lapsed": "Lapsed {{date}}",
         "voided": "Voided by refund {{date}}",
         "viewPayments": "View session payments"
@@ -1400,6 +1490,38 @@
     },
     "errors": {
       "exportTooLarge": "Apply a filter to narrow results"
+    }
+  },
+  "coach": {
+    "portal": {
+      "nav": "Coach Portal"
+    },
+    "picker": {
+      "label": "Choose a coach",
+      "banner": "You're viewing {{name}}'s Coach Portal. Read-only.",
+      "choose": "Choose a coach to see their classes and members.",
+      "noCoaches": "Your gym has no coaches yet. Add a coach in Staff.",
+      "noCoachesManager": "Your gym has no coaches yet. Ask an Owner or Supervisor to add one.",
+      "unavailable": "That coach isn't available. Choose another.",
+      "inactive": "{{name}} is no longer a coach at this gym.",
+      "tab": {
+        "classes": "Classes",
+        "members": "Members"
+      },
+      "noClasses": "{{name}} has no classes yet.",
+      "noMembers": "No members are assigned to {{name}}.",
+      "noBodyData": "Body measurements, photos and progress notes aren't shown in this view.",
+      "partUnavailable": "This part isn't available in this view. Body measurements, photos, progress notes and progress activity are never shown here.",
+      "notAssigned": "{{member}} isn't assigned to {{coach}}.",
+      "thisMember": "This member",
+      "expiredBar": "This member's membership has expired.",
+      "planAuthor": "Workout plan written by {{name}}",
+      "openInClasses": "Open in Classes",
+      "backToMembers": "Back to members",
+      "openStaff": "Open Staff",
+      "table": {
+        "lastNote": "Last note"
+      }
     }
   },
   "coachPortal": {
@@ -2038,7 +2160,11 @@
       "staffCheckIn": "Member checked in by staff",
       "staffCheckInRejected": "Staff check-in not accepted",
       "staffCheckInVoided": "Staff check-in voided",
-      "planCorrected": "Plan corrected"
+      "planCorrected": "Plan corrected",
+      "sessionValidityChanged": "Session validity changed",
+      "classTimesChanged": "Class weekly times changed",
+      "classCancelled": "Class cancelled",
+      "classCreatedByCoach": "Class created"
     },
     "disclosure": {
       "title": "Questions about this log",
@@ -2072,10 +2198,24 @@
       },
       "voided": "Entry at {{time}} · Reason: {{reason}}"
     },
+    "sessionValidity": {
+      "details": "{{old}} → {{new}}"
+    },
     "planCorrection": {
       "details": "{{oldPlan}} → {{newPlan}} · {{oldPrice}} → {{newPrice}} XAF · {{expiry}} · Reason: {{reason}}",
       "expiry": "expires {{old}} → {{new}}",
       "noExpiry": "no expiry"
+    },
+    "classTimes": {
+      "details_one": "{{name}} · {{old}} → {{new}} · {{count}} session with bookings left unchanged",
+      "details_other": "{{name}} · {{old}} → {{new}} · {{count}} sessions with bookings left unchanged"
+    },
+    "classCancelled": {
+      "details_one": "{{name}} · {{count}} booking cancelled",
+      "details_other": "{{name}} · {{count}} bookings cancelled"
+    },
+    "classCreated": {
+      "details": "{{name}} · capacity {{capacity}}"
     }
   },
   "saasBilling": {
@@ -2155,7 +2295,14 @@
       "class": "Class",
       "earned": "Earned",
       "useBy": "Use by",
-      "status": "Status"
+      "status": "Status",
+      "used": "Used"
+    },
+    "used": {
+      "day": "covered day",
+      "none": "—",
+      "visit": "visit {{date}}, {{time}}",
+      "class": "class {{name}}, {{date}}"
     },
     "refund": {
       "refunded": "Refunded",

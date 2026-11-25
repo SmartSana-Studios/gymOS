@@ -103,7 +103,9 @@
   },
   "settings": {
     "title": "Paramètres",
-    "saveHint": "Enregistrer applique les changements de toutes les sections ci-dessous, sauf Frais d'inscription, Facturer les invités par séance, Programme de fidélité, Catégorie, Autoriser le support GymOS et Page publique, qui s'enregistrent séparément.",
+    "saveHint": {
+      "v18": "Enregistrer applique les changements de toutes les sections ci-dessous, sauf Frais d'inscription, Facturer les invités par séance, Programme de fidélité, Catégorie, Autoriser le support GymOS, Page publique et Validité de la séance, qui s'enregistrent séparément."
+    },
     "guestCharging": {
       "label": "Facturer les invités par séance",
       "hint": "Lorsque cette option est active, les membres au forfait Paiement par séance ont besoin d'une séance payée pour s'enregistrer. S'enregistre séparément.",
@@ -126,6 +128,26 @@
       "offStamps": "Les invités ne gagnent plus de tampons de fidélité.",
       "stop": "Arrêter la facturation",
       "offToast": "Les invités ne paient plus par séance."
+    },
+    "chargeGuests": {
+      "helperWholeDay": "Une séance couvre toute la journée.",
+      "helperSingleUse": "Les membres en Paiement à la séance doivent avoir une séance payée pour s'enregistrer ou assister à un cours. Une séance couvre une visite."
+    },
+    "sessionValidity": {
+      "title": "Validité de la séance",
+      "description": "Une séance payée couvre toute la journée ou une visite",
+      "wholeDay": "Toute la journée",
+      "wholeDayDesc": "Une séance payée couvre toutes les arrivées jusqu'à la fin de la journée.",
+      "singleUse": "Usage unique",
+      "singleUseDesc_one": "Une séance payée couvre une seule visite. Une visite se termine au départ, ou {{hours}} heure après l'arrivée, selon ce qui arrive en premier.",
+      "singleUseDesc": "Une séance payée couvre une seule visite. Une visite se termine au départ, ou {{hours}} heures après l'arrivée, selon ce qui arrive en premier.",
+      "classNote": "Un cours suivi pendant une visite ouverte utilise la séance de cette visite. Sinon, il utilise sa propre séance.",
+      "chargingOff": "Prend effet lorsque « Facturer les invités par séance » est activé.",
+      "applies": "Le changement s'applique aux arrivées à partir de maintenant. Une visite déjà ouverte se termine selon l'ancienne règle, et les séances déjà utilisées gardent leur couverture.",
+      "loyaltyNote": "L'usage unique fait gagner les tampons de fidélité plus vite : un par séance payée. Vérifiez votre programme de fidélité.",
+      "save": "Enregistrer la validité de la séance",
+      "saved": "Validité de la séance enregistrée.",
+      "error": "Impossible d'enregistrer la validité de la séance. Réessayez."
     },
     "saveButton": "Enregistrer les paramètres",
     "savedToast": "Paramètres enregistrés.",
@@ -962,7 +984,7 @@
     "columnNextSession": "Prochain cours",
     "columnBooked": "Réservé",
     "noUpcomingSession": "Aucun cours à venir",
-    "recurringSummary": "{{days}} à {{time}}",
+    "recurringSummary": "{{days}} {{time}}",
     "days": {
       "sun": "Dim",
       "mon": "Lun",
@@ -986,7 +1008,6 @@
       "recurring": "Récurrent",
       "date": "Date *",
       "time": "Heure *",
-      "daysOfWeek": "Jours de la semaine *",
       "startDate": "Date de début *",
       "saveChanges": "Enregistrer les modifications",
       "errors": {
@@ -995,7 +1016,7 @@
         "capacityInvalid": "Saisissez une capacité d'au moins 1",
         "oneOffDateTimeRequired": "Saisissez une date et une heure de séance",
         "oneOffDateTimeInPast": "La date et l'heure de la séance doivent être dans le futur",
-        "recurringFieldsRequired": "Sélectionnez au moins un jour, une heure et une date de début"
+        "recurringFieldsRequired": "Choisissez une date de début"
       }
     },
     "errors": {
@@ -1012,6 +1033,71 @@
       "noSession": "Ce cours n'a aucune séance à venir pour laquelle marquer la présence.",
       "loadingBookings": "Chargement des membres inscrits…",
       "recordSessionPayment": "Enregistrer le paiement de la séance"
+    },
+    "times": {
+      "label": "Horaires de la semaine",
+      "counter": "{{n}} sur 14",
+      "day": "Jour",
+      "time": "Heure",
+      "add": "+ Ajouter un horaire",
+      "remove": "Supprimer",
+      "removeAria": "Supprimer {{day}} {{time}}",
+      "limit": "Un cours peut avoir jusqu'à 14 horaires par semaine.",
+      "timezone": "Les heures sont dans le fuseau horaire de la salle ({{zone}}).",
+      "error": {
+        "none": "Ajoutez au moins un jour et une heure.",
+        "day": "Choisissez un jour.",
+        "time": "Saisissez une heure, par exemple 18:30.",
+        "duplicate": "Ce jour et cette heure figurent déjà dans la liste.",
+        "summary": "Corrigez les horaires signalés ci-dessous avant d'enregistrer."
+      },
+      "dayNames": {
+        "sun": "Dimanche",
+        "mon": "Lundi",
+        "tue": "Mardi",
+        "wed": "Mercredi",
+        "thu": "Jeudi",
+        "fri": "Vendredi",
+        "sat": "Samedi"
+      },
+      "editNotice": "Les changements s'appliquent aux prochains cours sans réservation. Les cours réservés restent inchangés, et vous les verrez après l'enregistrement.",
+      "saved": {
+        "title": "Cours enregistré",
+        "summary": "Horaires : {{summary}}"
+      },
+      "left": {
+        "title": "{{n}} cours réservés n'ont pas été modifiés",
+        "title1": "1 cours réservé n'a pas été modifié",
+        "help": "Ils gardent leur ancien horaire et leurs réservations.",
+        "row": "{{day}} {{date}} · {{time}} · {{n}} / {{capacity}} réservations",
+        "none": "Rien n'a été laissé tel quel. Les prochains cours suivent les nouveaux horaires."
+      },
+      "done": "Terminé",
+      "oldTimeTag": "Ancien horaire",
+      "sorted": "Horaires triés",
+      "summary": {
+        "more": "+{{n}} autres"
+      }
+    },
+    "cancel": {
+      "action": "Annuler le cours",
+      "title": "Annuler {{name}} ?",
+      "body_one": "Tous les prochains cours sont annulés, ainsi que {{count}} réservation. Les cours passés et les présences restent enregistrés.",
+      "body_other": "Tous les prochains cours sont annulés, ainsi que {{count}} réservations. Les cours passés et les présences restent enregistrés.",
+      "bodyNoBookings": "Tous les prochains cours sont annulés. Personne n'a encore réservé.",
+      "keep": "Conserver le cours",
+      "toast": "{{name}} annulé.",
+      "badge": "Annulé",
+      "error": "Impossible d'annuler le cours. Réessayez.",
+      "already": "Ce cours a déjà été annulé.",
+      "nothingLeft": "Ce cours a déjà eu lieu, il n'y a plus rien à annuler."
+    },
+    "coach": {
+      "fixed": "Coach",
+      "fixedHelp": "Les cours que vous créez sont animés par vous.",
+      "ownOnly": "Vous ne pouvez modifier que vos propres cours.",
+      "create": "+ Créer un cours",
+      "empty": "Vous n'avez pas encore de cours. Créez-en un, ou demandez à votre responsable de vous en attribuer un."
     }
   },
   "members": {
@@ -1126,6 +1212,10 @@
         "lapsesOn": "Expire le {{date}}",
         "usedOn": "Utilisée le {{date}}",
         "covered": "couvre le {{date}}",
+        "usedVisit": "Utilisée · visite le {{date}}, {{time}}",
+        "usedClass": "Utilisée · cours {{name}}, {{date}}",
+        "coveredVisit": "Cette séance a couvert une visite",
+        "coveredClass": "Cette séance a couvert un cours",
         "lapsed": "Expirée le {{date}}",
         "voided": "Annulée par remboursement le {{date}}",
         "viewPayments": "Voir les paiements de séances"
@@ -1400,6 +1490,38 @@
     },
     "errors": {
       "exportTooLarge": "Appliquez un filtre pour réduire les résultats"
+    }
+  },
+  "coach": {
+    "portal": {
+      "nav": "Espace coach"
+    },
+    "picker": {
+      "label": "Choisir un coach",
+      "banner": "Vous consultez l'espace coach de {{name}}. Lecture seule.",
+      "choose": "Choisissez un coach pour voir ses cours et ses membres.",
+      "noCoaches": "Votre salle n'a pas encore de coach. Ajoutez-en un dans Personnel.",
+      "noCoachesManager": "Votre salle n'a pas encore de coach. Demandez à un propriétaire ou à un superviseur d'en ajouter un.",
+      "unavailable": "Ce coach n'est pas disponible. Choisissez-en un autre.",
+      "inactive": "{{name}} n'est plus coach dans cette salle.",
+      "tab": {
+        "classes": "Cours",
+        "members": "Membres"
+      },
+      "noClasses": "{{name}} n'a pas encore de cours.",
+      "noMembers": "Aucun membre n'est attribué à {{name}}.",
+      "noBodyData": "Les mesures corporelles, les photos et les notes de progression ne sont pas affichées dans cette vue.",
+      "partUnavailable": "Cette partie n'est pas disponible dans cette vue. Les mesures corporelles, les photos, les notes de progression et l'activité de progression n'y sont jamais affichées.",
+      "notAssigned": "{{member}} n'est pas attribué à {{coach}}.",
+      "thisMember": "Ce membre",
+      "expiredBar": "L'adhésion de ce membre a expiré.",
+      "planAuthor": "Programme d'entraînement rédigé par {{name}}",
+      "openInClasses": "Ouvrir dans Cours",
+      "backToMembers": "Retour aux membres",
+      "openStaff": "Ouvrir Personnel",
+      "table": {
+        "lastNote": "Dernière note"
+      }
     }
   },
   "coachPortal": {
@@ -2038,7 +2160,11 @@
       "staffCheckIn": "Arrivée d'un membre enregistrée par le personnel",
       "staffCheckInRejected": "Arrivée par le personnel refusée",
       "staffCheckInVoided": "Arrivée par le personnel annulée",
-      "planCorrected": "Formule corrigée"
+      "planCorrected": "Formule corrigée",
+      "sessionValidityChanged": "Validité de la séance modifiée",
+      "classTimesChanged": "Horaires du cours modifiés",
+      "classCancelled": "Cours annulé",
+      "classCreatedByCoach": "Cours créé"
     },
     "disclosure": {
       "title": "Questions sur ce journal",
@@ -2072,10 +2198,24 @@
       },
       "voided": "Arrivée de {{time}} · Motif : {{reason}}"
     },
+    "sessionValidity": {
+      "details": "{{old}} → {{new}}"
+    },
     "planCorrection": {
       "details": "{{oldPlan}} → {{newPlan}} · {{oldPrice}} → {{newPrice}} XAF · {{expiry}} · Motif : {{reason}}",
       "expiry": "expire le {{old}} → {{new}}",
       "noExpiry": "sans expiration"
+    },
+    "classTimes": {
+      "details_one": "{{name}} · {{old}} → {{new}} · {{count}} cours réservé non modifié",
+      "details_other": "{{name}} · {{old}} → {{new}} · {{count}} cours réservés non modifiés"
+    },
+    "classCancelled": {
+      "details_one": "{{name}} · {{count}} réservation annulée",
+      "details_other": "{{name}} · {{count}} réservations annulées"
+    },
+    "classCreated": {
+      "details": "{{name}} · capacité {{capacity}}"
     }
   },
   "saasBilling": {
@@ -2155,7 +2295,14 @@
       "class": "Cours",
       "earned": "Obtenue",
       "useBy": "À utiliser avant",
-      "status": "Statut"
+      "status": "Statut",
+      "used": "Utilisée"
+    },
+    "used": {
+      "day": "journée couverte",
+      "none": "—",
+      "visit": "visite {{date}}, {{time}}",
+      "class": "cours {{name}}, {{date}}"
     },
     "refund": {
       "refunded": "Remboursée",

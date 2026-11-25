@@ -25,6 +25,13 @@ export const gymCategorySchema = z.enum(GYM_CATEGORIES, {
   error: "Select a category",
 });
 
+// Session validity (gyms.session_validity, 0177, FR-236): whether a paid guest session covers the whole gym-local day or one visit.
+// Written only by set_session_validity(); the general Settings save never carries it.
+export const SESSION_VALIDITY_VALUES = ["whole_day", "single_use"] as const;
+export type SessionValidity = (typeof SESSION_VALIDITY_VALUES)[number];
+export const DEFAULT_SESSION_VALIDITY: SessionValidity = "whole_day";
+export const sessionValiditySchema = z.enum(SESSION_VALIDITY_VALUES);
+
 export const GYM_CATEGORY_LABELS: Record<GymCategory, { en: string; fr: string }> = {
   gym: { en: "Gym", fr: "Salle de sport" },
   pilates_studio: { en: "Pilates Studio", fr: "Studio Pilates" },

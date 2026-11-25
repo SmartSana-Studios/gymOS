@@ -120,14 +120,16 @@ select throws_ok($$insert into members (gym_id, user_id, role, name) values ('00
 create temp table cat_fn (name text primary key, includes_support boolean not null);
 insert into cat_fn (name, includes_support) values
   ('private.capability_roles', false), ('private.staff_roles', false), ('private.guest_sessions_period', false), ('private.support_rpc_role', false),
-  ('public.assign_coach', false), ('public.check_out_member', false), ('public.list_attendance_log', false), ('public.staff_check_in', false), ('public.void_staff_check_in', false), ('public.confirm_renewal', false), ('public.correct_plan_eligibility', false), ('public.correct_subscription_plan', false), ('public.create_class', false),
+  ('public.assign_coach', false), ('public.cancel_class', false), ('public.check_out_member', false), ('public.list_attendance_log', false), ('public.staff_check_in', false), ('public.void_staff_check_in', false), ('public.confirm_renewal', false), ('public.correct_plan_eligibility', false), ('public.correct_subscription_plan', false), ('public.create_class', false),
   ('public.create_staff_member', false), ('public.deactivate_staff_member', false), ('public.effective_loyalty', false),
   ('public.guest_charging_impact', false), ('public.initiate_registration_fee_payment', false), ('public.list_guest_sessions_paid', false),
   ('public.mark_class_attendance', false), ('public.materialize_class_sessions', false), ('public.record_registration_fee', false),
   ('public.record_session_payment', false), ('public.renew_subscription', false), ('public.set_guest_charging', false),
-  ('public.delete_page_media', false), ('public.get_gym_page_name', false), ('public.get_gym_page_status', false), ('public.publish_gym_page', false), ('public.register_page_media', false), ('public.set_gym_category', false), ('public.set_gym_location', false), ('public.set_gym_page_content', false), ('public.set_loyalty_program', false), ('public.set_registration_fee', false),
+  ('public.delete_page_media', false), ('public.get_gym_page_name', false), ('public.get_gym_page_status', false), ('public.publish_gym_page', false), ('public.register_page_media', false), ('public.set_gym_category', false), ('public.set_session_validity', false), ('public.get_session_validity_settings', false), ('public.set_gym_location', false), ('public.set_gym_page_content', false), ('public.set_loyalty_program', false), ('public.set_registration_fee', false),
   ('public.staff_account_for_reset', false), ('public.unpublish_gym_page', false), ('public.update_class', false), ('public.update_plan_pricing', false),
   ('public.update_staff_role', false), ('public.void_registration_fee_payment', false), ('public.waive_registration_fee', false),
+  -- 0183 (Story 29.4): the coach picker reads, an explicit Owner, Supervisor, Manager list (private.gym_id() is null for a support row)
+  ('public.get_coach_assigned_member', false), ('public.get_coach_member_workout_plan', false), ('public.list_coach_assigned_members', false), ('public.list_coach_class_session_roster', false), ('public.list_coach_classes', false), ('public.list_coach_member_session_notes', false), ('public.list_picker_coaches', false),
   -- identity separation, not a staff count: a support phone must not double as a member account
   ('private.enforce_staff_member_phone_separation', true), ('public.phone_has_staff_membership', true);
 
@@ -204,14 +206,14 @@ select is((select count(*)::int from cat_pol p join pg_policies pp on p.name = p
 -- Consumer scan: every function that counts members rows is classified as member-scoped or support-excluding.
 create temp table cat_count (name text primary key, note text not null);
 insert into cat_count values
-  ('public.book_class_session', 'class capacity, not staff'), ('public.correct_plan_eligibility', 'counts standing payments, not members'),
+  ('public.book_class_session', 'class capacity, not staff'), ('public.cancel_class', 'counts bookings on the cancelled sessions, not members'), ('public.correct_plan_eligibility', 'counts standing payments, not members'),
   ('public.correct_subscription_plan', 'counts standing payments, not members'), ('public.create_workout_plan', 'coach/member plans'),
   ('public.enforce_member_cap', 'role = member only'), ('public.guest_charging_impact', 'guest sessions'),
-  ('public.guest_sessions_summary', 'guest sessions'), ('public.gym_member_count', 'excludes support'),
+  ('public.guest_sessions_summary', 'guest sessions'), ('public.gym_leaderboard', 'role is distinct from support, one gym'), ('public.gym_member_count', 'excludes support'), ('public.get_my_badges', 'one member''s own visit days (the caller''s), not members'),
   ('public.list_bookable_class_sessions', 'class capacity'), ('public.list_free_guest_sessions', 'guest sessions'),
-  ('public.list_guest_sessions_paid', 'guest sessions'), ('public.list_my_classes', 'class capacity'),
+  ('public.list_guest_sessions_paid', 'guest sessions'), ('public.list_my_classes', 'class capacity'), ('public.list_coach_classes', 'class capacity'),
   ('public.list_session_attempts', 'attempts'), ('public.platform_metrics', 'excludes support'),
-  ('public.run_quiet_gym_alert_job', 'role = member only'), ('private.support_revoke_access', 'Owner review queue of support-created staff, not a head count'), ('public.update_workout_plan', 'coach/member plans');
+  ('private.engagement_state_view_at', 'one member''s visit days, not members'), ('public.run_quiet_gym_alert_job', 'role = member only'), ('private.support_revoke_access', 'Owner review queue of support-created staff, not a head count'), ('public.update_workout_plan', 'coach/member plans');
 select is((select coalesce(string_agg(n.nspname || '.' || p.proname, ', ' order by p.proname), '')
            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
            where n.nspname in ('public', 'private') and p.prokind = 'f' and p.prosrc ~* 'count\(' and p.prosrc ~* 'members'
