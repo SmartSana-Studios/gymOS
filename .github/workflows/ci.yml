@@ -141,7 +141,7 @@ jobs:
         # Story 27.4 (NFR-021): the correction against complete_verified_payment, confirm_renewal, the Tara initiation and the lifecycle job; pgTAP cannot interleave.
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/correct-plan-race.sh
 
-      - name: Single-use check-in race (two real sessions: one visit, one session)
+      - name: "Single-use check-in race (two real sessions: one visit, one session)"
         # Story 28.2 (NFR-021, AD-55): two concurrent scans, a stale visit, and a refund against a scan; pgTAP cannot interleave.
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/single-use-race.sh
 
