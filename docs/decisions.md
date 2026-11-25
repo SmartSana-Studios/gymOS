@@ -5,6 +5,16 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-25 — Push notifications follow the language the member sees (mobile, no migration)
+
+**What was wrong.** Every server-side sender (subscription expiry, class reminder, quiet-gym alert, payment receipt, streak reminder) writes its text in `users.preferred_language` (`fr`, else `en`). The mobile app took its display language from the phone (`detectDeviceLocale`) and never wrote it back: only the Profile switcher and the onboarding plan screen did, and after a restart the app showed the phone's language again whatever the member had picked. A member created by staff, or one who never touched the switcher, kept the column default `en`: a French phone showed a French app and received English pushes.
+
+**Owner decision (2026-11-25): the lightest fix, nothing heavy on the app.** `lib/languageSync.ts` copies the displayed language to `users.preferred_language`, and only when it differs from a note kept on the phone per member (`gymos.preferredLanguageSynced.<userId>` in AsyncStorage). The normal case is one local read and no network call; the single UPDATE (own row, the one column a member may change) happens at most once per language change; it is scheduled with `requestIdleCallback` after the first screen so it never delays startup; offline or a refused write notes nothing and the next start retries; it never throws. The Profile switcher notes its own successful write so it is not repeated. **Not done, on purpose:** remembering an explicit in-app choice across restarts (the app still starts in the phone's language, as before); that would add stored state and a start-up read, so the push language and the screen language are simply the same thing.
+
+**Proof.** `src/lib/languageSync.test.ts` (9: silent when equal, one update then silent, update on a change, nothing noted when the write fails, never throws, one note per member, and three wiring pins for the root layout and the Profile switcher). Mobile suite 1267 passed, `tsc` clean. Not run on a device.
+
+---
+
 ## 2026-11-25 — Reactivating a gym whose billing is due now requires a billing credit or a payment (migration 0193)
 
 **The hole (found by the owner, 2026-11-25).** `run_saas_billing_lifecycle_job()` suspends a gym past its grace period by setting `status = 'suspended'` and `saas_billing_status = 'suspended'` together, and afterwards only looks at gyms whose billing status is `active`, `past_due` or `grace_period`. The Super Admin Reinstate action wrote `status = 'active'` alone, so a reinstated gym ran again with its billing status still `suspended` and its due date in the past: the job skipped it for ever and nothing set a new due date, so it stayed active for free with no end. Production showed it on SMARTSANA FITNESS (status `active`, billing `suspended`, due 2026-11-04, grace over on 2026-11-16). A deactivated gym had the same hole, because the job's past_due and grace_period steps have no status filter and its billing status keeps drifting while Reinstate never looked at it.

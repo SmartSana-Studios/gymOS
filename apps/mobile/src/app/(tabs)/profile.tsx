@@ -23,6 +23,7 @@ import { useBadgeRows } from '@/hooks/use-badges';
 import { useLeaderboardNotice } from '@/hooks/use-leaderboard-notice';
 import { getContrastTextColor } from '@/lib/color-contrast';
 import type { MobileLocale } from '@/lib/i18n';
+import { noteLanguageSynced } from '@/lib/languageSyncDefaults';
 import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
 import { myVisitsRowAfterRead, myVisitsRowFromCache } from '@/lib/calendarView';
@@ -409,6 +410,8 @@ export default function ProfileScreen() {
         void i18n.changeLanguage(previous);
         return;
       }
+      // The write landed: note it, so the next start does not copy the same language again (lib/languageSync.ts).
+      void noteLanguageSynced(userId, code);
     } finally {
       if (mountedRef.current) setLangPending(false);
     }

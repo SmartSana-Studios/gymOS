@@ -19,6 +19,8 @@ import { ANALYTICS_EVENT } from '@gymos/types';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { SessionProvider, useSession } from '@/hooks/use-session';
 import { i18n } from '@/lib/i18n';
+import { syncPreferredLanguage } from '@/lib/languageSync';
+import { defaultLanguageSyncDeps } from '@/lib/languageSyncDefaults';
 import { captureEvent, posthogClient, resolveAnalyticsEnvironment } from '@/lib/analytics';
 import { OfflineSyncProvider } from '@/lib/offline-sync-context';
 import { registerPushToken, subscribeToPushTokenChanges } from '@/services/pushTokens';
@@ -74,6 +76,17 @@ function RootNavigator() {
     hasCapturedColdLaunch.current = true;
     captureEvent(ANALYTICS_EVENT.APP_OPENED, { gymId });
   }, [isLoading, gymId]);
+
+  // Owner decision 2026-11-25: push notifications follow the language the member sees. Copy the displayed language to users.preferred_language only when it differs from
+  // the note kept on this phone (lib/languageSync.ts): normally one local read and no network call, run when the app is idle so it never delays the first screen.
+  useEffect(() => {
+    if (!sessionUserId || isLoading) return;
+    const language = i18n.language === 'fr' ? 'fr' : 'en';
+    const task = requestIdleCallback(() => {
+      void syncPreferredLanguage(sessionUserId, language, defaultLanguageSyncDeps);
+    });
+    return () => cancelIdleCallback(task);
+  }, [sessionUserId, isLoading]);
 
   // RN 0.88 types `currentState` as nullable; the first change event always sets a real status.
   const appStateRef = useRef<AppStateStatus | null | undefined>(AppState.currentState as AppStateStatus | null | undefined);
