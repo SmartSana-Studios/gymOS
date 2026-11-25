@@ -217,8 +217,8 @@ describe('offline, network and permissions', () => {
   it('the app declares no media-library or storage-permission package, and pins the share libraries (no floating range)', () => {
     const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf8')) as { dependencies: Record<string, string> };
     expect(Object.keys(pkg.dependencies).filter((name) => /media-library|cameraroll|permissions/i.test(name))).toEqual([]);
-    expect(pkg.dependencies['react-native-view-shot']).toBe('5.1.0');
-    expect(pkg.dependencies['expo-sharing']).toMatch(/^~57\.\d+\.\d+$/);
+    expect(pkg.dependencies['react-native-view-shot']).toBe('6.1.1');
+    expect(pkg.dependencies['expo-sharing']).toMatch(/^~58\.\d+\.\d+$/);
   });
 
   it('the hook captures as base64 into the cache directory, 1080 by 1920 from the pixel ratio, and hands the file to the OS share sheet', () => {
