@@ -7,6 +7,7 @@ import { gymStatusChangeSchema, type AppError } from "@gymos/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { GymListRow } from "@/services/gyms";
+import { validationMessage } from "@/lib/validation-message";
 
 // Full-phrase keys per action/state, not word-by-word concatenation --
 // composing a translated verb + translated noun at render time produces
@@ -67,7 +68,7 @@ export function GymLifecycleDialog({
 
     const parsed = gymStatusChangeSchema.safeParse({ reason });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
+      setError(validationMessage(parsed.error.issues[0], t));
       return;
     }
 

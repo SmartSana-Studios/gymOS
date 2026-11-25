@@ -42,6 +42,7 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { generateTempPassword } from "@/lib/temp-password.mjs";
 import { isSupportedCountry } from "@/lib/countries";
 import { findUserByEmail } from "@/lib/super-admin-provisioning.mjs";
+import { validationMessage } from "@/lib/validation-message";
 
 export interface CreateGymResult {
   gymId: string;
@@ -312,7 +313,7 @@ export async function createGym(
     const firstIssue = parsed.error.issues[0];
     return {
       data: null,
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
   const gym = parsed.data;
@@ -613,7 +614,7 @@ async function changeGymStatus(
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
 
@@ -697,7 +698,7 @@ export async function changeGymTier(
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
 
@@ -751,7 +752,7 @@ export async function renameGym(
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
 
@@ -813,7 +814,7 @@ export async function resendOwnerInvitation(
     const firstIssue = parsed.error.issues[0];
     return {
       data: null,
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
 
@@ -906,7 +907,7 @@ export async function changeOwnerContact(
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
   const email = parsed.data.email ? parsed.data.email.trim().toLowerCase() : null;
@@ -978,7 +979,7 @@ export async function overrideGymCap(
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
 
@@ -1042,7 +1043,7 @@ export async function escalateGymAccess(
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
 
@@ -1091,7 +1092,7 @@ export async function revokeGymAccess(
     const firstIssue = parsed.error.issues[0];
     return {
       data: null,
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
 

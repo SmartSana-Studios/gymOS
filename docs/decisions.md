@@ -13,7 +13,7 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 **Proof.** `supabase/tests/no_expiry_notifications_for_inactive_gyms.test.sql` (10 assertions: an active gym still dispatches and writes its history row; a suspended and a deactivated gym write neither; an unsupported code is still refused; the job still moves a suspended gym's subscription to `expiring_soon` and sends nothing; the active gym keeps exactly one N-01). Run once against the 0084 body: 5 assertions failed; with 0194 restored it passes. The existing notification files pass (lifecycle 84, lifecycle negative 12, history 11, suspension coverage 12, N-08 191).
 
-**Rollout.** Local only until applied to production with `scripts/deploy-migration.sh 0194` (replaces one function, no data change, no app change).
+**Rollout.** APPLIED TO PRODUCTION on 2026-11-25 (head 0193 to 0194) with `scripts/deploy-migration.sh 0194` after `deploy-readiness.sh 0194` (all PASS) and a fresh green `db-backup` run (45652516882; the first attempt was refused because GitHub's API returned a 500 when the script tried to start the backup, nothing was applied and the backup was not skipped). It replaces one function, no data change, no app change. Read-only check afterwards: the sender carries the gym-status guard, `anon` and `authenticated` cannot execute it, `service_role` can, the `subscription_lifecycle` job is scheduled. Effective from the next nightly run (01:00).
 
 ---
 
