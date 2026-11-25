@@ -307,6 +307,8 @@
       "invalidActorId": "Invalid Super Admin id",
       "gymNotFound": "Gym not found",
       "alreadyStatus": "This gym is already {{status}}.",
+      "reactivationRequiresPayment": "This gym's billing was due on {{date}}, so it cannot be reactivated yet. Apply a billing credit first (Billing page) or take a payment. A credit gives it a new due date, and then you can reactivate it.",
+      "reactivationRequiresPaymentNoDate": "This gym's billing is due, so it cannot be reactivated yet. Apply a billing credit first (Billing page) or take a payment. A credit gives it a new due date, and then you can reactivate it.",
       "auditLogFailedStatus": "The status change was saved, but the audit log entry failed to write. Please contact support.",
       "alreadyOnTier": "This gym is already on that tier.",
       "auditLogFailedTier": "The tier change was saved, but the audit log entry failed to write. Please contact support.",
