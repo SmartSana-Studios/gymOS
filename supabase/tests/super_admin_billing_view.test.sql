@@ -5,7 +5,7 @@
 -- (`set local role authenticated` + `set_config('request.jwt.claims', ...)`).
 
 begin;
-select plan(30);
+select plan(31);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-0000000a5001', 'Billing View Test Tier A (monthly)', 8000, 80000, 40),
@@ -289,23 +289,29 @@ select lives_ok(
 );
 reset role;
 
--- (i) A deactivated gym is rejected with an exception; gym left untouched.
+-- (i) Migration 0193: a credit on a deactivated gym brings its billing up to date (active, a due date counted from today) but leaves its STATUS 'deactivated';
+--     reinstating it is a separate Super Admin action, which the 0193 guard lets through once billing is no longer due.
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000a5601","role":"authenticated","app_role":"super_admin"}',
   true
 );
-select throws_like(
-  $$select * from apply_saas_billing_credit('00000000-0000-0000-0000-0000000a5012'::uuid, 30)$$,
-  '%is deactivated%',
-  'apply_saas_billing_credit() rejects a deactivated gym with an exception'
+create temp table credit_deactivated as select * from apply_saas_billing_credit('00000000-0000-0000-0000-0000000a5012'::uuid, 30);
+select is(
+  (select new_anchor_date from credit_deactivated), (current_date + 30)::date,
+  'apply_saas_billing_credit() accepts a deactivated gym and counts the days from today'
 );
 reset role;
 select is(
-  (select status::text from gyms where id = '00000000-0000-0000-0000-0000000a5012'),
-  'deactivated',
-  'the rejected deactivated-gym credit attempt left the gym untouched'
+  (select status::text || '/' || saas_billing_status::text from gyms where id = '00000000-0000-0000-0000-0000000a5012'),
+  'deactivated/active',
+  'the credited deactivated gym keeps its status (deactivated) and its billing is active again'
+);
+select is(
+  (select count(*)::int from saas_billing_payments where gym_id = '00000000-0000-0000-0000-0000000a5012'),
+  0,
+  'a credit records no payment row'
 );
 
 -- (j) Reversal proof for apply_saas_billing_credit(), mirroring (e) above --

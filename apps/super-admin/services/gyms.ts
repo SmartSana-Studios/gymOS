@@ -766,10 +766,18 @@ export async function updateGymStatus(
     .select("id")
     .maybeSingle();
   if (error) {
-    // Migration 0193: a gym billing suspended cannot be reactivated by status alone; a billing credit or a payment lifts it (they set the billing status too).
+    // Migration 0193: a gym whose billing is due cannot be reactivated by status alone; a billing credit or a payment lifts it (they set the billing status too).
+    // The raise reads `gym_reactivation_requires_payment: <due date>`.
     if (error.message?.includes("gym_reactivation_requires_payment")) {
       const { t } = await getServerTranslation(await getRequestLocale());
-      return { data: null, error: { code: "billing_unpaid", message: t("gyms.errors.reactivationRequiresPayment") } };
+      const date = /(\d{4}-\d{2}-\d{2})/.exec(error.message)?.[1];
+      return {
+        data: null,
+        error: {
+          code: "billing_unpaid",
+          message: date ? t("gyms.errors.reactivationRequiresPayment", { date }) : t("gyms.errors.reactivationRequiresPaymentNoDate"),
+        },
+      };
     }
     return { data: null, error: await mapAndLog(error) };
   }
