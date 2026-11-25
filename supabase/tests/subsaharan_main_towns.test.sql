@@ -1,7 +1,7 @@
 -- Migration 0195: the controlled city list holds the main towns of the 49 Sub-Saharan target countries (owner decision 2026-11-25).
 
 begin;
-select plan(11);
+select plan(13);
 
 create temp table target (code text primary key) on commit drop;
 insert into target (code) values
@@ -27,6 +27,10 @@ select is((select count(*)::int from public.cities where country_code = 'CM' and
   'Cameroon keeps its starters and gains Edéa, Kumba and Nkongsamba');
 select is((select count(*)::int from public.cities where (country_code, slug) in (('CI', 'abidjan'), ('NG', 'lagos'), ('KE', 'nairobi'), ('SN', 'dakar'), ('CD', 'kinshasa'), ('ZA', 'johannesburg'))), 6,
   'the large towns of six other countries are present');
+
+-- Towns the source files under the wrong country (found 2026-11-25): Ebebiyin is in Equatorial Guinea, Kaedi in Mauritania.
+select is((select array_agg(country_code order by country_code) from public.cities where slug = 'ebebiyin'), array['GQ'], 'Ebebiyín is in Equatorial Guinea only, not Gabon');
+select is((select array_agg(country_code order by country_code) from public.cities where slug = 'kaedi'), array['MR'], 'Kaédi is in Mauritania only, not Senegal');
 
 -- The twelve Cameroon starters were not duplicated.
 select is((select count(*)::int from public.cities where country_code = 'CM' and slug = 'yaounde'), 1, 'a starter town exists once');

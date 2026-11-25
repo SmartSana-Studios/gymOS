@@ -18,6 +18,8 @@ const TARGET = JSON.parse(readFileSync(join(here, "../../packages/types/src/cons
 const POP_MIN = 100000;
 // The twelve Cameroon starter cities of 0169 (slug = place_slug(name)); never re-inserted, and their names block a second spelling.
 const STARTERS = new Set(["bafoussam", "bamenda", "bertoua", "buea", "douala", "ebolowa", "garoua", "kribi", "limbe", "maroua", "ngaoundere", "yaounde"]);
+// Towns Natural Earth files under the wrong country (found by reading the 668 towns against country borders, 2026-11-25): Ebebiyin is in Equatorial Guinea, Kaedi in Mauritania.
+const COUNTRY_FIXES = { "Ebebiyín": "GQ", "Kaédi": "MR" };
 const RESERVED = new Set(["en", "fr", "gyms", "gym", "sitemap", "sitemap-index", "sitemaps", "robots", "llms", "index", "page", "pages", "category", "categories", "api", "admin", "static", "assets", "new"]);
 
 const file = process.argv[2];
@@ -37,7 +39,9 @@ const isMain = (p) => /Admin-1/.test(p.featurecla ?? "") || p.adm0cap === 1 || N
 
 const byCountry = new Map();
 const dropped = [];
-for (const p of features.filter((x) => TARGET.includes(x.iso_a2) && isMain(x))) {
+for (const raw of features) {
+  const p = COUNTRY_FIXES[raw.name] ? { ...raw, iso_a2: COUNTRY_FIXES[raw.name] } : raw;
+  if (!(TARGET.includes(p.iso_a2) && isMain(p))) continue;
   const name = String(p.name ?? "").trim();
   if (!name || /[<>]/.test(name) || name.length > 100) continue;
   const slug = slugOf(name);
