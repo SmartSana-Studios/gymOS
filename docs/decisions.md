@@ -5,6 +5,12 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-25 — V1.8 release: the engagement area is switched on for 2026-12-07
+
+At the owner's go-ahead, `update public.platform_engagement_config set release_week_start = date '2026-12-07'` was run on production through the management API (single row; it was NULL; 2026-12-07 is a Monday, the first full week counted; no `week` fact existed, so the epoch guard did not apply). Read back: `release_week_start` = 2026-12-07; the change is in `audit_log` as `platform_engagement_config_updated` with the old and new row. The mobile builds that show the ring, Streak and badges are iOS 22 (TestFlight) and Android 23 (internal track), both app 1.8; they were submitted the same day and are not yet public in either store, so members on 1.7 see no change and the choice of 7 December assumes the public release lands before then. From the epoch Monday the settle job writes week facts, the N-08 reminder sends at 18:00 gym time to members at risk, and the epoch is then frozen by the trigger (no move, no NULL) for as long as any `week` fact exists, so it cannot be moved after the first week settles. Before the first week settles it can still be changed with the same statement. Not verified here: a member's `my_engagement()` (it needs a member JWT), the first N-08 run, and a device test of the builds.
+
+---
+
 ## 2026-11-25 — V1.8 release: migrations 0177 to 0192 applied to production (app not yet released)
 
 V1.8 is PRD v1.8 (FR-219 to FR-251), Epics 27 to 31, 21 stories; the three Could items (FR-221 daily streak, FR-234 gym challenge, FR-235 "Your month") have no stories and are deferred. Epic 27 (migrations 0173 to 0176) was already live, so this release is Epics 28 to 31: **0177 to 0192, sixteen migrations**, applied one at a time with `scripts/deploy-migration.sh` after `scripts/deploy-readiness.sh 0177` (all PASS; WARN only for `prod_psql` and the Vercel CLI, the known ones). Production head was exactly 0176 before and is 0192 after; the ledger shows 16 rows from 0177. Each apply reused or took a green `db-backup` run (the last green one before the window was 4 h old; the run used was 2026-11-25T09:04:51Z, run 45581994324). No edge function changed in these four epics, so nothing was deployed with `supabase functions deploy`.
