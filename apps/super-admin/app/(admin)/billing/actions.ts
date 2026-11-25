@@ -11,6 +11,7 @@ import { sendEvolutionApiMessage } from "@/lib/messaging/EvolutionApiMessageProv
 import { sendTwilioSms } from "@/lib/messaging/sendTwilioSms";
 import en from "@/locales/en.json";
 import fr from "@/locales/fr.json";
+import { validationMessage } from "@/lib/validation-message";
 
 /**
  * "Mark payment received (out-of-band)" (AC #2). Takes no input beyond
@@ -83,7 +84,7 @@ export async function applyCredit(
     const message =
       firstIssue?.path[0] === "days"
         ? t("billing.applyCredit.errors.daysPositive")
-        : (firstIssue?.message ?? t("common.invalidInput"));
+        : (validationMessage(firstIssue, t));
     return { error: { code: "validation_error", message } };
   }
 

@@ -579,6 +579,9 @@
       "instanceIdRequired": "Instance ID is required"
     }
   },
+  "validation": {
+    "reasonRequired": "Add a reason (at least 5 characters)."
+  },
   "billing": {
     "title": "Billing",
     "searchPlaceholder": "Search gym",
@@ -607,7 +610,8 @@
       "status": "Status",
       "nextBilling": "Next billing",
       "lastPayment": "Last payment",
-      "failed": "Failed"
+      "failed": "Failed",
+      "actions": "Actions"
     },
     "actions": {
       "markPaymentReceived": "Mark payment received",
