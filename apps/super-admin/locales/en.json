@@ -15,6 +15,9 @@
   "nav": {
     "brand": "GymOS Super Admin",
     "gyms": "Gyms",
+    "allGyms": "All gyms",
+    "overview": "Overview",
+    "groups": { "gyms": "Gyms", "publicPages": "Public pages", "platform": "Platform", "access": "Access" },
     "metrics": "Metrics",
     "tiers": "Tiers",
     "cities": "Cities",
@@ -459,17 +462,16 @@
   },
   "cities": {
     "title": "Cities",
-    "addCity": "+ Add city",
-    "intro": "The places a gym can choose from. Gyms pick their city from this list; free text is never saved. Renaming a city updates every live page that uses it, and a new slug keeps the old one for 12 months.",
+    "addCity": "+ Add a missing town",
+    "intro": "The towns a gym can choose from. The main towns of every target country are already here (each capital, each regional capital and every town of 100,000 people or more): a gym picks the main town it belongs to, and its address and map pin say where exactly. Add a town only when one is missing. Renaming a town updates every live page that uses it, and a new slug keeps the old one working for 12 months.",
+    "summary": "{{count}} towns, {{withGyms}} with at least one gym.",
+    "onlyWithGyms": "Only towns with gyms",
+    "table": { "country": "Country", "town": "Town", "gyms": "Gyms", "actions": "Actions" },
     "filterCountry": "Country",
     "allCountries": "All countries",
     "search": "Search cities",
     "emptyNone": "No cities yet. Add the first one.",
     "emptyFiltered": "No city matches.",
-    "rowDetail_one": "Slug: {{slug}} · {{count}} gym",
-    "rowDetail_other": "Slug: {{slug}} · {{count}} gyms",
-    "noPosition": "no map position",
-    "aliasesLine": "Also found as: {{aliases}}",
     "edit": "Edit",
     "saved": "City saved.",
     "modal": {
@@ -580,6 +582,9 @@
       "instanceIdRequired": "Instance ID is required"
     }
   },
+  "validation": {
+    "reasonRequired": "Add a reason (at least 5 characters)."
+  },
   "billing": {
     "title": "Billing",
     "searchPlaceholder": "Search gym",
@@ -608,7 +613,8 @@
       "status": "Status",
       "nextBilling": "Next billing",
       "lastPayment": "Last payment",
-      "failed": "Failed"
+      "failed": "Failed",
+      "actions": "Actions"
     },
     "actions": {
       "markPaymentReceived": "Mark payment received",

@@ -5,6 +5,7 @@ import { authorizeOrRedirect } from "@/lib/authz-action";
 import { updateMessagingInstance as updateMessagingInstanceRow } from "@/services/messaging-provider-config";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { validationMessage } from "@/lib/validation-message";
 
 /** Story 1.13 AC #2/#3: the RPC itself is atomic (update + audit log in one
  * transaction) -- this action is a thin validate-then-call wrapper,
@@ -19,7 +20,7 @@ export async function updateMessagingInstance(input: unknown): Promise<{ error: 
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
 

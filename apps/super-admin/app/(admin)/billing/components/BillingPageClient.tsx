@@ -1,9 +1,9 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { Banknote, BellRing, Gift, PauseCircle, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { useUrlPagination } from "@/hooks/use-table-pagination";
 import { Label } from "@/components/ui/label";
 import type { GymBillingRow } from "@/services/billing";
 import { GymLifecycleDialog } from "../../gyms/components/GymLifecycleDialog";
+import { RowActions, type RowAction } from "../../support/components/RowActions";
 // suspendGym/reinstateGym are imported directly from gyms/actions.ts (not
 // re-exported through billing/actions.ts) -- a "use server" module can only
 // export locally-declared async functions; Next.js's RSC compiler rejects a
@@ -67,7 +68,6 @@ export function BillingPageClient({
   status: string;
 }) {
   const [searchInput, setSearchInput] = useState(search);
-  const [expandedGymId, setExpandedGymId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [toast, setToast] = useState<string | null>(null);
   const router = useRouter();
@@ -122,6 +122,22 @@ export function BillingPageClient({
     if (!value) return t("billing.noValue");
     const [year, month, day] = value.split("-").map(Number);
     return new Date(year, month - 1, day).toLocaleDateString();
+  }
+
+  // One Actions menu per row (same pattern as the Gyms list and the rest of the platform): the three billing actions, then Reinstate for a
+  // suspended or deactivated gym or Suspend for an active one. Reinstate is refused by the database while the gym's billing is due (migration 0193).
+  function rowActionsFor(row: GymBillingRow): RowAction[] {
+    const actions: RowAction[] = [
+      { key: "markPaymentReceived", label: t("billing.actions.markPaymentReceived"), icon: <Banknote size={14} />, onSelect: () => setDialog({ type: "markPaymentReceived", row }) },
+      { key: "applyCredit", label: t("billing.actions.applyCredit"), icon: <Gift size={14} />, onSelect: () => setDialog({ type: "applyCredit", row }) },
+      { key: "triggerRetry", label: t("billing.actions.triggerRetry"), icon: <BellRing size={14} />, onSelect: () => setDialog({ type: "triggerRetry", row }) },
+    ];
+    if (row.status === "suspended" || row.status === "deactivated") {
+      actions.push({ key: "reinstate", label: t("billing.actions.reinstate"), icon: <RotateCcw size={14} />, onSelect: () => setDialog({ type: "lifecycle", row, action: "reinstate" }) });
+    } else {
+      actions.push({ key: "suspend", label: t("billing.actions.suspend"), icon: <PauseCircle size={14} />, destructive: true, onSelect: () => setDialog({ type: "lifecycle", row, action: "suspend" }) });
+    }
+    return actions;
   }
 
   const pagination = useUrlPagination();
@@ -189,7 +205,6 @@ export function BillingPageClient({
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
               <tr>
-                <th className="p-3 font-medium" />
                 <th className="p-3 font-medium">{t("billing.table.gym")}</th>
                 <th className="p-3 font-medium">{t("billing.table.tier")}</th>
                 <th className="p-3 font-medium">{t("billing.table.interval")}</th>
@@ -197,84 +212,32 @@ export function BillingPageClient({
                 <th className="p-3 font-medium">{t("billing.table.nextBilling")}</th>
                 <th className="p-3 font-medium">{t("billing.table.lastPayment")}</th>
                 <th className="p-3 font-medium">{t("billing.table.failed")}</th>
+                <th className="p-3 font-medium">{t("billing.table.actions")}</th>
               </tr>
             </thead>
             <tbody>
-              {initialRows.map((row) => {
-                const expanded = expandedGymId === row.id;
-                return (
-                  <Fragment key={row.id}>
-                    <tr
-                      className="cursor-pointer border-b last:border-0 hover:bg-muted/30"
-                      onClick={() => setExpandedGymId(expanded ? null : row.id)}
+              {initialRows.map((row) => (
+                <tr key={row.id} className="border-b last:border-0 hover:bg-muted/30">
+                  <td className="p-3">{row.name}</td>
+                  <td className="p-3">{row.tierName}</td>
+                  <td className="p-3">
+                    {row.saasBillingInterval ? t(`billing.interval.${row.saasBillingInterval}`) : t("billing.noValue")}
+                  </td>
+                  <td className="p-3">
+                    <span
+                      className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASS[row.saasBillingStatus] ?? ""}`}
                     >
-                      <td className="p-3">
-                        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      </td>
-                      <td className="p-3">{row.name}</td>
-                      <td className="p-3">{row.tierName}</td>
-                      <td className="p-3">
-                        {row.saasBillingInterval
-                          ? t(`billing.interval.${row.saasBillingInterval}`)
-                          : t("billing.noValue")}
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASS[row.saasBillingStatus] ?? ""}`}
-                        >
-                          {t(STATUS_LABEL_KEY[row.saasBillingStatus as (typeof STATUS_OPTIONS)[number]] ?? "billing.statusUnknown")}
-                        </span>
-                      </td>
-                      <td className="p-3">{formatDate(row.nextBillingDate)}</td>
-                      <td className="p-3">{formatDate(row.lastPaymentDate)}</td>
-                      <td className="p-3">{row.failedAttemptCount}</td>
-                    </tr>
-                    {expanded && (
-                      <tr key={`${row.id}-expanded`} className="border-b bg-muted/20 last:border-0">
-                        <td colSpan={8} className="p-3">
-                          <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-                            <Button size="sm" variant="outline" onClick={() => setDialog({ type: "markPaymentReceived", row })}>
-                              {t("billing.actions.markPaymentReceived")}
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => setDialog({ type: "applyCredit", row })}>
-                              {t("billing.actions.applyCredit")}
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => setDialog({ type: "triggerRetry", row })}>
-                              {t("billing.actions.triggerRetry")}
-                            </Button>
-                            {/* Review fix: GymsPageClient.tsx branches on all three of
-                                suspended/deactivated/active -- this ternary previously only
-                                checked "suspended", so a deactivated gym fell into the else
-                                branch and showed "Suspend", which would have transitioned
-                                gyms.status from deactivated straight to suspended. Reinstate
-                                is the correct action for both suspended and deactivated,
-                                mirroring GymsPageClient's own deactivated-row handling. */}
-                            {row.status === "suspended" || row.status === "deactivated" ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 dark:hover:text-green-200"
-                                onClick={() => setDialog({ type: "lifecycle", row, action: "reinstate" })}
-                              >
-                                {t("billing.actions.reinstate")}
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800 dark:border-orange-800 dark:text-orange-300 dark:hover:bg-orange-950 dark:hover:text-orange-200"
-                                onClick={() => setDialog({ type: "lifecycle", row, action: "suspend" })}
-                              >
-                                {t("billing.actions.suspend")}
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
+                      {t(STATUS_LABEL_KEY[row.saasBillingStatus as (typeof STATUS_OPTIONS)[number]] ?? "billing.statusUnknown")}
+                    </span>
+                  </td>
+                  <td className="p-3">{formatDate(row.nextBillingDate)}</td>
+                  <td className="p-3">{formatDate(row.lastPaymentDate)}</td>
+                  <td className="p-3">{row.failedAttemptCount}</td>
+                  <td className="p-3">
+                    <RowActions name={row.name} actions={rowActionsFor(row)} />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

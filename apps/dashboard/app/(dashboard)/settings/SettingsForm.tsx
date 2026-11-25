@@ -65,7 +65,7 @@ export function SettingsForm({
   landingPageUserKey?: string;
 }) {
   const { t, i18n } = useTranslation();
-  const countryOptions = useMemo(() => listPhoneCountries(i18n.language), [i18n.language]);
+  const countryOptions = useMemo(() => listPhoneCountries(i18n.language, [initial.country]), [i18n.language, initial.country]);
 
   const NAN_FIELD_MESSAGE_KEYS: Partial<Record<keyof FieldErrors, string>> = {
     gracePeriodDays: "settings.errors.gracePeriodRange",

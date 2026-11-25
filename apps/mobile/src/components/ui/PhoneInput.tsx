@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js';
-import { TARAMONEY_SUPPORTED_COUNTRIES } from '@gymos/types';
+import { isTargetCountry, TARAMONEY_SUPPORTED_COUNTRIES } from '@gymos/types';
 
 import { CountryPickerModal, type PickerCountry } from '@/components/ui/CountryPickerModal';
 import { ThemedText } from '@/components/themed-text';
@@ -23,14 +23,20 @@ interface CountryOption extends PickerCountry {
 }
 
 function buildGlobalCountries(locale: 'en' | 'fr'): CountryOption[] {
+  // Owner decision 2026-11-25: the picker offers Sub-Saharan Africa only (packages/types subSaharanAfrica). A saved number from another country is kept as an
+  // extra option below, so it still displays and can be edited.
   return getCountries()
-    .filter((code) => Boolean(COUNTRY_NAMES[code]))
+    .filter((code) => isTargetCountry(code) && Boolean(COUNTRY_NAMES[code]))
     .map((code) => ({
       code,
       name: COUNTRY_NAMES[code][locale],
       callingCode: getCountryCallingCode(code),
     }))
     .sort((a, b) => a.name.localeCompare(b.name, locale));
+}
+
+function optionForCountry(code: CountryCode, locale: 'en' | 'fr'): CountryOption {
+  return { code, name: COUNTRY_NAMES[code]?.[locale] ?? code, callingCode: getCountryCallingCode(code) };
 }
 
 function buildTaraMoneyCountries(): CountryOption[] {
@@ -65,7 +71,7 @@ export function PhoneInput({ value, onChange, countries = 'global', disabled, au
   const { t } = useTranslation();
   const [pickerVisible, setPickerVisible] = useState(false);
 
-  const options = useMemo(
+  const baseOptions = useMemo(
     () => (countries === 'tara-money' ? buildTaraMoneyCountries() : buildGlobalCountries(mobileI18n.language === 'fr' ? 'fr' : 'en')),
     // mobileI18n.language changes trigger a re-render app-wide on language
     // switch (every useTranslation() consumer), but isn't itself a React
@@ -74,6 +80,15 @@ export function PhoneInput({ value, onChange, countries = 'global', disabled, au
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [countries, mobileI18n.language],
   );
+  // A value already held from outside the offered list keeps its own country as an extra option: without it the field would fall back to Cameroon with an
+  // empty number and blank the saved phone on the next edit.
+  const heldCountry = useMemo(() => (value ? ((parsePhoneNumberFromString(value)?.country as CountryCode | undefined) ?? null) : null), [value]);
+  const options = useMemo(() => {
+    if (!heldCountry || baseOptions.some((option) => option.code === heldCountry)) return baseOptions;
+    const locale = mobileI18n.language === 'fr' ? 'fr' : 'en';
+    return [...baseOptions, optionForCountry(heldCountry, locale)].sort((a, b) => a.name.localeCompare(b.name, locale));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseOptions, heldCountry, mobileI18n.language]);
 
   function deriveFromValue(nextValue: string | null): { country: CountryCode; nationalNumber: string } {
     const parsed = nextValue ? parsePhoneNumberFromString(nextValue) : undefined;

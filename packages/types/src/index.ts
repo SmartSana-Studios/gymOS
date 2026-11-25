@@ -37,3 +37,5 @@ export * from "./schemas/pageContent";
 export * from "./schemas/pageModeration";
 export * from "./schemas/place";
 export * from "./placeNorm";
+
+export * from "./constants/subSaharanAfrica";

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { GymDetail } from "@/services/gyms";
 import { resendOwnerInvitation } from "../../actions";
+import { validationMessage } from "@/lib/validation-message";
 
 type Outcome = {
   tempPassword: string;
@@ -51,7 +52,7 @@ export function ResendInvitationDialog({
 
     const parsed = resendOwnerInvitationSchema.safeParse({ reason });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
+      setError(validationMessage(parsed.error.issues[0], t));
       return;
     }
 

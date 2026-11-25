@@ -15,6 +15,9 @@
   "nav": {
     "brand": "GymOS Super Admin",
     "gyms": "Salles",
+    "allGyms": "Toutes les salles",
+    "overview": "Vue d'ensemble",
+    "groups": { "gyms": "Salles", "publicPages": "Pages publiques", "platform": "Plateforme", "access": "Accès" },
     "metrics": "Statistiques",
     "tiers": "Paliers",
     "cities": "Villes",
@@ -459,17 +462,16 @@
   },
   "cities": {
     "title": "Villes",
-    "addCity": "+ Ajouter une ville",
-    "intro": "Les lieux que les salles peuvent choisir. Une salle choisit sa ville dans cette liste ; un texte libre n'est jamais enregistré. Renommer une ville met à jour toutes les pages en ligne qui l'utilisent, et un nouvel identifiant garde l'ancien pendant 12 mois.",
+    "addCity": "+ Ajouter une ville manquante",
+    "intro": "Les villes que les salles peuvent choisir. Les villes principales de chaque pays cible sont déjà là (chaque capitale, chaque capitale de région et toute ville de 100 000 habitants ou plus) : une salle choisit la ville principale dont elle dépend, et son adresse et son repère sur la carte disent où elle se trouve. N'ajoutez une ville que si elle manque. Renommer une ville met à jour toutes les pages en ligne qui l'utilisent, et un nouvel identifiant garde l'ancien actif 12 mois.",
+    "summary": "{{count}} villes, dont {{withGyms}} avec au moins une salle.",
+    "onlyWithGyms": "Seulement les villes avec des salles",
+    "table": { "country": "Pays", "town": "Ville", "gyms": "Salles", "actions": "Actions" },
     "filterCountry": "Pays",
     "allCountries": "Tous les pays",
     "search": "Rechercher une ville",
     "emptyNone": "Aucune ville pour le moment. Ajoutez la première.",
     "emptyFiltered": "Aucune ville ne correspond.",
-    "rowDetail_one": "Identifiant : {{slug}} · {{count}} salle",
-    "rowDetail_other": "Identifiant : {{slug}} · {{count}} salles",
-    "noPosition": "pas de position sur la carte",
-    "aliasesLine": "Aussi trouvée sous : {{aliases}}",
     "edit": "Modifier",
     "saved": "Ville enregistrée.",
     "modal": {
@@ -580,6 +582,9 @@
       "instanceIdRequired": "L'ID d'instance est requis"
     }
   },
+  "validation": {
+    "reasonRequired": "Ajoutez un motif (au moins 5 caractères)."
+  },
   "billing": {
     "title": "Facturation",
     "searchPlaceholder": "Rechercher une salle",
@@ -608,7 +613,8 @@
       "status": "Statut",
       "nextBilling": "Prochaine facturation",
       "lastPayment": "Dernier paiement",
-      "failed": "Échoués"
+      "failed": "Échoués",
+      "actions": "Actions"
     },
     "actions": {
       "markPaymentReceived": "Marquer le paiement reçu",

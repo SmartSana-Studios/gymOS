@@ -5,6 +5,7 @@ import { authorizeOrRedirect } from "@/lib/authz-action";
 import { activatePaymentProvider as activatePaymentProviderRow } from "@/services/payment-providers";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { validationMessage } from "@/lib/validation-message";
 
 /** Story 4.1 AC #6/#7: the RPC itself is atomic (deactivate-old +
  * activate-new + audit log in one transaction) -- this action is a thin
@@ -21,7 +22,7 @@ export async function setActivePaymentProvider(
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+      error: { code: "validation_error", message: validationMessage(firstIssue, t) },
     };
   }
 
