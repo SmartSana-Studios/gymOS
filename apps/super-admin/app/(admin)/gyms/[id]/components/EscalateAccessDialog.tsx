@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { GymDetail } from "@/services/gyms";
 import { escalateGymAccess } from "../../actions";
+import { validationMessage } from "@/lib/validation-message";
 
 /**
  * SA-03 "Access gym data" escalation (FR-072/AC #2). Mandatory reason,
@@ -43,7 +44,7 @@ export function EscalateAccessDialog({
 
     const parsed = escalateGymAccessSchema.safeParse({ reason });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
+      setError(validationMessage(parsed.error.issues[0], t));
       return;
     }
 

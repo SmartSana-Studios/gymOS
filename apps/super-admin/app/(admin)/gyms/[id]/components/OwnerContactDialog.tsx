@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import type { GymDetail } from "@/services/gyms";
 import { changeOwnerContact } from "../../actions";
+import { validationMessage } from "@/lib/validation-message";
 
 /**
  * SA-03 "Edit owner contact": the owner account's sign-in email and/or phone. Blank = keep. A reason is mandatory and
@@ -43,7 +44,7 @@ export function OwnerContactDialog({
 
     const parsed = changeOwnerContactSchema.safeParse({ email: email.trim(), phone, reason });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
+      setError(validationMessage(parsed.error.issues[0], t));
       return;
     }
 

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { GymDetail } from "@/services/gyms";
 import { renameGym } from "../../actions";
+import { validationMessage } from "@/lib/validation-message";
 
 /** SA-03 gym name in the page header with a pencil button; turns into an inline input with [Save] / [Cancel]. The new
  * name must be unique among gyms and the change is audited ("Gym renamed", old and new name). */
@@ -26,7 +27,7 @@ export function GymNameEditor({ gym, onSaved }: { gym: GymDetail; onSaved: () =>
     setError(null);
     const parsed = renameGymSchema.safeParse({ name: value });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
+      setError(validationMessage(parsed.error.issues[0], t));
       return;
     }
     if (parsed.data.name === current) {
