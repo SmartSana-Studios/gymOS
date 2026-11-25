@@ -5,6 +5,16 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-25 — V1.8 release: migrations 0177 to 0192 applied to production (app not yet released)
+
+V1.8 is PRD v1.8 (FR-219 to FR-251), Epics 27 to 31, 21 stories; the three Could items (FR-221 daily streak, FR-234 gym challenge, FR-235 "Your month") have no stories and are deferred. Epic 27 (migrations 0173 to 0176) was already live, so this release is Epics 28 to 31: **0177 to 0192, sixteen migrations**, applied one at a time with `scripts/deploy-migration.sh` after `scripts/deploy-readiness.sh 0177` (all PASS; WARN only for `prod_psql` and the Vercel CLI, the known ones). Production head was exactly 0176 before and is 0192 after; the ledger shows 16 rows from 0177. Each apply reused or took a green `db-backup` run (the last green one before the window was 4 h old; the run used was 2026-11-25T09:04:51Z, run 45581994324). No edge function changed in these four epics, so nothing was deployed with `supabase functions deploy`.
+
+**Read-only verification after the apply** (management API): ledger head 0192 with 16 rows from 0177; none of the 86 functions the sixteen files create in `public` or `private` is executable by `anon`; `platform_engagement_config.release_week_start` is NULL, so the engagement area (Epics 30 and 31) is DARK for every gym until the operator sets a Monday; the `engagement_reminder` cron job exists (it sends nothing while the area is dark); production has 2 gyms.
+
+**Not done:** PR #140 (`epic/31` to master, carries Epics 28 to 31 and the Expo SDK 58 upgrade) is not merged, so the dashboard, super-admin, landing and mobile code for these migrations is not live; the mobile app is not built (`apps/mobile/package.json` still says 1.7.0, to bump to 1.8.0 with the build). Order from here: merge PR #140, then the mobile build. The migrations are additive and the new app code is behind the dark epoch switch, so the old app keeps working against 0192 in the meantime.
+
+---
+
 ## 2026-11-24 — Story 31.4: the Streak tab is always in the bar, Progress leaves it for Profile (mobile only)
 
 FR-219 to FR-224, FR-226, FR-230, FR-232; spine AD-53, AD-60 (navigation line added to the spine as its own bullet after the AD-60 block). Owner decisions of 2026-11-24 taken mid-QA, renegotiated twice (review loop 1: a hidden native tab cannot be navigated to; then the owner after QA: "gyms must have it, it is for member engagement not for gyms"; see the spec's Spec Change Log). No migration, RPC, fact, edge function or server file changes; the area is still dark until the operator sets the engagement epoch, and while it is dark or unknown the Streak tab shows one calm line, Home has no streak line, and Progress is reached from Profile (those three changes apply to every gym, dark or not).
