@@ -501,20 +501,20 @@ development_status:
   27-4-correct-plan-and-annual-plan-wording: done
   epic-27-retrospective: optional
 
-  epic-28: in-progress
+  epic-28: done
   28-1-session-validity-setting-and-session-record-changes: done
   28-2-single-use-consumption-at-check-in: done
   28-3-class-attendance-in-a-single-use-gym-and-setting-change-parity: done
   epic-28-retrospective: optional
 
-  epic-29: in-progress
+  epic-29: done
   29-1-class-schedule-slots-foundation: done
   29-2-per-day-slot-editor-and-cancel-class: done
   29-3-coaches-create-edit-and-cancel-their-own-classes: done
   29-4-coach-picker-for-owner-supervisor-and-manager: done
   epic-29-retrospective: optional
 
-  epic-30: in-progress
+  epic-30: done
   30-1-engagement-configuration-weekly-goal-and-wording-catalog: done
   30-2-engagement-facts-the-fold-and-settle: done
   30-3-settle-triggers-and-the-at-risk-state: done
@@ -524,7 +524,7 @@ development_status:
   30-7-milestones-and-celebration: done
   epic-30-retrospective: optional
 
-  epic-31: in-progress
+  epic-31: done
   31-1-streak-shields-and-comeback: done
   31-2-streak-reminder-n-08: done
   31-3-badge-shelf-and-share-image: done
@@ -2295,3 +2295,4 @@ last_updated: 11-15-2026 12:00
 # last_updated: 2026-11-25 (ad-hoc, no story: V1.8 release step 1, migrations 0177 to 0192 (Epics 28 to 31, sixteen files) APPLIED TO PRODUCTION at the owner's go-ahead, head 0176 -> 0192, one at a time with scripts/deploy-migration.sh after deploy-readiness.sh 0177 (all PASS), db-backup green run 45581994324 (2026-11-25T09:04:51Z) used. No edge function changed. Read-only verification: ledger head 0192 with 16 rows from 0177, no anon EXECUTE on any of the 86 functions the files create, engagement release_week_start NULL (area DARK for every gym), engagement_reminder cron job present, 2 gyms. NOT done: PR #140 not merged (app code for these migrations not live), mobile build not made (package.json still 1.7.0, bump to 1.8.0 with the build). Epics 28 to 31 stay in-progress until the PR merges.)
 # last_updated: 2026-11-25 (ad-hoc, no story: .github/workflows/ci.yml was INVALID YAML on epic/31 (and on epic/28, 29, 30 before it): the step name 'Single-use check-in race (two real sessions: one visit, one session)' added in 28-2 had an unquoted ': ', so GitHub reported 'workflow file issue' with zero jobs and PR #140 got no CI run (the push-event failures at 0 s since 2026-11-21 were the same cause). Quoted the name, parsed the file with PyYAML, all referenced scripts exist. scripts/ci-local.sh does not parse ci.yml, so the local gate never saw it; a parse check is a candidate for ci-local static. Pushed to epic/31 so the one CI run on the PR can happen before the merge.)
 # last_updated: 2026-11-25 (ad-hoc, no story: PR #140 CI (first run since the ci.yml YAML fix) failed rls-tests and e2e-tests while replaying migrations from scratch at 0180_class_schedule_slots.sql (Story 29-1): a bare LOCK TABLE outside a transaction (the Supabase CLI replays a migration statement by statement, so a fresh supabase start, CI or supabase db reset fails with 'LOCK TABLE can only be used in transaction blocks'). Production was NOT affected: scripts/deploy-migration.sh wraps the file in begin ... commit, so 0180 applied fine there (applied 2026-11-25). Local ci-local never replays from scratch (it runs against the existing local DB), so the gate could not see it. Fix: the lock is now in a DO block (held to the end of the migration inside the deploy transaction, harmless in a replay); the file in production and the file in the repo now differ by that block only, with identical effect. Proof: supabase db reset with CLI 2.109.0 (the CI version) replayed all 192 migrations, ledger head 0192. typecheck passed in the same CI run. A from-scratch replay is a candidate ci-local stage.)
+# last_updated: 2026-11-25 (ad-hoc, no story: PR #140 (epic/31 -> master, Epics 28 to 31 plus the Expo SDK 58 upgrade) MERGED at the owner's go-ahead, merge commit 52ef727, after CI went green on its second run (typecheck, rls-tests, e2e-tests, all three Vercel projects). Two CI blockers fixed on the way: ci.yml was invalid YAML (an unquoted ': ' in the 28-2 step name, so no CI could start) and 0180_class_schedule_slots.sql had a bare LOCK TABLE that fails in a from-scratch replay (now a DO block; production unaffected). Epics 28, 29, 30, 31 set in-progress -> done (the three epic-N-retrospective entries stay optional). Production: migrations 0177 to 0192 were applied earlier today, so schema and app code now match; the engagement area stays DARK until the operator sets platform_engagement_config.release_week_start. Vercel deploys of master were pending at merge time (not yet verified). NOT done: the mobile build (package.json still 1.7.0, bump to 1.8.0), retrospectives, branch cleanup recorded separately.)
