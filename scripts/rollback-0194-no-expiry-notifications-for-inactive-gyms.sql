@@ -135,5 +135,5 @@ begin
 end;
 $$;
 
-revoke execute on function private.send_push_notification(uuid, text) from public;
+revoke execute on function private.send_push_notification(uuid, text) from public, anon;
 grant execute on function private.send_push_notification(uuid, text) to service_role;
