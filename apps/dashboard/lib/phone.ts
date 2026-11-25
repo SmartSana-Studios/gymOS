@@ -4,6 +4,7 @@ import {
   parsePhoneNumberFromString,
   type CountryCode,
 } from "libphonenumber-js";
+import { isTargetCountry } from "@gymos/types";
 
 /** Default for a gym that has not chosen one (matches `gyms.country`'s DB
  * default, 0105, and every phone field's default in the product). */
@@ -36,10 +37,12 @@ export interface PhoneCountryOption {
 }
 
 /** Every selectable country, sorted by localized name -- same source and
- * ordering as the shared PhoneInput's global picker. */
-export function listPhoneCountries(locale: string): PhoneCountryOption[] {
+ * ordering as the shared PhoneInput's global picker. Owner decision 2026-11-25: Sub-Saharan Africa only; `keep` adds countries that must stay selectable
+ * anyway (the gym's own, saved before the list was narrowed) so an existing setting still shows and saves. */
+export function listPhoneCountries(locale: string, keep: readonly string[] = []): PhoneCountryOption[] {
   const displayNames = new Intl.DisplayNames([locale], { type: "region" });
   return getCountries()
+    .filter((code) => isTargetCountry(code) || keep.includes(code))
     .map((code) => ({
       code,
       name: displayNames.of(code) ?? code,

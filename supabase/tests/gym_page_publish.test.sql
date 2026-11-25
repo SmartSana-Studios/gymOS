@@ -692,7 +692,8 @@ select pg_temp.settle();
 select is((select (content -> 'map' ->> 'lat') || '|' || (content -> 'map' ->> 'lng') from gym_pages where gym_id = pg_temp.g('P')::uuid), '5.500000|10.500000', 'the position changed in the snapshot');
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
 -- 25.1: a country change clears a city of the old country (the gate would fail), so P moves country AND city together, through the setter
-select ok(add_city('GA', 'Libreville') is not null and add_city('GA', 'Port-Gentil') is not null, '25.1: a Super Admin adds two Gabon cities');
+-- 0195 seeded the main Gabon towns; the test uses the seeded Libreville and Port-Gentil instead of adding them (add_city itself is covered in countries_cities.test.sql).
+select ok((select count(*) from cities where country_code = 'GA' and slug in ('libreville', 'port-gentil')) = 2, '25.1: the two Gabon cities are in the list');
 select is(pg_temp.err($$select set_gym_location('$$ || pg_temp.g('P') || $$', 'GA', '$$ || (select id from cities where country_code = 'GA' and slug = 'libreville') || $$')$$), 'ok', '25.1: a Super Admin moves P to Gabon with a Gabon city');
 select pg_temp.settle();
 select is((select content ->> 'country' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'GA', 'the country changed in the snapshot');
