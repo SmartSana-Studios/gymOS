@@ -22,10 +22,14 @@ import { LogoutButton } from "@/components/logout-button";
  * >=768px renders nothing -- `(admin)/layout.tsx` keeps the pre-existing
  * flat inline nav there via `hidden md:contents`, unchanged.
  */
+export type MobileNavEntry =
+  | { type: "link"; href: string; label: string }
+  | { type: "group"; label: string; items: { href: string; label: string }[] };
+
 export function MobileNavMenu({
-  navLinks,
+  entries,
 }: {
-  navLinks: { href: string; label: string }[];
+  entries: MobileNavEntry[];
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -103,16 +107,32 @@ export function MobileNavMenu({
             className="absolute inset-x-0 top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto border-b bg-background p-4 shadow-lg"
           >
             <nav className="flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <AdminNavLink
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className="block rounded px-3 py-2 hover:bg-muted"
-                >
-                  {link.label}
-                </AdminNavLink>
-              ))}
+              {entries.map((entry) =>
+                entry.type === "link" ? (
+                  <AdminNavLink
+                    key={entry.href}
+                    href={entry.href}
+                    onClick={() => setOpen(false)}
+                    className="block rounded px-3 py-2 hover:bg-muted"
+                  >
+                    {entry.label}
+                  </AdminNavLink>
+                ) : (
+                  <div key={entry.label} role="group" aria-label={entry.label} className="mt-2 flex flex-col gap-1">
+                    <p className="px-3 pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{entry.label}</p>
+                    {entry.items.map((item) => (
+                      <AdminNavLink
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        className="block rounded px-3 py-2 hover:bg-muted"
+                      >
+                        {item.label}
+                      </AdminNavLink>
+                    ))}
+                  </div>
+                ),
+              )}
             </nav>
             <div className="mt-4 flex items-center gap-3 border-t pt-4">
               <LanguageToggle />

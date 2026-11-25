@@ -7,7 +7,9 @@ import { loginRedirectFor } from "@/lib/auth-redirect";
 import { createClient } from "@/lib/supabase/server";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { AdminNavGroup } from "@/components/AdminNavGroup";
 import { AdminNavLink } from "@/components/AdminNavLink";
+import { NAV_ENTRIES } from "@/lib/nav";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { NoticeBell } from "@/components/NoticeBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -15,21 +17,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { MobileNavMenu } from "@/components/MobileNavMenu";
 import { Watermark } from "@/components/Watermark";
 
-// Single source of truth for both the >=768px inline nav and the <768px
-// hamburger panel (MobileNavMenu) below, so the two can never drift apart.
-const NAV_LINKS = [
-  { href: "/gyms", labelKey: "nav.gyms" },
-  { href: "/metrics", labelKey: "nav.metrics" },
-  { href: "/tiers", labelKey: "nav.tiers" },
-  { href: "/cities", labelKey: "nav.cities" },
-  { href: "/payment-providers", labelKey: "nav.paymentProviders" },
-  { href: "/messaging", labelKey: "nav.messaging" },
-  { href: "/billing", labelKey: "nav.billing" },
-  { href: "/admins", labelKey: "nav.admins" },
-  { href: "/support", labelKey: "nav.support" },
-  { href: "/pages", labelKey: "nav.pages" },
-  { href: "/security", labelKey: "nav.security" },
-] as const;
+
 
 // Auth-gated: this segment reads the session and may redirect, so it is allowed to block on navigation
 // (silences the dev-only "validate instant UI" overlay; no effect on the build).
@@ -72,7 +60,12 @@ async function AdminLayoutData({
   }
 
   const { t } = await getServerTranslation(await getRequestLocale());
-  const navLinks = NAV_LINKS.map((link) => ({ href: link.href, label: t(link.labelKey) }));
+  // Labels resolved on the server; the inline bar and the hamburger panel both read this one list (lib/nav.ts).
+  const navEntries = NAV_ENTRIES.map((entry) =>
+    entry.type === "link"
+      ? { type: "link" as const, href: entry.href, label: t(entry.labelKey) }
+      : { type: "group" as const, label: t(entry.labelKey), items: entry.items.map((i) => ({ href: i.href, label: t(i.labelKey) })) },
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -102,11 +95,15 @@ async function AdminLayoutData({
           2-3 lines of vertical space on every page just for nav).
         */}
         <div className="hidden md:contents">
-          {NAV_LINKS.map((link) => (
-            <AdminNavLink key={link.href} href={link.href}>
-              {t(link.labelKey)}
-            </AdminNavLink>
-          ))}
+          {navEntries.map((entry) =>
+            entry.type === "link" ? (
+              <AdminNavLink key={entry.href} href={entry.href}>
+                {entry.label}
+              </AdminNavLink>
+            ) : (
+              <AdminNavGroup key={entry.label} label={entry.label} items={entry.items} />
+            ),
+          )}
           <LanguageToggle />
           <ThemeToggle />
           <LogoutButton />
@@ -117,7 +114,7 @@ async function AdminLayoutData({
           <NoticeBell />
         </div>
 
-        <MobileNavMenu navLinks={navLinks} />
+        <MobileNavMenu entries={navEntries} />
       </div>
       </nav>
       <main className="mx-auto w-full max-w-screen-2xl flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</main>

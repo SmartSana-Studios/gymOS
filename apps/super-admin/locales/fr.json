@@ -15,6 +15,9 @@
   "nav": {
     "brand": "GymOS Super Admin",
     "gyms": "Salles",
+    "allGyms": "Toutes les salles",
+    "overview": "Vue d'ensemble",
+    "groups": { "gyms": "Salles", "publicPages": "Pages publiques", "platform": "Plateforme", "access": "Accès" },
     "metrics": "Statistiques",
     "tiers": "Paliers",
     "cities": "Villes",
