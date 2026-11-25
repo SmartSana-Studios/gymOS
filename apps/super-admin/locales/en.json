@@ -15,6 +15,9 @@
   "nav": {
     "brand": "GymOS Super Admin",
     "gyms": "Gyms",
+    "allGyms": "All gyms",
+    "overview": "Overview",
+    "groups": { "gyms": "Gyms", "publicPages": "Public pages", "platform": "Platform", "access": "Access" },
     "metrics": "Metrics",
     "tiers": "Tiers",
     "cities": "Cities",
