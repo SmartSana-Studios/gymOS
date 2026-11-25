@@ -5,6 +5,18 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-25 — Members of a suspended or deactivated gym no longer receive the expiry notices (migration 0194)
+
+**The report (owner, 2026-11-25).** While SMARTSANA FITNESS was deactivated its members kept receiving notifications. Cause: `run_subscription_lifecycle_job()` moves subscriptions to `expiring_soon`, `grace_period` and `expired` and calls `private.send_push_notification()` for N-01 (7 days), N-02 (tomorrow) and N-03 (expired), and neither the job nor the sender looked at the gym's status. A read of every notification sender in production found the others already filter: the class reminder job and the quiet-gym alert job require `gyms.status = 'active'`, and the streak reminder (N-08) checks the gym status in `send_engagement_reminder`. The payment receipt (`send_payment_push_notification`) is unchanged on purpose: it confirms a payment the member just made. Notifications already queued in `notification_deliveries` before a gym is deactivated are still delivered by the processor (a small window, not changed here).
+
+**Owner decision (2026-11-25): the rule covers suspended gyms as well as deactivated ones.** 0194 adds one guard to the sender, the single place all three notices pass through: a gym whose status is not `active` writes no dispatch row and no history row and sends nothing. The job keeps moving the subscription states (they are data, not messages). A skipped notice is not replayed when the gym is reactivated: the notices are exact-day events (N-01 fires only on the +7 day, N-02 on the +1 day, N-03 on the run that expires the subscription), so a stale "expires tomorrow" cannot arrive later. Rollback: `scripts/rollback-0194-no-expiry-notifications-for-inactive-gyms.sql` (restores the 0084 body).
+
+**Proof.** `supabase/tests/no_expiry_notifications_for_inactive_gyms.test.sql` (10 assertions: an active gym still dispatches and writes its history row; a suspended and a deactivated gym write neither; an unsupported code is still refused; the job still moves a suspended gym's subscription to `expiring_soon` and sends nothing; the active gym keeps exactly one N-01). Run once against the 0084 body: 5 assertions failed; with 0194 restored it passes. The existing notification files pass (lifecycle 84, lifecycle negative 12, history 11, suspension coverage 12, N-08 191).
+
+**Rollout.** Local only until applied to production with `scripts/deploy-migration.sh 0194` (replaces one function, no data change, no app change).
+
+---
+
 ## 2026-11-25 — Reactivating a gym whose billing is due now requires a billing credit or a payment (migration 0193)
 
 **The hole (found by the owner, 2026-11-25).** `run_saas_billing_lifecycle_job()` suspends a gym past its grace period by setting `status = 'suspended'` and `saas_billing_status = 'suspended'` together, and afterwards only looks at gyms whose billing status is `active`, `past_due` or `grace_period`. The Super Admin Reinstate action wrote `status = 'active'` alone, so a reinstated gym ran again with its billing status still `suspended` and its due date in the past: the job skipped it for ever and nothing set a new due date, so it stayed active for free with no end. Production showed it on SMARTSANA FITNESS (status `active`, billing `suspended`, due 2026-11-04, grace over on 2026-11-16). A deactivated gym had the same hole, because the job's past_due and grace_period steps have no status filter and its billing status keeps drifting while Reinstate never looked at it.
