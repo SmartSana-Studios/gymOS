@@ -82,7 +82,15 @@ set local lock_timeout = '10s';
 -- 0b. Snapshot of the sessions and bookings, compared by the self-check at the end ---------
 -- The share lock keeps a live booking or the daily job from landing between the snapshot and the self-check (which would make a correct
 -- migration roll back on a count or md5 difference); it blocks writers to the two tables for the length of this migration.
-lock table class_sessions, class_bookings in share mode;
+-- A DO block, not a bare statement: the Supabase CLI replays a migration file statement by statement outside a transaction (a fresh `supabase start`, CI,
+-- `supabase db reset`), where a bare LOCK TABLE fails with "can only be used in transaction blocks". scripts/deploy-migration.sh wraps the file in begin ... commit, so
+-- in a production apply the lock taken here is held to the end of the migration, as designed; in a replay it is released at once, which is harmless on a database
+-- the migration is building from nothing.
+do $lock$
+begin
+  lock table class_sessions, class_bookings in share mode;
+end;
+$lock$;
 
 create temp table m0180_before as
 select
