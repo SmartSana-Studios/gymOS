@@ -147,15 +147,18 @@ select ok(private.place_norm('Yaounde') = private.place_norm('Yaoundé ') and pr
 -- ============================================================================================================
 select is((select count(*)::int from countries), 249, 'countries holds the 249 ISO 3166-1 alpha-2 codes');
 select is((select name_en || '|' || name_fr from countries where code = 'CM'), 'Cameroon|Cameroun', 'a country has an English and a French name');
-select is((select array_agg(slug order by slug) from cities where country_code = 'CM'),
+-- 0195 added more main towns, so the starters are checked as present (a subset), not as the whole list.
+select is((select array_agg(slug order by slug) from cities where country_code = 'CM' and slug = any (array['bafoussam', 'bamenda', 'bertoua', 'buea', 'douala', 'ebolowa', 'garoua', 'kribi', 'limbe', 'maroua', 'ngaoundere', 'yaounde'])),
           array['bafoussam', 'bamenda', 'bertoua', 'buea', 'douala', 'ebolowa', 'garoua', 'kribi', 'limbe', 'maroua', 'ngaoundere', 'yaounde'],
           'the twelve Cameroon starter cities are seeded');
-select is((select count(*)::int from cities where country_code = 'CM' and lat is not null and lng is not null), 12, 'every starter city has coordinates');
+select is((select count(*)::int from cities where country_code = 'CM' and lat is not null and lng is not null
+             and slug = any (array['bafoussam', 'bamenda', 'bertoua', 'buea', 'douala', 'ebolowa', 'garoua', 'kribi', 'limbe', 'maroua', 'ngaoundere', 'yaounde'])), 12, 'every starter city has coordinates');
 select is((select name from cities where country_code = 'CM' and slug = 'yaounde'), 'Yaoundé', 'the display name keeps its accent while the slug is ASCII');
 select is((select count(*)::int from cities c where not exists
             (select 1 from city_aliases a where a.city_id = c.id and a.is_name and a.alias_norm = private.place_norm(c.name) and a.country_code = c.country_code)), 0,
           'every city answers to its own name (one is_name alias row)');
-select is((select count(*)::int from cities where country_code <> 'CM'), 0, 'nothing else is seeded: no other country has a city');
+-- 0195 seeds main towns for the 49 Sub-Saharan countries (subsaharan_main_towns.test.sql); here only the foreign key matters: every town's country exists.
+select is((select count(*)::int from cities c where not exists (select 1 from countries k where k.code = c.country_code)), 0, 'every city belongs to a listed country');
 
 -- constraints (as postgres: the table CHECKs and uniques hold on their own)
 select throws_ok($$insert into cities (country_code, slug, name) values ('CM', 'Bad Slug', 'X')$$, '23514', null, 'CHECK: a slug is lowercase ASCII with single hyphens');
@@ -215,7 +218,7 @@ select is(pg_temp.as_reader('select count(*) from public.city_aliases'), 'ERR:42
 select is(pg_temp.as_reader('select count(*) from public.cities'), 'ERR:42501', 'nor cities');
 set local role authenticated;
 select pg_temp.claims(pg_temp.u('ownerA'), 'owner', pg_temp.g('A'));
-select is(pg_temp.val($$select count(*) from cities$$), '12', 'an Owner reads the cities');
+select cmp_ok(pg_temp.val($$select count(*) from cities$$)::int, '>=', 12, 'an Owner reads the cities (0195 seeded more than the twelve starters)');
 select is(pg_temp.val($$select count(*) from countries$$), '249', 'and the countries');
 select is(pg_temp.val($$select name from cities where slug = 'douala' and country_code = 'CM'$$), 'Douala', 'and a city''s name');
 select is(pg_temp.val($$select count(*) from city_slug_history$$), '42501:permission denied for table city_slug_history', 'the slug history is not client readable');
@@ -331,9 +334,10 @@ select is((select count(*)::int from audit_log where action_type = 'city_added' 
 select is((select metadata ->> 'name' from audit_log where action_type = 'city_added' and metadata ->> 'slug' = 'mbouda'), 'Mbouda', 'and holds the stored name');
 set local role authenticated;
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
-select ok(pg_temp.val($$select add_city('SN', 'Dakar')$$) ~ '^[0-9a-f-]{36}$', 'a Super Admin adds a Senegal city');
+-- 0195 seeded the main Senegal towns (Dakar, Thies), so the test adds towns that are not in the seed; the seeded Dakar serves as the Senegal city below.
+select ok(pg_temp.val($$select add_city('SN', 'Kaolack Test')$$) ~ '^[0-9a-f-]{36}$', 'a Super Admin adds a Senegal city');
 select ok(pg_temp.val($$select add_city('SN', 'Douala', null, array['Yaounde'])$$) ~ '^[0-9a-f-]{36}$', 'the same name, slug and alias in ANOTHER country are fine (uniques are per country)');
-select ok(pg_temp.val($$select add_city(' sn ', 'Thiès', 'thies-city')$$) ~ '^[0-9a-f-]{36}$', 'a lower-case padded country code and an explicit slug are accepted');
+select ok(pg_temp.val($$select add_city(' sn ', 'Thiès Test', 'thies-city')$$) ~ '^[0-9a-f-]{36}$', 'a lower-case padded country code and an explicit slug are accepted');
 select pg_temp.claims(pg_temp.u('ownerA'), 'owner', pg_temp.g('A'));
 select is(pg_temp.err($$select add_city('CM', 'Owner City')$$), 'P0001:permission denied', 'an Owner cannot add a city');
 select pg_temp.claims(pg_temp.u('support'), 'support', pg_temp.g('A'), '00000000-0000-0000-0000-0000000250a1');
@@ -433,11 +437,11 @@ select is((select array_agg(alias_norm order by alias_norm collate "C") from cit
 -- returning to a slug of its own removes that history row
 set local role authenticated;
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
-select ok(pg_temp.val($$select add_city('CM', 'Kumba', null, '{}', 4.64, 9.45)$$) ~ '^[0-9a-f-]{36}$', 'a city to move around');
-select is(pg_temp.err(format($q$select update_city(%L, 'Kumba', 'kumba-2', null, 4.64, 9.45)$q$, pg_temp.cid('CM', 'kumba'))), 'ok', 'kumba -> kumba-2');
-select is(pg_temp.err(format($q$select update_city(%L, 'Kumba', 'kumba', null, 4.64, 9.45)$q$, pg_temp.cid('CM', 'kumba-2'))), 'ok', 'kumba-2 -> kumba (its own old slug)');
+select ok(pg_temp.val($$select add_city('CM', 'Moveville', null, '{}', 4.64, 9.45)$$) ~ '^[0-9a-f-]{36}$', 'a city to move around');
+select is(pg_temp.err(format($q$select update_city(%L, 'Moveville', 'moveville-2', null, 4.64, 9.45)$q$, pg_temp.cid('CM', 'moveville'))), 'ok', 'moveville -> moveville-2');
+select is(pg_temp.err(format($q$select update_city(%L, 'Moveville', 'moveville', null, 4.64, 9.45)$q$, pg_temp.cid('CM', 'moveville-2'))), 'ok', 'moveville-2 -> moveville (its own old slug)');
 reset role;
-select is((select array_agg(old_slug order by old_slug) from city_slug_history where city_id = pg_temp.cid('CM', 'kumba')), array['kumba-2'], 'its own old slug left the history; the slug it just left is in');
+select is((select array_agg(old_slug order by old_slug) from city_slug_history where city_id = pg_temp.cid('CM', 'moveville')), array['moveville-2'], 'its own old slug left the history; the slug it just left is in');
 set local role anon;
 select is(pg_temp.err($$select update_city('00000000-0000-0000-0000-000000009999', 'x', null, null, null, null)$$), '42501:permission denied for function update_city', 'anon cannot execute update_city');
 reset role;

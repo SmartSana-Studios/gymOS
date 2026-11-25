@@ -9,7 +9,7 @@ import {
   parsePhoneNumberFromString,
   type CountryCode,
 } from "libphonenumber-js";
-import { TARAMONEY_SUPPORTED_COUNTRIES } from "@gymos/types";
+import { isTargetCountry, TARAMONEY_SUPPORTED_COUNTRIES } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -46,13 +46,21 @@ function flagEmoji(code: string): string {
 
 function buildGlobalCountries(locale: string): CountryOption[] {
   const displayNames = new Intl.DisplayNames([locale], { type: "region" });
+  // Owner decision 2026-11-25: the picker offers Sub-Saharan Africa only (packages/types subSaharanAfrica). A saved number from another country is kept as an
+  // extra option by the component below, so it still displays and can be edited.
   return getCountries()
+    .filter((code) => isTargetCountry(code))
     .map((code) => ({
       code,
       name: displayNames.of(code) ?? code,
       callingCode: getCountryCallingCode(code),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function optionForCountry(code: CountryCode, locale: string): CountryOption {
+  const displayNames = new Intl.DisplayNames([locale], { type: "region" });
+  return { code, name: displayNames.of(code) ?? code, callingCode: getCountryCallingCode(code) };
 }
 
 function buildTaraMoneyCountries(): CountryOption[] {
@@ -91,9 +99,19 @@ export function PhoneInput({
   const { t, i18n } = useTranslation();
   const [open, setOpen] = React.useState(false);
 
-  const options = React.useMemo(
+  const baseOptions = React.useMemo(
     () => (countries === "tara-money" ? buildTaraMoneyCountries() : buildGlobalCountries(i18n.language)),
     [countries, i18n.language],
+  );
+  // A value already held (a member or owner saved with a number from outside the offered list) keeps its own country as an extra option: without it the field
+  // would fall back to Cameroon with an empty number and blank the saved phone on the next edit.
+  const heldCountry = React.useMemo(() => (value ? (parsePhoneNumberFromString(value)?.country ?? null) : null), [value]);
+  const options = React.useMemo(
+    () =>
+      heldCountry && !baseOptions.some((option) => option.code === heldCountry)
+        ? [...baseOptions, optionForCountry(heldCountry, i18n.language)].sort((a, b) => a.name.localeCompare(b.name))
+        : baseOptions,
+    [baseOptions, heldCountry, i18n.language],
   );
 
   function deriveFromValue(nextValue: string | null): { country: CountryCode; nationalNumber: string } {

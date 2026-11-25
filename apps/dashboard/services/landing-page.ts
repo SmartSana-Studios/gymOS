@@ -25,6 +25,7 @@ import {
   type PageNameErrorCode,
   type PagePublishErrorCode,
   type PublishGymPageResult,
+  isTargetCountry,
 } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -290,7 +291,8 @@ export async function getLandingPageData(): ServiceResult<LandingPageData> {
         // Only countries Settings also accepts: it validates gyms.country against the phone-region list, so a gym placed in a
         // country outside it (the seed has AQ, BV, GS, HM, PN, TF, UM) could not save its Settings any more.
         countries: (countriesRes.data ?? [])
-          .filter((c) => isSupportedPhoneCountry(c.code))
+          // Owner decision 2026-11-25: Sub-Saharan Africa only, plus the gym's own country when it was saved outside that list.
+          .filter((c) => isSupportedPhoneCountry(c.code) && (isTargetCountry(c.code) || c.code === content.country))
           .map((c) => ({ code: c.code, nameEn: c.name_en, nameFr: c.name_fr })),
         cities: cities.data,
       },
